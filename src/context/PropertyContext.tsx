@@ -1,5 +1,6 @@
 "use client";
 
+// Property context for managing property data and calculations
 import React, { createContext, useContext, useMemo, useCallback, ReactNode, useEffect, useState } from 'react';
 import { getAllProperties, getPortfolioMetrics } from '@/data/properties';
 import { 
