@@ -294,7 +294,8 @@ const preparePropertyData = (property: Property): Property => {
 
   const purchasePrice = ensureNumber(cloned.purchasePrice);
   const closingCosts = ensureNumber(cloned.closingCosts);
-  const initialRenovations = ensureNumber((cloned as any).initialRenovations);
+  // Type assertion needed because initialRenovations is optional and may not be present in all property data
+  const initialRenovations = ensureNumber('initialRenovations' in cloned ? (cloned as any).initialRenovations : undefined);
   const renovationCosts = ensureNumber((cloned as any).renovationCosts);
 
   cloned.mortgage = {
