@@ -293,7 +293,7 @@ const preparePropertyData = (property: Property): Property => {
 
   const purchasePrice = ensureNumber(cloned.purchasePrice);
   const closingCosts = ensureNumber(cloned.closingCosts);
-  const initialRenovations = ensureNumber(cloned.initialRenovations);
+  const initialRenovations = ensureNumber((cloned as any).initialRenovations);
   const renovationCosts = ensureNumber((cloned as any).renovationCosts);
 
   cloned.mortgage = {
