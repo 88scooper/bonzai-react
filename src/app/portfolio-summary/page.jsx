@@ -284,17 +284,26 @@ export default function PortfolioSummaryPage() {
   // Calculate portfolio totals from actual data
   const totalPortfolioValue = portfolioMetrics.totalValue || 0;
   const totalEquity = portfolioMetrics.totalEquity || 0;
+  
+  // Calculate total purchase prices and appreciation
+  const totalPurchasePrices = (properties || []).reduce((sum, property) => {
+    const price = Number(property?.purchasePrice) || 0;
+    return sum + (isNaN(price) ? 0 : price);
+  }, 0);
+  const appreciationPercentage = totalPurchasePrices > 0 && !isNaN(totalPortfolioValue) && !isNaN(totalPurchasePrices)
+    ? Math.floor(((Number(totalPortfolioValue) - totalPurchasePrices) / totalPurchasePrices) * 100)
+    : 0;
   const totalProperties = portfolioMetrics.totalProperties || 0;
-  const totalUnits = properties.reduce((sum, property) => sum + (property.units || 0), 0);
-  const totalSquareFeet = properties.reduce((sum, property) => sum + (property.size || property.squareFootage || 0), 0);
+  const totalUnits = (properties || []).reduce((sum, property) => sum + (property.units || 0), 0);
+  const totalSquareFeet = (properties || []).reduce((sum, property) => sum + (property.size || property.squareFootage || 0), 0);
   const averageRentPerSqFt = totalSquareFeet > 0 ? (portfolioMetrics.totalMonthlyRent || 0) / totalSquareFeet : 0;
   const averageOccupancyRate = portfolioMetrics.averageOccupancy || 0;
   const averageCapRate = portfolioMetrics.averageCapRate || 0;
 
-  const occupiedPropertiesCount = properties.filter((property) => Boolean(property?.tenant?.name)).length;
-  const occupancyRate = properties.length > 0 ? occupiedPropertiesCount / properties.length : 0;
+  const occupiedPropertiesCount = (properties || []).filter((property) => Boolean(property?.tenant?.name)).length;
+  const occupancyRate = (properties || []).length > 0 ? occupiedPropertiesCount / (properties || []).length : 0;
 
-  const expenseAggregates = properties.reduce(
+  const expenseAggregates = (properties || []).reduce(
     (acc, property) => {
       const monthlyExpenses = property.monthlyExpenses || {};
 
@@ -335,7 +344,7 @@ export default function PortfolioSummaryPage() {
   const totalTrackedExpenses = expenseCategoryList.reduce((sum, category) => sum + category.value, 0);
 
   // Calculate deductible expense aggregates (operating expenses + mortgage interest, but NOT mortgage principal)
-  const deductibleExpenseAggregates = properties.reduce(
+  const deductibleExpenseAggregates = (properties || []).reduce(
     (acc, property) => {
       const monthlyExpenses = property.monthlyExpenses || {};
       
@@ -389,7 +398,7 @@ export default function PortfolioSummaryPage() {
 
   // 3. Blended Cash on Cash Return = Total Annual Cash Flow Before Tax / Total Initial Cash Invested
   const totalAnnualCashFlowBeforeTax = portfolioMetrics.totalAnnualCashFlow || 0;
-  const totalInitialCashInvested = properties.reduce((sum, property) => {
+  const totalInitialCashInvested = (properties || []).reduce((sum, property) => {
     const hasTotalInvestment = typeof property.totalInvestment === "number" && !Number.isNaN(property.totalInvestment);
     const fallbackDownPayment = Math.max(
       0,
@@ -402,7 +411,7 @@ export default function PortfolioSummaryPage() {
 
   // 4. Anticipated Annual Equity Built = Sum of annual principal payments from all mortgages
   // This accounts for rent paid to date and anticipated rent for the remainder of the year
-  const annualEquityBuilt = properties.reduce((sum, property) => {
+  const annualEquityBuilt = (properties || []).reduce((sum, property) => {
     if (property.mortgage && property.monthlyExpenses?.mortgagePrincipal) {
       // Calculate equity built based on rent paid to date and anticipated rent
       const monthlyPrincipal = property.monthlyExpenses.mortgagePrincipal;
@@ -592,7 +601,7 @@ export default function PortfolioSummaryPage() {
                           currency: 'CAD',
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
-                        }).format(Math.floor(totalPortfolioValue))}
+                        }).format(Math.floor(totalPortfolioValue || 0))}
                         icon={Building2}
                         accent="emerald"
                         supporting={`${new Intl.NumberFormat('en-CA', {
@@ -600,7 +609,7 @@ export default function PortfolioSummaryPage() {
                           currency: 'CAD',
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
-                        }).format(Math.floor(totalEquity))} equity • ${new Intl.NumberFormat('en-CA', {
+                        }).format(Math.floor(totalEquity))} equity (${isNaN(appreciationPercentage) ? 0 : appreciationPercentage}%) • ${new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
                           minimumFractionDigits: 0,
@@ -717,10 +726,10 @@ export default function PortfolioSummaryPage() {
                       <MetricCard
                         key={metric.id}
                         title="Total Estimated Portfolio Value"
-                        value={formatCurrency(totalPortfolioValue)}
+                        value={formatCurrency(totalPortfolioValue || 0)}
                         showInfoIcon={true}
                         tooltipText="The estimated current market value of all properties in your portfolio."
-                        subtitle={`${formatCurrency(totalEquity)} equity • ${formatCurrency(totalMortgageDebt)} debt`}
+                        subtitle={`${formatCurrency(totalEquity)} equity (${isNaN(appreciationPercentage) ? 0 : appreciationPercentage}%) • ${formatCurrency(totalMortgageDebt)} debt`}
                       />
                     );
                   case 'equity': {
