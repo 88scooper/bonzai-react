@@ -7,11 +7,9 @@ import { RequireAuth } from "@/context/AuthContext";
 import Button from "@/components/Button";
 import { useProperty } from "@/context/PropertyContext";
 import { formatCurrency, formatPercentage, formatNumber } from "@/utils/formatting";
-import { calculateAmortizationSchedule } from "@/utils/mortgageCalculator";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import AnnualExpenseChart from '@/components/charts/AnnualExpenseChart';
 import { useToast } from "@/context/ToastContext";
-import MortgageFormUpgraded from "@/components/mortgages/MortgageFormUpgraded";
 import { X, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import { DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
@@ -41,7 +39,6 @@ export default function PropertyDetailPage() {
   // Modal state management
   const [showEditPropertyModal, setShowEditPropertyModal] = useState(false);
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
-  const [showEditMortgageModal, setShowEditMortgageModal] = useState(false);
   
   // Get property data using propertyId from PropertyContext
   const property = useProperty(propertyId);
@@ -49,36 +46,6 @@ export default function PropertyDetailPage() {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
-
-  // Calculate mortgage schedule and current balance
-  const mortgageData = useMemo(() => {
-    if (!property?.mortgage) return null;
-    
-    try {
-      const schedule = calculateAmortizationSchedule(property.mortgage);
-      const now = new Date();
-      const startDate = new Date(property.mortgage.startDate || property.purchaseDate);
-      const monthsElapsed = Math.max(0, (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth()));
-      
-      const currentPayment = schedule.payments[monthsElapsed] || schedule.payments[0];
-      const currentBalance = currentPayment?.remainingBalance || property.mortgage.originalAmount;
-      const principalPaid = property.mortgage.originalAmount - currentBalance;
-      const totalInterestPaid = schedule.payments.slice(0, monthsElapsed).reduce((sum, payment) => sum + payment.interest, 0);
-      
-      return {
-        schedule: schedule.payments,
-        currentBalance,
-        principalPaid,
-        totalInterestPaid,
-        monthsElapsed,
-        totalPayments: schedule.payments.length,
-        monthlyPayment: schedule.payments[0]?.monthlyPayment || 0
-      };
-    } catch (error) {
-      console.error('Error calculating mortgage data:', error);
-      return null;
-    }
-  }, [property]);
 
   const [expenseView, setExpenseView] = useState('monthly'); // 'monthly' or 'annual'
   const [hoveredSegment, setHoveredSegment] = useState(null); // For hover interactions
@@ -107,7 +74,6 @@ export default function PropertyDetailPage() {
     generalNotes: false,
     propertyFinancials: true,
     historicalPerformance: true,
-    mortgageDetails: true,
     currentTenants: true,
     annualExpenseHistory: true
   });
@@ -673,168 +639,6 @@ export default function PropertyDetailPage() {
               {/* Year-over-Year Analysis */}
               <YoYAnalysis property={property} assumptions={DEFAULT_ASSUMPTIONS} baselineAssumptions={DEFAULT_ASSUMPTIONS} />
 
-              {/* Enhanced Mortgage Details */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <button
-                    onClick={() => toggleSection('mortgageDetails')}
-                    className="flex items-center justify-between flex-1 hover:opacity-80 transition-opacity"
-                  >
-                    <h2 className="text-xl font-semibold">Mortgage Details</h2>
-                    {openSections.mortgageDetails ? (
-                      <ChevronUp className="w-5 h-5 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
-                    )}
-                  </button>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => setShowEditMortgageModal(true)}>
-                      Edit Mortgage
-                    </Button>
-                  </div>
-                </div>
-                {openSections.mortgageDetails && (
-                  <div>
-                
-                {/* Mortgage Summary Cards */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-                  <div className="bg-gradient-to-br from-[#205A3E]/10 to-[#205A3E]/5 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Monthly Payment</div>
-                    <div className="text-xl font-bold text-[#205A3E]">
-                      {formatCurrency(mortgageData?.monthlyPayment || 0)}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {mortgageData ? `${mortgageData.monthsElapsed}/${mortgageData.totalPayments} payments made` : 'Payment progress'}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Current Balance</div>
-                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                      {formatCurrency(mortgageData?.currentBalance || property.mortgage.originalAmount)}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {mortgageData && property.mortgage.originalAmount ? 
-                        `${((mortgageData.principalPaid / property.mortgage.originalAmount) * 100).toFixed(1)}% paid off` : 
-                        'Original loan amount'
-                      }
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/10 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Principal Paid</div>
-                    <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {formatCurrency(mortgageData?.principalPaid || 0)}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {formatCurrency(property.mortgage.originalAmount)} original
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/10 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Interest Paid</div>
-                    <div className="text-xl font-bold text-orange-600 dark:text-orange-400">
-                      {formatCurrency(mortgageData?.totalInterestPaid || 0)}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {formatPercentage(property.mortgage.interestRate * 100)} interest rate
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="space-y-4">
-                    <h3 className="font-medium text-gray-900 dark:text-white">Loan Information</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Lender</span>
-                        <span className="font-medium">{property.mortgage.lender}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Original Loan Amount</span>
-                        <span className="font-medium">{formatCurrency(property.mortgage.originalAmount)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Start Date</span>
-                        <span className="font-medium">
-                          {property.mortgage.startDate ? new Date(property.mortgage.startDate).toLocaleDateString() : 'N/A'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Term Length</span>
-                        <span className="font-medium">{property.mortgage.termMonths / 12} years</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Amortization</span>
-                        <span className="font-medium">{property.mortgage.amortizationYears || 'N/A'} years</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h3 className="font-medium text-gray-900 dark:text-white">Payment Details</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Payment Frequency</span>
-                        <span className="font-medium">{property.mortgage.paymentFrequency || 'Monthly'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Rate Type</span>
-                        <span className="font-medium">{property.mortgage.rateType || 'Fixed'}</span>
-                      </div>
-                      {property.mortgage.nextPaymentDate && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Next Payment Due</span>
-                          <span className="font-medium">
-                            {new Date(property.mortgage.nextPaymentDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
-                      {property.mortgage.renewalDate && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Renewal Date</span>
-                          <span className="font-medium">
-                            {new Date(property.mortgage.renewalDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
-                      {property.mortgage.mortgageNumber && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Mortgage Number</span>
-                          <span className="font-medium text-sm">{property.mortgage.mortgageNumber}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Progress Bar */}
-                {mortgageData && property.mortgage.originalAmount && (
-                  <div className="mt-6 pt-4 border-t border-black/10 dark:border-white/10">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600 dark:text-gray-400">Payment Progress</span>
-                      <span className="font-medium">
-                        {`${((mortgageData.principalPaid / property.mortgage.originalAmount) * 100).toFixed(1)}%`}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-[#205A3E] to-[#2d7a5a] h-2 rounded-full transition-all duration-300"
-                        style={{ 
-                          width: `${(mortgageData.principalPaid / property.mortgage.originalAmount) * 100}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      <span>{formatCurrency(mortgageData.principalPaid)} principal paid</span>
-                      <span>{formatCurrency(mortgageData.currentBalance)} remaining</span>
-                    </div>
-                  </div>
-                )}
-                  </div>
-                )}
-              </div>
-
               {/* Current Tenants */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
                 <button
@@ -922,30 +726,6 @@ export default function PropertyDetailPage() {
           />
         )}
 
-        {/* Edit Mortgage Modal */}
-        {showEditMortgageModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <button
-                onClick={() => setShowEditMortgageModal(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors z-10"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-              <div className="p-6">
-                <MortgageFormUpgraded
-                  mortgage={property?.mortgage ? {
-                    id: propertyId,
-                    ...property.mortgage,
-                    lenderName: property.mortgage.lender,
-                    propertyId: propertyId
-                  } : null}
-                  onClose={() => setShowEditMortgageModal(false)}
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </Layout>
     </RequireAuth>
   );
