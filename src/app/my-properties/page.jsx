@@ -543,9 +543,9 @@ function PropertyCard({ property }) {
           <div className="space-y-4 md:space-y-5">
             {/* Top: Three Financial Overview Cards - Side by Side, Compact */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Total Estimated Portfolio Value */}
+              {/* Estimated Property Value */}
               <FinancialOverviewCard
-                title="Total Estimated Portfolio Value"
+                title="Estimated Property Value"
                 value={formatCurrencyRounded(currentValue)}
                 supporting={`${formatCurrencyRounded(equity)} equity (${appreciationPercentage}%) • ${formatCurrencyRounded(mortgageDebt)} debt`}
                 icon={Building2}
@@ -553,9 +553,9 @@ function PropertyCard({ property }) {
                 tooltipText={`The current estimated market value of this property. Equity represents your ownership stake (${formatCurrencyRounded(equity)}), while debt is the remaining mortgage balance (${formatCurrencyRounded(mortgageDebt)}). The percentage shows appreciation from purchase price.`}
               />
               
-              {/* Total Estimated Equity */}
+              {/* Estimated Equity */}
               <FinancialOverviewCard
-                title="Total Estimated Equity"
+                title="Estimated Equity"
                 value={formatCurrencyRounded(equity)}
                 supporting={`Forecasted equity earned this year: ${formatCurrencyRounded(forecastedEquityEarned)}`}
                 icon={PiggyBank}
@@ -563,9 +563,9 @@ function PropertyCard({ property }) {
                 tooltipText={`Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.`}
               />
               
-              {/* Total Mortgage Debt */}
+              {/* Mortgage Debt */}
               <FinancialOverviewCard
-                title="Total Mortgage Debt"
+                title="Mortgage Debt"
                 value={formatCurrencyRounded(mortgageDebt)}
                 supporting={`Portfolio LTV (Loan-to-Value): ${Math.floor(ltv)}%`}
                 icon={FileSpreadsheet}

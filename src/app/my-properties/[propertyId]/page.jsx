@@ -10,7 +10,7 @@ import { formatCurrency, formatPercentage, formatNumber } from "@/utils/formatti
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import AnnualExpenseChart from '@/components/charts/AnnualExpenseChart';
 import { useToast } from "@/context/ToastContext";
-import { X, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { X, ChevronDown, ChevronUp, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar } from "lucide-react";
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import { DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
 import { getPropertyNotes, savePropertyNotes } from "@/lib/property-notes-storage";
@@ -220,7 +220,7 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Property Image */}
-          <div className="h-64 rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
+          <div className="h-64 rounded-lg border border-black/10 dark:border-white/10 overflow-hidden shadow-sm">
             {property.imageUrl ? (
               <img 
                 src={`${property.imageUrl}?v=3`}
@@ -237,12 +237,142 @@ export default function PropertyDetailPage() {
             )}
           </div>
 
+          {/* Key Financial Metrics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Current Value - Emerald */}
+            <div className="relative rounded-2xl border border-[#205A3E]/30 dark:border-[#1C4F39]/40 bg-gradient-to-br from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent p-4">
+              <div className="flex items-start justify-between gap-2.5">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Current Value
+                  </h3>
+                </div>
+                <div className="relative rounded-full p-2 text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70 cursor-help flex-shrink-0 flex items-center justify-center">
+                  <DollarSign className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                </div>
+              </div>
+              <div className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(property.currentValue || 0)}
+              </div>
+              {property.purchasePrice > 0 && (
+                <>
+                  <div className="mt-3 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
+                  <div className="mt-2.5 w-full">
+                    <p 
+                      className="font-bold whitespace-nowrap text-[#205A3E] dark:text-[#66B894]"
+                      style={{ 
+                        fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
+                        lineHeight: '1.2'
+                      }}
+                    >
+                      {formatPercentage(((property.currentValue - property.purchasePrice) / property.purchasePrice) * 100)} appreciation
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Annual Income - Teal */}
+            <div className="relative rounded-2xl border border-[#1A4A5A]/25 dark:border-[#123640]/40 bg-gradient-to-br from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent p-4">
+              <div className="flex items-start justify-between gap-2.5">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Annual Income
+                  </h3>
+                </div>
+                <div className="relative rounded-full p-2 text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70 cursor-help flex-shrink-0 flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                </div>
+              </div>
+              <div className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(property.rent?.annualRent || 0)}
+              </div>
+              {property.rent?.monthlyRent && (
+                <>
+                  <div className="mt-3 border-t-[2px] border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30" />
+                  <div className="mt-2.5 w-full">
+                    <p 
+                      className="font-bold whitespace-nowrap text-[#1A4A5A] dark:text-[#7AC0CF]"
+                      style={{ 
+                        fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
+                        lineHeight: '1.2'
+                      }}
+                    >
+                      {formatCurrency(property.rent.monthlyRent)}/month
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Net Cash Flow - Emerald */}
+            <div className="relative rounded-2xl border border-[#205A3E]/30 dark:border-[#1C4F39]/40 bg-gradient-to-br from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent p-4">
+              <div className="flex items-start justify-between gap-2.5">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Net Cash Flow
+                  </h3>
+                </div>
+                <div className="relative rounded-full p-2 text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70 cursor-help flex-shrink-0 flex items-center justify-center">
+                  <BarChart3 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                </div>
+              </div>
+              <div className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency((property.rent?.annualRent || 0) - ((property.monthlyExpenses?.total || 0) * 12))}
+              </div>
+              <div className="mt-3 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
+              <div className="mt-2.5 w-full">
+                <p 
+                  className="font-bold whitespace-nowrap text-[#205A3E] dark:text-[#66B894]"
+                  style={{ 
+                    fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
+                    lineHeight: '1.2'
+                  }}
+                >
+                  Annual
+                </p>
+              </div>
+            </div>
+
+            {/* Equity - Teal */}
+            <div className="relative rounded-2xl border border-[#1A4A5A]/25 dark:border-[#123640]/40 bg-gradient-to-br from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent p-4">
+              <div className="flex items-start justify-between gap-2.5">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Equity
+                  </h3>
+                </div>
+                <div className="relative rounded-full p-2 text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70 cursor-help flex-shrink-0 flex items-center justify-center">
+                  <Home className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                </div>
+              </div>
+              <div className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency((property.currentValue || 0) - (property.mortgage?.originalAmount || 0))}
+              </div>
+              <div className="mt-3 border-t-[2px] border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30" />
+              <div className="mt-2.5 w-full">
+                <p 
+                  className="font-bold whitespace-nowrap text-[#1A4A5A] dark:text-[#7AC0CF]"
+                  style={{ 
+                    fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
+                    lineHeight: '1.2'
+                  }}
+                >
+                  Estimated
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-6">
             {/* Main Content - Full Width */}
             <div className="space-y-6">
               {/* Property Summary & Purchase Details */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
-                <h2 className="text-xl font-semibold mb-4">Property Summary & Purchase Details</h2>
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-4">
+                  <Home className="w-5 h-5 text-gray-500" />
+                  <h2 className="text-xl font-semibold">Property Summary & Purchase Details</h2>
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-3">
                     <div className="flex justify-between">
@@ -304,13 +434,13 @@ export default function PropertyDetailPage() {
               </div>
 
               {/* General Notes Section */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <button
                   onClick={() => toggleSection('generalNotes')}
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
                   <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-gray-500" />
+                    <FileText className="w-5 h-5 text-[#205A3E]" />
                     <h2 className="text-xl font-semibold">General Notes</h2>
                   </div>
                   {openSections.generalNotes ? (
@@ -336,12 +466,15 @@ export default function PropertyDetailPage() {
               </div>
 
               {/* Unified Monthly Financials Card */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <button
                   onClick={() => toggleSection('propertyFinancials')}
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
-                  <h2 className="text-xl font-semibold">Property Financials</h2>
+                  <div className="flex items-center gap-2">
+                    <PieChartIcon className="w-5 h-5 text-[#205A3E]" />
+                    <h2 className="text-xl font-semibold">Property Financials</h2>
+                  </div>
                   {openSections.propertyFinancials ? (
                     <ChevronUp className="w-5 h-5 text-gray-500" />
                   ) : (
@@ -501,12 +634,15 @@ export default function PropertyDetailPage() {
 
 
               {/* Historical Performance Chart */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <button
                   onClick={() => toggleSection('historicalPerformance')}
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
-                  <h2 className="text-xl font-semibold">Historical Performance</h2>
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-[#205A3E]" />
+                    <h2 className="text-xl font-semibold">Historical Performance</h2>
+                  </div>
                   {openSections.historicalPerformance ? (
                     <ChevronUp className="w-5 h-5 text-gray-500" />
                   ) : (
@@ -640,12 +776,15 @@ export default function PropertyDetailPage() {
               <YoYAnalysis property={property} assumptions={DEFAULT_ASSUMPTIONS} baselineAssumptions={DEFAULT_ASSUMPTIONS} />
 
               {/* Current Tenants */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <button
                   onClick={() => toggleSection('currentTenants')}
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
-                  <h2 className="text-xl font-semibold">Current Tenants</h2>
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-[#205A3E]" />
+                    <h2 className="text-xl font-semibold">Current Tenants</h2>
+                  </div>
                   {openSections.currentTenants ? (
                     <ChevronUp className="w-5 h-5 text-gray-500" />
                   ) : (
@@ -656,12 +795,19 @@ export default function PropertyDetailPage() {
                   <div>
                 <div className="space-y-3">
                   {property.tenants.map((tenant, index) => (
-                    <div key={index} className="text-sm">
-                      <div className="font-medium">{tenant.name}</div>
-                      <div className="text-gray-600 dark:text-gray-400">{tenant.unit}</div>
-                      <div className="text-emerald-600 dark:text-emerald-400">{formatCurrency(tenant.rent)}/mo</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Lease: {new Date(tenant.leaseStart).toLocaleDateString()} - {new Date(tenant.leaseEnd).toLocaleDateString()}
+                    <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900 dark:text-white">{tenant.name}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{tenant.unit}</div>
+                          <div className="flex items-center gap-4 mt-2">
+                            <div className="text-base font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(tenant.rent)}/mo</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(tenant.leaseStart).toLocaleDateString()} - {new Date(tenant.leaseEnd).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -671,12 +817,15 @@ export default function PropertyDetailPage() {
               </div>
 
               {/* Annual Expense History Chart */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <button
                   onClick={() => toggleSection('annualExpenseHistory')}
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
-                  <h2 className="text-xl font-semibold">Annual Expense History</h2>
+                  <div className="flex items-center gap-2">
+                    <PieChartIcon className="w-5 h-5 text-[#205A3E]" />
+                    <h2 className="text-xl font-semibold">Annual Expense History</h2>
+                  </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                       Categorized expenses
