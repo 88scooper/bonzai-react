@@ -299,6 +299,12 @@ function PropertyCard({ property }) {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hoveredMetric, setHoveredMetric] = useState(null); // Track which metric is being hovered
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Mark as hydrated after mount to avoid hydration mismatches
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
   
   // Safety check
   if (!property) {
@@ -352,29 +358,42 @@ function PropertyCard({ property }) {
   const equity = Math.max(0, currentValue - mortgageDebt);
   const equityPercentage = currentValue > 0 ? (equity / currentValue) * 100 : 0;
   
-  // Calculate forecasted equity earned this year
-  const monthlyPrincipal = property.monthlyExpenses?.mortgagePrincipal || 0;
-  const annualPrincipal = monthlyPrincipal * 12;
-  // Simplified: assume current value appreciation based on purchase price
-  const purchasePrice = property.purchasePrice || 0;
-  const appreciation = currentValue > purchasePrice ? currentValue - purchasePrice : 0;
+  // Calculate forecasted equity earned this year - use state to avoid hydration mismatch
+  const [forecastedEquityEarned, setForecastedEquityEarned] = useState(0);
+  const [appreciationPercentage, setAppreciationPercentage] = useState(0);
+  const [appreciation, setAppreciation] = useState(0);
+  const [annualPrincipal, setAnnualPrincipal] = useState(0);
   
-  // Calculate appreciation percentage
-  const appreciationPercentage = purchasePrice > 0 && currentValue > purchasePrice
-    ? Math.floor(((currentValue - purchasePrice) / purchasePrice) * 100)
-    : 0;
-  let yearsHeld = 1;
-  try {
-    if (property.purchaseDate) {
-      const currentYear = new Date().getFullYear();
-      const purchaseYear = new Date(property.purchaseDate).getFullYear();
-      yearsHeld = Math.max(1, currentYear - purchaseYear);
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    const monthlyPrincipal = property.monthlyExpenses?.mortgagePrincipal || 0;
+    const calculatedAnnualPrincipal = monthlyPrincipal * 12;
+    setAnnualPrincipal(calculatedAnnualPrincipal);
+    // Simplified: assume current value appreciation based on purchase price
+    const purchasePrice = property.purchasePrice || 0;
+    const calculatedAppreciation = currentValue > purchasePrice ? currentValue - purchasePrice : 0;
+    setAppreciation(calculatedAppreciation);
+    
+    // Calculate appreciation percentage
+    const calculatedAppreciationPercentage = purchasePrice > 0 && currentValue > purchasePrice
+      ? Math.floor(((currentValue - purchasePrice) / purchasePrice) * 100)
+      : 0;
+    setAppreciationPercentage(calculatedAppreciationPercentage);
+    
+    let yearsHeld = 1;
+    try {
+      if (property.purchaseDate) {
+        const currentYear = new Date().getFullYear();
+        const purchaseYear = new Date(property.purchaseDate).getFullYear();
+        yearsHeld = Math.max(1, currentYear - purchaseYear);
+      }
+    } catch (error) {
+      yearsHeld = 1;
     }
-  } catch (error) {
-    yearsHeld = 1;
-  }
-  const annualAppreciation = yearsHeld > 0 ? appreciation / yearsHeld : 0;
-  const forecastedEquityEarned = annualPrincipal + annualAppreciation;
+    const annualAppreciation = yearsHeld > 0 ? calculatedAppreciation / yearsHeld : 0;
+    setForecastedEquityEarned(calculatedAnnualPrincipal + annualAppreciation);
+  }, [isHydrated, property.monthlyExpenses?.mortgagePrincipal, property.purchasePrice, property.purchaseDate, currentValue]);
   
   // Calculate LTV (property-level)
   const ltv = currentValue > 0 ? (mortgageDebt / currentValue) * 100 : 0;
@@ -737,7 +756,7 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
       {supporting && (
         <>
           <div className={`mt-1 md:mt-1.5 border-t-[2px] ${config.separator}`} />
-          <p className={`mt-0.5 md:mt-1 text-[10px] md:text-xs font-bold ${config.supporting} leading-tight`}>
+          <p className={`mt-0.5 md:mt-1 text-[10px] md:text-xs font-bold ${config.supporting} leading-tight`} suppressHydrationWarning>
             {supporting}
           </p>
         </>

@@ -7,13 +7,14 @@ import { RequireAuth } from "@/context/AuthContext";
 import Button from "@/components/Button";
 import { useProperty } from "@/context/PropertyContext";
 import { formatCurrency, formatPercentage, formatNumber } from "@/utils/formatting";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import AnnualExpenseChart from '@/components/charts/AnnualExpenseChart';
 import { useToast } from "@/context/ToastContext";
-import { X, ChevronDown, ChevronUp, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar } from "lucide-react";
+import { X, ChevronDown, ChevronUp, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar, Plus, Edit2, Trash2, Check } from "lucide-react";
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import { DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
 import { getPropertyNotes, savePropertyNotes } from "@/lib/property-notes-storage";
+import { getPropertyTabs, savePropertyTabs, addPropertyTab, updatePropertyTab, deletePropertyTab } from "@/lib/property-tabs-storage";
 import { 
   calculateAnnualOperatingExpenses, 
   calculateNOI, 
@@ -86,7 +87,7 @@ export default function PropertyDetailPage() {
   
   // State for collapsible sections
   const [openSections, setOpenSections] = useState({
-    generalNotes: false,
+    generalNotes: true,
     propertyFinancials: true,
     historicalPerformance: true,
     currentTenants: true,
@@ -96,12 +97,28 @@ export default function PropertyDetailPage() {
   // State for general notes
   const [notes, setNotes] = useState('');
   const [notesChanged, setNotesChanged] = useState(false);
+  
+  // State for tenant tabs
+  const [activeTenantTab, setActiveTenantTab] = useState('current');
+  
+  // State for custom property tabs
+  const [tabs, setTabs] = useState([]);
+  const [activeTabId, setActiveTabId] = useState(null);
+  const [editingTabId, setEditingTabId] = useState(null);
+  const [editingTabLabel, setEditingTabLabel] = useState('');
+  const [showAddTabModal, setShowAddTabModal] = useState(false);
+  const [newTabLabel, setNewTabLabel] = useState('');
 
   // Load notes when property is available
   useEffect(() => {
     if (propertyId && isHydrated) {
       const savedNotes = getPropertyNotes(propertyId);
       setNotes(savedNotes);
+      
+      // Load tabs
+      const savedTabs = getPropertyTabs(propertyId);
+      setTabs(savedTabs);
+      // Don't auto-select a tab - General Notes (null) is the default
     }
   }, [propertyId, isHydrated]);
 
@@ -120,6 +137,59 @@ export default function PropertyDetailPage() {
   const handleNotesChange = (e) => {
     setNotes(e.target.value);
     setNotesChanged(true);
+  };
+  
+  // Tab handlers
+  const handleAddTab = () => {
+    if (!newTabLabel.trim()) return;
+    const newTab = addPropertyTab(propertyId, newTabLabel.trim());
+    const updatedTabs = getPropertyTabs(propertyId);
+    setTabs(updatedTabs);
+    setActiveTabId(newTab.id);
+    setNewTabLabel('');
+    setShowAddTabModal(false);
+    addToast('Tab added successfully!', { type: 'success' });
+  };
+  
+  const handleDeleteTab = (tabId) => {
+    deletePropertyTab(propertyId, tabId);
+    const updatedTabs = getPropertyTabs(propertyId);
+    setTabs(updatedTabs);
+    if (activeTabId === tabId) {
+      // Switch to General Notes when deleting the active tab
+      setActiveTabId(null);
+    }
+    addToast('Tab deleted successfully!', { type: 'success' });
+  };
+  
+  const handleStartEditTab = (tab) => {
+    setEditingTabId(tab.id);
+    setEditingTabLabel(tab.label);
+  };
+  
+  const handleSaveTabLabel = (tabId) => {
+    if (!editingTabLabel.trim()) return;
+    updatePropertyTab(propertyId, tabId, { label: editingTabLabel.trim() });
+    const updatedTabs = getPropertyTabs(propertyId);
+    setTabs(updatedTabs);
+    setEditingTabId(null);
+    setEditingTabLabel('');
+    addToast('Tab label updated!', { type: 'success' });
+  };
+  
+  const handleCancelEditTab = () => {
+    setEditingTabId(null);
+    setEditingTabLabel('');
+  };
+  
+  const handleTabContentChange = (tabId, content) => {
+    updatePropertyTab(propertyId, tabId, { content });
+    // Update local state immediately for better UX
+    setTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === tabId ? { ...tab, content } : tab
+      )
+    );
   };
   
   const toggleSection = (section) => {
@@ -341,6 +411,101 @@ export default function PropertyDetailPage() {
     
     return yoYData;
   }, [expenseChartData, historicalData, property?.monthlyExpenses]);
+
+  // Process tenant data for rent chart with monthly granularity
+  const rentChartData = useMemo(() => {
+    if (!property?.tenants || property.tenants.length === 0) return [];
+    
+    // Find earliest and latest dates
+    let earliestDate = null;
+    let latestDate = new Date(); // Default to current date
+    
+    property.tenants.forEach(tenant => {
+      try {
+        const startDate = new Date(tenant.leaseStart);
+        if (!earliestDate || startDate < earliestDate) {
+          earliestDate = startDate;
+        }
+        
+        if (tenant.leaseEnd && tenant.leaseEnd !== 'Active') {
+          const endDate = new Date(tenant.leaseEnd);
+          if (endDate > latestDate) {
+            latestDate = endDate;
+          }
+        }
+      } catch (e) {
+        // Skip invalid dates
+      }
+    });
+    
+    if (!earliestDate) return [];
+    
+    // Generate monthly data points
+    const monthlyData = [];
+    const currentDate = new Date(earliestDate);
+    currentDate.setDate(1); // Start of month
+    
+    while (currentDate <= latestDate) {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      
+      // Find active tenant(s) for this month
+      let activeRent = 0;
+      let activeTenant = null;
+      let isChange = false;
+      let change = 0;
+      let changePercent = 0;
+      
+      property.tenants.forEach(tenant => {
+        try {
+          const leaseStart = new Date(tenant.leaseStart);
+          const leaseEnd = tenant.leaseEnd === 'Active' 
+            ? new Date() 
+            : new Date(tenant.leaseEnd);
+          
+          // Check if tenant was active during this month
+          const monthStart = new Date(year, month, 1);
+          const monthEnd = new Date(year, month + 1, 0);
+          
+          if (leaseStart <= monthEnd && leaseEnd >= monthStart) {
+            activeRent = tenant.rent || 0;
+            activeTenant = tenant;
+          }
+        } catch (e) {
+          // Skip invalid dates
+        }
+      });
+      
+      // Calculate change from previous month
+      if (monthlyData.length > 0) {
+        const previousRent = monthlyData[monthlyData.length - 1].rent;
+        change = activeRent - previousRent;
+        if (previousRent > 0) {
+          changePercent = (change / previousRent) * 100;
+        }
+        isChange = change !== 0;
+      }
+      
+      const period = currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      
+      monthlyData.push({
+        period,
+        date: new Date(currentDate),
+        rent: activeRent,
+        change,
+        changePercent,
+        tenantName: activeTenant?.name || 'Vacant',
+        isIncrease: change > 0,
+        isDecrease: change < 0,
+        isChange
+      });
+      
+      // Move to next month
+      currentDate.setMonth(month + 1);
+    }
+    
+    return monthlyData;
+  }, [property?.tenants]);
 
   // Calculate financial metrics
   const financialMetrics = useMemo(() => {
@@ -633,11 +798,6 @@ export default function PropertyDetailPage() {
                       : property.unitConfig || 'N/A')}
                   </span>
                 </div>
-                <div className="pt-2 border-t border-black/10 dark:border-white/10"></div>
-                <div className="flex justify-between">
-                  <span className="font-semibold text-gray-900 dark:text-white">Total Investment</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(totalCashInvested)}</span>
-                </div>
               </div>
               
               {/* Column 2: Purchase & Value Details */}
@@ -669,10 +829,6 @@ export default function PropertyDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Renovations</span>
                   <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.initialRenovations || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Forecasted Equity Earned This Year</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(financialMetrics.forecastedEquity)}</span>
                 </div>
               </div>
               
@@ -708,26 +864,182 @@ export default function PropertyDetailPage() {
                 <FileText className="w-5 h-5 text-[#205A3E]" />
                 <h2 className="text-xl font-semibold">General Notes</h2>
               </div>
-              {openSections.generalNotes ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
-            </button>
+              <div className="flex items-center gap-2">
                 {openSections.generalNotes && (
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAddTabModal(true);
+                    }}
+                    variant="secondary"
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Page
+                  </Button>
+                )}
+                {openSections.generalNotes ? (
+                  <ChevronUp className="w-5 h-5 text-gray-500" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-500" />
+                )}
+              </div>
+            </button>
+            {openSections.generalNotes && (
+              <div>
+                {tabs.length === 0 ? (
+                  // No custom tabs - just show the main notes
                   <div>
                     <textarea
                       value={notes}
                       onChange={handleNotesChange}
-                      placeholder="Add your notes about this property..."
-                      rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[100px]"
+                      placeholder="Add your notes about this property - key events, paints colours, details on the replacement of applicances - all these details can live here..."
+                      rows={8}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
                     />
                     <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                       {notesChanged ? 'Saving...' : 'Notes are automatically saved'}
                     </div>
                   </div>
+                ) : (
+                  // Has custom tabs - show tab interface
+                  <div>
+                    {/* Tab Navigation */}
+                    <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+                      {/* General Notes Tab */}
+                      <div
+                        className={`group flex items-center gap-2 px-4 py-2 border-b-2 transition-colors cursor-pointer ${
+                          !activeTabId
+                            ? 'border-[#205A3E] dark:border-[#66B894]'
+                            : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                        }`}
+                        onClick={() => setActiveTabId(null)}
+                      >
+                        <button
+                          className={`text-sm font-medium transition-colors ${
+                            !activeTabId
+                              ? 'text-[#205A3E] dark:text-[#66B894]'
+                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                          }`}
+                        >
+                          General Notes
+                        </button>
+                      </div>
+                      {/* Custom Tabs */}
+                      {tabs.map((tab) => (
+                        <div
+                          key={tab.id}
+                          className={`group flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${
+                            activeTabId === tab.id
+                              ? 'border-[#205A3E] dark:border-[#66B894]'
+                              : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                          }`}
+                        >
+                          {editingTabId === tab.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editingTabLabel}
+                                onChange={(e) => setEditingTabLabel(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleSaveTabLabel(tab.id);
+                                  } else if (e.key === 'Escape') {
+                                    handleCancelEditTab();
+                                  }
+                                }}
+                                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#205A3E] focus:border-transparent"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleSaveTabLabel(tab.id)}
+                                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                title="Save"
+                              >
+                                <Check className="w-4 h-4 text-green-600" />
+                              </button>
+                              <button
+                                onClick={handleCancelEditTab}
+                                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                title="Cancel"
+                              >
+                                <X className="w-4 h-4 text-red-600" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setActiveTabId(tab.id)}
+                                className={`text-sm font-medium transition-colors ${
+                                  activeTabId === tab.id
+                                    ? 'text-[#205A3E] dark:text-[#66B894]'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                                }`}
+                              >
+                                {tab.label}
+                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleStartEditTab(tab)}
+                                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Edit label"
+                                >
+                                  <Edit2 className="w-3 h-3 text-gray-500" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTab(tab.id)}
+                                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Delete tab"
+                                >
+                                  <Trash2 className="w-3 h-3 text-red-500" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Tab Content */}
+                    {!activeTabId ? (
+                      // General Notes content
+                      <div>
+                        <textarea
+                          value={notes}
+                          onChange={handleNotesChange}
+                          placeholder="Add your notes about this property - key events, paints colours, details on the replacement of applicances - all these details can live here..."
+                          rows={8}
+                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
+                        />
+                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          {notesChanged ? 'Saving...' : 'Notes are automatically saved'}
+                        </div>
+                      </div>
+                    ) : (
+                      // Custom tab content
+                      <div>
+                        {tabs
+                          .filter((tab) => tab.id === activeTabId)
+                          .map((tab) => (
+                            <div key={tab.id}>
+                              <textarea
+                                value={tab.content || ''}
+                                onChange={(e) => handleTabContentChange(tab.id, e.target.value)}
+                                placeholder="Add content for this page..."
+                                rows={8}
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
+                              />
+                              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Content is automatically saved
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
                 )}
+              </div>
+            )}
           </div>
 
           {/* Key Financial Metrics Cards */}
@@ -749,10 +1061,7 @@ export default function PropertyDetailPage() {
               </div>
               <div className="mt-2.5 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
               <div className="mt-2 space-y-0.5">
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  {formatCurrency(financialMetrics.equity)} equity ({formatPercentage(financialMetrics.equityPercentage)}) <span className="mx-1.5">●</span> {formatCurrency(financialMetrics.mortgageBalance)} debt
-                </p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
+                <p className="text-[0.84375rem] text-gray-600 dark:text-gray-400">
                   {(() => {
                     const purchaseYear = new Date(property.purchaseDate).getFullYear();
                     const purchasePrice = property.purchasePrice || 0;
@@ -762,15 +1071,30 @@ export default function PropertyDetailPage() {
                     return `${isIncrease ? '+' : ''}${formatPercentage(Math.abs(changePercent))} ${isIncrease ? 'increase' : 'decrease'} since ${purchaseYear}`;
                   })()}
                 </p>
+                <p className="text-[0.84375rem] text-gray-600 dark:text-gray-400">
+                  {(() => {
+                    const debtPercentage = financialMetrics.propertyValue > 0 
+                      ? (financialMetrics.mortgageBalance / financialMetrics.propertyValue) * 100 
+                      : 0;
+                    return (
+                      <>
+                        {formatCurrency(financialMetrics.equity)} equity ({formatPercentage(financialMetrics.equityPercentage)}) <span className="mx-1.5">●</span> {formatCurrency(financialMetrics.mortgageBalance)} debt ({formatPercentage(debtPercentage)})
+                      </>
+                    );
+                  })()}
+                </p>
+                <p className="text-[0.84375rem] text-gray-600 dark:text-gray-400">
+                  Potential Cash-Out Refinance {formatCurrency(Math.max(0, (financialMetrics.propertyValue * 0.8) - financialMetrics.mortgageBalance))} (assuming 80%)
+                </p>
               </div>
             </div>
 
-            {/* Estimated Equity */}
+            {/* Forecasted Equity Earned This Year */}
             <div className="relative rounded-2xl border border-[#1A4A5A]/25 dark:border-[#123640]/40 bg-gradient-to-br from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    Estimated Equity
+                    Forecasted Equity Earned This Year
                   </h3>
                 </div>
                 <div className="relative rounded-full p-1.5 text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70 cursor-help flex-shrink-0 flex items-center justify-center">
@@ -778,50 +1102,54 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
               <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(financialMetrics.equity)}
+                {formatCurrency(financialMetrics.forecastedEquity)}
               </div>
               <div className="mt-2.5 border-t-[2px] border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30" />
               <div className="mt-2 space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-xs text-gray-600 dark:text-gray-400">- Down Payment</span>
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{formatCurrency(downPayment)}</span>
+                  <span className="text-[0.84375rem] text-gray-600 dark:text-gray-400">Estimated Equity</span>
+                  <span className="text-[0.84375rem] font-medium text-gray-700 dark:text-gray-300">{formatCurrency(financialMetrics.equity)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-gray-600 dark:text-gray-400">- Property Value Appreciation</span>
-                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">+{formatCurrency(appreciation)}</span>
+                  <span className="text-[0.84375rem] text-gray-600 dark:text-gray-400">- Down Payment</span>
+                  <span className="text-[0.84375rem] font-medium text-gray-700 dark:text-gray-300">{formatCurrency(downPayment)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-gray-600 dark:text-gray-400">- Equity via Payments To Mortgage Principal</span>
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{formatCurrency(equityViaPrincipalPayments)}</span>
+                  <span className="text-[0.84375rem] text-gray-600 dark:text-gray-400">- Property Value Appreciation</span>
+                  <span className="text-[0.84375rem] font-medium text-emerald-600 dark:text-emerald-400">+{formatCurrency(appreciation)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[0.84375rem] text-gray-600 dark:text-gray-400">- Equity Via Principal Mortgage Payments</span>
+                  <span className="text-[0.84375rem] font-medium text-gray-700 dark:text-gray-300">{formatCurrency(equityViaPrincipalPayments)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Mortgage Debt */}
-            <div className="relative rounded-2xl border border-[#205A3E]/30 dark:border-[#1C4F39]/40 bg-gradient-to-br from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent p-3">
+            {/* Mortgage Remaining */}
+            <div className="relative rounded-2xl border border-[#D4B896]/40 dark:border-[#8B6F47]/40 bg-gradient-to-br from-[#F5F1EB] via-[#F9F6F2] to-transparent dark:from-[#3E2F1F] dark:via-[#2A1F14] dark:to-transparent p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    Mortgage Debt
+                  <h3 className="text-sm font-semibold text-[#5C4033] dark:text-[#D4B896]">
+                    Mortgage Remaining
                   </h3>
                 </div>
-                <div className="relative rounded-full p-1.5 text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70 cursor-help flex-shrink-0 flex items-center justify-center">
+                <div className="relative rounded-full p-1.5 text-[#8B6F47] dark:text-[#C9A882] bg-white/90 dark:bg-[#4A3524]/70 cursor-help flex-shrink-0 flex items-center justify-center">
                   <DollarSign className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
                 </div>
               </div>
-              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
+              <div className="mt-3 text-xl font-bold text-[#5C4033] dark:text-[#D4B896]">
                 {formatCurrency(financialMetrics.mortgageBalance)}
               </div>
-              <div className="mt-2.5 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
+              <div className="mt-2.5 border-t-[2px] border-[#D4B896]/50 dark:border-[#8B6F47]/50" />
               <div className="mt-2 space-y-1">
-                <p className="text-xs text-gray-600 dark:text-gray-400">
+                <p className="text-[0.84375rem] text-[#5C4033] dark:text-[#C9A882]">
                   Portfolio LTV (Loan-to-Value): {formatPercentage(financialMetrics.portfolioLTV)}
                 </p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Total Mortgage Interest Paid: <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(totalMortgageInterestPaid)}</span>
+                <p className="text-[0.84375rem] text-[#5C4033] dark:text-[#C9A882]">
+                  Total Mortgage Interest Paid: <span className="font-medium text-[#5C4033] dark:text-[#D4B896]">{formatCurrency(totalMortgageInterestPaid)}</span>
                 </p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Total Mortgage Principal Paid: <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(totalMortgagePrincipalPaid)}</span>
+                <p className="text-[0.84375rem] text-[#5C4033] dark:text-[#C9A882]">
+                  Total Mortgage Principal Paid: <span className="font-medium text-[#5C4033] dark:text-[#D4B896]">{formatCurrency(totalMortgagePrincipalPaid)}</span>
                 </p>
               </div>
             </div>
@@ -830,6 +1158,61 @@ export default function PropertyDetailPage() {
           <div className="space-y-6">
             {/* Main Content - Full Width */}
             <div className="space-y-6">
+              {/* Performance Metrics Section */}
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
+                <h2 className="text-xl font-semibold mb-4">Performance Metrics</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* CAP RATE */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">CAP RATE</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      {formatPercentage(financialMetrics.capRate)}
+                    </div>
+                    <div className={`text-xs font-semibold ${capRateStatus.color}`}>
+                      {capRateStatus.label}
+                    </div>
+                  </div>
+
+                  {/* CASH ON CASH */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">CASH ON CASH</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      {formatPercentage(financialMetrics.cashOnCash)}
+                    </div>
+                    <div className={`text-xs font-semibold ${cashOnCashStatus.color}`}>
+                      {cashOnCashStatus.label}
+                    </div>
+                  </div>
+
+                  {/* DSCR */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">DSCR</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      {financialMetrics.dscr.toFixed(2)}
+                    </div>
+                    <div className={`text-xs font-semibold ${dscrStatus.color}`}>
+                      {dscrStatus.label}
+                    </div>
+                  </div>
+
+                  {/* IRR */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">IRR</div>
+                      <select className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800">
+                        <option>5Y</option>
+                      </select>
+                    </div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      {formatPercentage(financialMetrics.irr)}
+                    </div>
+                    <div className={`text-xs font-semibold ${irrStatus.color}`}>
+                      {irrStatus.label}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Income & Expenses Section */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-2 mb-4">
@@ -935,61 +1318,6 @@ export default function PropertyDetailPage() {
                     <p className="text-xs font-medium opacity-80">
                       {formatPercentage((financialMetrics.totalExpenses / financialMetrics.annualRevenue) * 100)}% of revenue consumed
                     </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Performance Metrics Section */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Performance Metrics</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {/* CAP RATE */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">CAP RATE</div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                      {formatPercentage(financialMetrics.capRate)}
-                    </div>
-                    <div className={`text-xs font-semibold ${capRateStatus.color}`}>
-                      {capRateStatus.label}
-                    </div>
-                  </div>
-
-                  {/* CASH ON CASH */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">CASH ON CASH</div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                      {formatPercentage(financialMetrics.cashOnCash)}
-                    </div>
-                    <div className={`text-xs font-semibold ${cashOnCashStatus.color}`}>
-                      {cashOnCashStatus.label}
-                    </div>
-                  </div>
-
-                  {/* DSCR */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">DSCR</div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                      {financialMetrics.dscr.toFixed(2)}
-                    </div>
-                    <div className={`text-xs font-semibold ${dscrStatus.color}`}>
-                      {dscrStatus.label}
-                    </div>
-                  </div>
-
-                  {/* IRR */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="text-xs text-gray-600 dark:text-gray-400">IRR</div>
-                      <select className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800">
-                        <option>5Y</option>
-                      </select>
-                    </div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                      {formatPercentage(financialMetrics.irr)}
-                    </div>
-                    <div className={`text-xs font-semibold ${irrStatus.color}`}>
-                      {irrStatus.label}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1496,7 +1824,7 @@ export default function PropertyDetailPage() {
               {/* Year-over-Year Analysis */}
               <YoYAnalysis property={property} assumptions={DEFAULT_ASSUMPTIONS} baselineAssumptions={DEFAULT_ASSUMPTIONS} />
 
-              {/* Current Tenants */}
+              {/* Tenant Details */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <button
                   onClick={() => toggleSection('currentTenants')}
@@ -1504,7 +1832,7 @@ export default function PropertyDetailPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-[#205A3E]" />
-                    <h2 className="text-xl font-semibold">Current Tenants</h2>
+                    <h2 className="text-xl font-semibold">Tenant Details</h2>
                   </div>
                   {openSections.currentTenants ? (
                     <ChevronUp className="w-5 h-5 text-gray-500" />
@@ -1514,9 +1842,35 @@ export default function PropertyDetailPage() {
                 </button>
                 {openSections.currentTenants && (
                   <div>
-                    <div className="space-y-3">
-                      {property.tenants && property.tenants.length > 0 ? (
-                        property.tenants.map((tenant, index) => {
+                    {/* Tabs */}
+                    <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={() => setActiveTenantTab('current')}
+                        className={`px-4 py-2 text-sm font-medium transition-colors ${
+                          activeTenantTab === 'current'
+                            ? 'text-[#205A3E] dark:text-[#66B894] border-b-2 border-[#205A3E] dark:border-[#66B894]'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        Current Tenants
+                      </button>
+                      <button
+                        onClick={() => setActiveTenantTab('past')}
+                        className={`px-4 py-2 text-sm font-medium transition-colors ${
+                          activeTenantTab === 'past'
+                            ? 'text-[#205A3E] dark:text-[#66B894] border-b-2 border-[#205A3E] dark:border-[#66B894]'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        Past Tenants
+                      </button>
+                    </div>
+
+                    {/* Grid Layout: Tenant List (1/3) and Chart (2/3) - Chart hidden for Past Tenants */}
+                    <div className={`grid gap-6 ${activeTenantTab === 'current' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                      {/* Tenant List - 1/3 when chart visible, full width when chart hidden */}
+                      <div className={`space-y-3 ${activeTenantTab === 'current' ? '' : 'w-full'}`}>
+                      {(() => {
                           const formatDate = (dateStr) => {
                             if (!dateStr || dateStr === 'Active' || dateStr === 'Invalid Date') return dateStr;
                             try {
@@ -1527,34 +1881,249 @@ export default function PropertyDetailPage() {
                             }
                           };
                           
+                        // Filter tenants based on active tab
+                        const currentDate = new Date();
+                        currentDate.setHours(0, 0, 0, 0);
+                        
+                        const filteredTenants = property.tenants && property.tenants.length > 0
+                          ? property.tenants.filter(tenant => {
+                              if (activeTenantTab === 'current') {
+                                // Current tenants: leaseEnd is 'Active' or leaseEnd is in the future
+                                if (tenant.leaseEnd === 'Active') return true;
+                                try {
+                                  const leaseEndDate = new Date(tenant.leaseEnd);
+                                  leaseEndDate.setHours(0, 0, 0, 0);
+                                  return leaseEndDate >= currentDate;
+                                } catch (e) {
+                                  return false;
+                                }
+                              } else {
+                                // Past tenants: leaseEnd is not 'Active' and leaseEnd is in the past
+                                if (tenant.leaseEnd === 'Active') return false;
+                                try {
+                                  const leaseEndDate = new Date(tenant.leaseEnd);
+                                  leaseEndDate.setHours(0, 0, 0, 0);
+                                  return leaseEndDate < currentDate;
+                                } catch (e) {
+                                  return false;
+                                }
+                              }
+                            })
+                          : [];
+
+                        if (filteredTenants.length === 0) {
+                          return (
+                            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              <p className="text-sm">
+                                {activeTenantTab === 'current' 
+                                  ? 'No current tenants listed for this property.'
+                                  : 'No past tenants listed for this property.'}
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return filteredTenants.map((tenant, index) => {
                           const leaseStartDate = formatDate(tenant.leaseStart);
                           const leaseEndDate = tenant.leaseEnd === 'Active' ? 'Active' : formatDate(tenant.leaseEnd);
+                          
+                          // Calculate duration of tenancy
+                          const calculateTenancyDuration = () => {
+                            try {
+                              const startDate = new Date(tenant.leaseStart);
+                              const endDate = tenant.leaseEnd === 'Active' 
+                                ? new Date() 
+                                : new Date(tenant.leaseEnd);
+                              
+                              if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                                return 'N/A';
+                              }
+                              
+                              let years = endDate.getFullYear() - startDate.getFullYear();
+                              let months = endDate.getMonth() - startDate.getMonth();
+                              
+                              // Adjust if months is negative
+                              if (months < 0) {
+                                years--;
+                                months += 12;
+                              }
+                              
+                              // Adjust for days - if end date day is before start date day, subtract a month
+                              if (endDate.getDate() < startDate.getDate()) {
+                                months--;
+                                if (months < 0) {
+                                  years--;
+                                  months += 12;
+                                }
+                              }
+                              
+                              const yearsText = years > 0 ? `${years} ${years === 1 ? 'Year' : 'Years'}` : '';
+                              const monthsText = months > 0 ? `${months} ${months === 1 ? 'Month' : 'Months'}` : '';
+                              
+                              if (yearsText && monthsText) {
+                                return `${yearsText} ${monthsText}`;
+                              } else if (yearsText) {
+                                return yearsText;
+                              } else if (monthsText) {
+                                return monthsText;
+                              } else {
+                                return 'Less than 1 Month';
+                              }
+                            } catch (e) {
+                              return 'N/A';
+                            }
+                          };
+                          
+                          const tenancyDuration = calculateTenancyDuration();
                     
                     return (
                       <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                                   <div className="font-semibold text-gray-900 dark:text-white mb-2">{tenant.name}</div>
-                                  <div className="text-sm text-gray-700 dark:text-gray-300">
-                                    <span className="font-medium">Unit {tenant.unit || 'N/A'}</span>
+                                  <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                                    <div>
+                                      <span className="font-medium">
+                                        {tenant.unit 
+                                          ? (tenant.unit.toString().toLowerCase().startsWith('unit') 
+                                              ? tenant.unit 
+                                              : `Unit ${tenant.unit}`)
+                                          : 'Unit N/A'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600 dark:text-gray-400">Key Deposit </span>
+                                      <span className="font-medium">
+                                        {tenant.keyDeposit !== undefined && tenant.keyDeposit !== null 
+                                          ? formatCurrency(tenant.keyDeposit) 
+                                          : formatCurrency(0)}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600 dark:text-gray-400">Duration of Tenancy </span>
+                                      <span className="font-medium">{tenancyDuration}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                                        <Calendar className="w-4 h-4" />
+                                        <span>Lease Term: {leaseStartDate} - {leaseEndDate}</span>
+                                      </span>
+                                    </div>
+                                    <div className="mt-2">
+                                      <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                                        {formatCurrency(tenant.rent)}/month
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                                  <div className="flex items-center gap-4 mt-3">
-                                    <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                                      {formatCurrency(tenant.rent)}/mo
-                                    </div>
-                                    <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
-                                      <Calendar className="w-4 h-4" />
-                                      <span>Lease term: {leaseStartDate} - {leaseEndDate}</span>
-                                    </div>
+                            </div>
+                        );
+                      });
+                      })()}
+                      </div>
+
+                      {/* Rent Over Time Chart - 2/3 - Only show for Current Tenants */}
+                      {activeTenantTab === 'current' && (
+                        <div className="col-span-2">
+                          {rentChartData && rentChartData.length > 0 ? (
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                              Rent Over Time
+                            </h3>
+                            <div className="h-64">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={rentChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                                  <XAxis 
+                                    dataKey="period" 
+                                    tick={{ fontSize: 10 }}
+                                    tickLine={{ stroke: '#9ca3af' }}
+                                    angle={-45}
+                                    textAnchor="end"
+                                    height={70}
+                                    interval={rentChartData.length > 12 ? Math.floor(rentChartData.length / 12) : 0}
+                                  />
+                                  <YAxis 
+                                    tick={{ fontSize: 11 }}
+                                    tickLine={{ stroke: '#9ca3af' }}
+                                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                                  />
+                                  <Tooltip 
+                                    formatter={(value, name, props) => {
+                                      if (name === 'rent') {
+                                        const payload = props.payload;
+                                        const changeInfo = payload.isChange 
+                                          ? ` (${payload.change > 0 ? '+' : ''}${formatCurrency(payload.change)} from previous month)`
+                                          : '';
+                                        return [
+                                          `${formatCurrency(value)}${changeInfo}`,
+                                          'Monthly Rent'
+                                        ];
+                                      }
+                                      return [value, name];
+                                    }}
+                                    labelFormatter={(period) => `Month: ${period}`}
+                                    contentStyle={{
+                                      backgroundColor: 'white',
+                                      border: '1px solid #e5e7eb',
+                                      borderRadius: '8px',
+                                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                    }}
+                                  />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="rent" 
+                                    stroke="#205A3E" 
+                                    strokeWidth={2.5}
+                                    dot={(props) => {
+                                      const { cx, cy, payload, index } = props;
+                                      // Show marker if there's a change, or if it's the first data point
+                                      if (!payload.isChange && index !== 0 && payload.rent > 0) {
+                                        return null; // Hide dot if no change (except first point)
+                                      }
+                                      
+                                      const fillColor = payload.isIncrease 
+                                        ? '#10b981' 
+                                        : payload.isDecrease 
+                                        ? '#ef4444' 
+                                        : '#3b82f6';
+                                      return (
+                                        <circle 
+                                          cx={cx} 
+                                          cy={cy} 
+                                          r={4} 
+                                          fill={fillColor} 
+                                          stroke="white" 
+                                          strokeWidth={2}
+                                        />
+                                      );
+                                    }}
+                                    activeDot={{ r: 6, stroke: '#205A3E', strokeWidth: 2 }}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <div className="flex items-center justify-center gap-4 mt-3 text-xs text-gray-600 dark:text-gray-400">
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-3 h-3 rounded bg-emerald-500"></div>
+                                <span>Increase</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-3 h-3 rounded bg-red-500"></div>
+                                <span>Decrease</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-3 h-3 rounded bg-blue-500"></div>
+                                <span>No Change</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                        })
-                      ) : (
-                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                          <p className="text-sm">No tenants listed for this property.</p>
+                        ) : (
+                          <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+                            <p className="text-sm">No rent data available for chart</p>
+                          </div>
+                        )}
                         </div>
                       )}
                     </div>
@@ -1619,6 +2188,67 @@ export default function PropertyDetailPage() {
               setShowAddExpenseModal(false);
             }}
           />
+        )}
+
+        {/* Add Tab Modal */}
+        {showAddTabModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Add New Page</h2>
+                <button
+                  onClick={() => {
+                    setShowAddTabModal(false);
+                    setNewTabLabel('');
+                  }}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Page Label
+                  </label>
+                  <input
+                    type="text"
+                    value={newTabLabel}
+                    onChange={(e) => setNewTabLabel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddTab();
+                      }
+                    }}
+                    placeholder="Enter page label..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => {
+                      setShowAddTabModal(false);
+                      setNewTabLabel('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleAddTab}
+                    disabled={!newTabLabel.trim()}
+                  >
+                    Add Page
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
       </Layout>
