@@ -566,10 +566,10 @@ function PropertyCard({ property }) {
               <FinancialOverviewCard
                 title="Estimated Property Value"
                 value={formatCurrencyRounded(currentValue)}
-                supporting={`${formatCurrencyRounded(equity)} equity (${appreciationPercentage}%) • ${formatCurrencyRounded(mortgageDebt)} debt`}
+                supporting={`Estimated Appreciation ${formatCurrencyRounded(appreciation)} (${appreciationPercentage}%)`}
                 icon={Building2}
                 accent="emerald"
-                tooltipText={`The current estimated market value of this property. Equity represents your ownership stake (${formatCurrencyRounded(equity)}), while debt is the remaining mortgage balance (${formatCurrencyRounded(mortgageDebt)}). The percentage shows appreciation from purchase price.`}
+                tooltipText={`The current estimated market value of this property. Estimated Appreciation shows the increase in value since purchase (${formatCurrencyRounded(appreciation)}), representing ${appreciationPercentage}% growth from the original purchase price.`}
               />
               
               {/* Estimated Equity */}
