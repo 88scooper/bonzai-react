@@ -1380,7 +1380,7 @@ export default function PropertyDetailPage() {
                     <div className="grid grid-cols-3 gap-6">
                       {/* Left Column: Donut Chart */}
                       <div className="flex flex-col items-center">
-                        <div className="relative overflow-visible" style={{ width: '320px', height: '320px' }}>
+                        <div className="relative overflow-visible" style={{ width: '295px', height: '295px' }}>
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart margin={{ top: 30, right: 30, bottom: 30, left: 30 }}>
                               <Pie
@@ -1399,50 +1399,39 @@ export default function PropertyDetailPage() {
                                   if (percent <= 0) return null;
                                   
                                   const RADIAN = Math.PI / 180;
-                                  // Position label further outside the chart for better visibility
-                                  const labelRadius = outerRadius + 35;
+                                  // Position label at the end of the line - extend further out
+                                  const labelRadius = outerRadius + 50;
                                   const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
                                   const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
                                   
-                                  // Determine quadrant for proper positioning
+                                  // Determine quadrant for proper text alignment
                                   const isRightSide = x > cx;
                                   
-                                  // Calculate text width more accurately
+                                  // Calculate text width for background
                                   const percentText = `${(percent * 100).toFixed(0)}%`;
-                                  const textWidth = percentText.length * 9 + 10;
+                                  const textWidth = percentText.length * 8 + 8;
                                   const textHeight = 20;
                                   
-                                  // Adjust positioning based on quadrant with padding to prevent clipping
+                                  // Position background and text at the end of the line
                                   let rectX, textX, textAnchor;
                                   if (isRightSide) {
+                                    // For right side, label starts at line end
                                     rectX = x;
-                                    textX = x + 6;
+                                    textX = x + 4;
                                     textAnchor = 'start';
                                   } else {
+                                    // For left side, label ends at line end
                                     rectX = x - textWidth;
-                                    textX = x - 6;
+                                    textX = x - 4;
                                     textAnchor = 'end';
                                   }
-                                  
-                                  // Ensure labels don't get clipped by checking bounds
-                                  const containerWidth = 320;
-                                  const containerHeight = 320;
-                                  const margin = 30;
-                                  const minX = margin;
-                                  const maxX = containerWidth - margin;
-                                  const minY = margin;
-                                  const maxY = containerHeight - margin;
-                                  
-                                  // Clamp label position to stay within visible bounds
-                                  const clampedRectX = Math.max(minX, Math.min(maxX - textWidth, rectX));
-                                  const clampedY = Math.max(minY + textHeight / 2, Math.min(maxY - textHeight / 2, y));
                                   
                                   return (
                                     <g>
                                       {/* Background for better readability */}
                                       <rect
-                                        x={clampedRectX}
-                                        y={clampedY - textHeight / 2}
+                                        x={rectX}
+                                        y={y - textHeight / 2}
                                         width={textWidth}
                                         height={textHeight}
                                         fill="white"
@@ -1453,8 +1442,8 @@ export default function PropertyDetailPage() {
                                         strokeWidth={0.5}
                                       />
                                       <text 
-                                        x={isRightSide ? clampedRectX + 6 : clampedRectX + textWidth - 6} 
-                                        y={clampedY} 
+                                        x={textX} 
+                                        y={y} 
                                         fill="#111827" 
                                         textAnchor={textAnchor} 
                                         dominantBaseline="central"
@@ -1475,9 +1464,9 @@ export default function PropertyDetailPage() {
                                   // Start point: outer edge of segment (where the dot will be)
                                   const x1 = cx + outerRadius * Math.cos(-midAngle * RADIAN);
                                   const y1 = cy + outerRadius * Math.sin(-midAngle * RADIAN);
-                                  // End point: where label starts (slightly shorter to prevent clipping)
-                                  const x2 = cx + (outerRadius + 35) * Math.cos(-midAngle * RADIAN);
-                                  const y2 = cy + (outerRadius + 35) * Math.sin(-midAngle * RADIAN);
+                                  // End point: where label is positioned (at the end of the line)
+                                  const x2 = cx + (outerRadius + 50) * Math.cos(-midAngle * RADIAN);
+                                  const y2 = cy + (outerRadius + 50) * Math.sin(-midAngle * RADIAN);
                                   
                                   return (
                                     <g>
@@ -1544,7 +1533,7 @@ export default function PropertyDetailPage() {
                             return (
                               <div
                                 key={index}
-                                  className={`flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
+                                  className={`flex items-center py-2.5 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
                                   hoveredSegment === index
                                       ? 'bg-gray-100 dark:bg-gray-700 shadow-sm scale-[1.02]'
                                     : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
@@ -1552,7 +1541,7 @@ export default function PropertyDetailPage() {
                                 onMouseEnter={() => setHoveredSegment(index)}
                                 onMouseLeave={() => setHoveredSegment(null)}
                               >
-                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
                                     <div
                                       className={`w-3.5 h-3.5 rounded-full flex-shrink-0 transition-all duration-200 ${
                                         hoveredSegment === index ? 'ring-2 ring-offset-1' : ''
@@ -1566,7 +1555,7 @@ export default function PropertyDetailPage() {
                                     {entry.name}
                                   </span>
                                 </div>
-                                  <span className="text-sm text-gray-900 dark:text-gray-100 font-semibold ml-3 flex-shrink-0">
+                                  <span className="text-sm text-gray-900 dark:text-gray-100 font-semibold whitespace-nowrap flex-shrink-0 min-w-[100px] text-right">
                                     {formatCurrency(entry.value)}
                                   </span>
                               </div>
