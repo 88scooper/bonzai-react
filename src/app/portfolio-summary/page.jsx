@@ -1633,40 +1633,111 @@ function AnnualExpensesCard({
             </h4>
             {chartType === 'pie' ? (
               <div className="mt-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
-                        if (percent < 0.05) return '';
-                        const RADIAN = Math.PI / 180;
-                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                        return (
-                          <text
-                            x={x}
-                            y={y}
-                            fill="white"
-                            textAnchor={x > cx ? 'start' : 'end'}
-                            dominantBaseline="central"
-                            fontSize="14"
-                            fontWeight="600"
-                            style={{
-                              textShadow: '0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.5)',
-                            }}
-                          >
-                            {`${(percent * 100).toFixed(0)}%`}
-                          </text>
-                        );
-                      }}
-                      outerRadius={70}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
+                <div className="relative overflow-visible" style={{ width: '100%', height: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        label={({ percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
+                          if (percent < 0.03) return null;
+                          const RADIAN = Math.PI / 180;
+                          // Position label outside the chart
+                          const labelRadius = outerRadius + 30;
+                          const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
+                          
+                          // Determine quadrant for proper positioning
+                          const isRightSide = x > cx;
+                          
+                          // Calculate text width
+                          const percentText = `${(percent * 100).toFixed(0)}%`;
+                          const textWidth = percentText.length * 9 + 8;
+                          const textHeight = 20;
+                          
+                          // Adjust positioning based on quadrant
+                          let rectX, textX, textAnchor;
+                          if (isRightSide) {
+                            rectX = x;
+                            textX = x + 6;
+                            textAnchor = 'start';
+                          } else {
+                            rectX = x - textWidth;
+                            textX = x - 6;
+                            textAnchor = 'end';
+                          }
+                          
+                          return (
+                            <g>
+                              {/* Background for better readability */}
+                              <rect
+                                x={rectX}
+                                y={y - textHeight / 2}
+                                width={textWidth}
+                                height={textHeight}
+                                fill="white"
+                                fillOpacity={0.95}
+                                className="dark:fill-gray-900 dark:fill-opacity-95"
+                                rx={4}
+                                stroke="#e5e7eb"
+                                strokeWidth={0.5}
+                              />
+                              <text
+                                x={textX}
+                                y={y}
+                                fill="#111827"
+                                textAnchor={textAnchor}
+                                dominantBaseline="central"
+                                fontSize={13}
+                                fontWeight="700"
+                                className="pointer-events-none dark:fill-gray-100"
+                              >
+                                {percentText}
+                              </text>
+                            </g>
+                          );
+                        }}
+                        labelLine={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                          if (percent < 0.03) return null;
+                          const RADIAN = Math.PI / 180;
+                          // Start point: outer edge of segment
+                          const x1 = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+                          const y1 = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+                          // End point: where label starts
+                          const x2 = cx + (outerRadius + 30) * Math.cos(-midAngle * RADIAN);
+                          const y2 = cy + (outerRadius + 30) * Math.sin(-midAngle * RADIAN);
+                          
+                          return (
+                            <g>
+                              {/* Black dot at connection point */}
+                              <circle
+                                cx={x1}
+                                cy={y1}
+                                r={3.5}
+                                fill="#1f2937"
+                                stroke="white"
+                                strokeWidth={1}
+                                className="dark:fill-gray-100 dark:stroke-gray-800"
+                              />
+                              {/* Line connecting dot to label */}
+                              <line
+                                x1={x1}
+                                y1={y1}
+                                x2={x2}
+                                y2={y2}
+                                stroke="#1f2937"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                className="dark:stroke-gray-100"
+                              />
+                            </g>
+                          );
+                        }}
+                        outerRadius={70}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
                       {pieChartData.map((entry, index) => (
                         <Cell 
                           key={`cell-${index}`} 
@@ -1703,7 +1774,8 @@ function AnnualExpensesCard({
                       )}
                     />
                   </PieChart>
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </div>
               </div>
             ) : (
               <div className="mt-3 space-y-3">

@@ -17,7 +17,7 @@
  * @param {Object} property - Property object with monthlyExpenses
  * @returns {number} Annual operating expenses
  */
-import { getMonthlyMortgagePayment } from './mortgageCalculator';
+import { getMonthlyMortgagePayment, getMonthlyMortgageInterest } from './mortgageCalculator';
 
 const deriveMonthlyMortgagePayment = (property) => {
   if (!property) {
@@ -156,6 +156,128 @@ export function calculateCashOnCashReturn(property) {
 
   const annualCashFlow = calculateAnnualCashFlow(property);
   return (annualCashFlow / property.totalInvestment) * 100;
+}
+
+/**
+ * Calculate Annual Debt Service (mortgage payments)
+ * 
+ * @param {Object} property - Property object with mortgage
+ * @returns {number} Annual debt service
+ */
+export function calculateAnnualDebtService(property) {
+  if (!property) {
+    return 0;
+  }
+
+  const monthlyMortgagePayment = deriveMonthlyMortgagePayment(property);
+  return monthlyMortgagePayment * 12;
+}
+
+/**
+ * Calculate Debt Service Coverage Ratio (DSCR)
+ * DSCR = NOI / Annual Debt Service
+ * 
+ * @param {Object} property - Property object
+ * @returns {number} DSCR ratio
+ */
+export function calculateDSCR(property) {
+  if (!property) {
+    return 0;
+  }
+
+  const noi = calculateNOI(property);
+  const annualDebtService = calculateAnnualDebtService(property);
+
+  if (annualDebtService <= 0) {
+    return 0;
+  }
+
+  return noi / annualDebtService;
+}
+
+/**
+ * Calculate Internal Rate of Return (IRR) for a property
+ * Simplified calculation based on 5-year holding period
+ * 
+ * @param {Object} property - Property object
+ * @param {number} years - Holding period in years (default 5)
+ * @returns {number} IRR as a percentage
+ */
+export function calculateIRR(property, years = 5) {
+  if (!property || !property.totalInvestment || property.totalInvestment <= 0) {
+    return 0;
+  }
+
+  // Calculate annual cash flows
+  const annualCashFlow = calculateAnnualCashFlow(property);
+  
+  // Estimate sale proceeds at end of holding period
+  // Assume modest appreciation (3% annually)
+  const currentValue = property.currentMarketValue || property.currentValue || property.purchasePrice;
+  const appreciationRate = 0.03; // 3% annual appreciation
+  const futureValue = currentValue * Math.pow(1 + appreciationRate, years);
+  
+  // Estimate remaining mortgage balance (simplified - assumes linear amortization)
+  const mortgagePayment = deriveMonthlyMortgagePayment(property);
+  let monthlyInterest = 0;
+  if (property.mortgage) {
+    try {
+      monthlyInterest = getMonthlyMortgageInterest(property.mortgage);
+    } catch (e) {
+      // Fallback calculation
+      const annualRate = property.mortgage.interestRate || 0;
+      const currentBalance = property.mortgage.remainingBalance || property.mortgage.originalAmount || 0;
+      monthlyInterest = (currentBalance * annualRate) / 12;
+    }
+  }
+  const annualPrincipalPayment = (mortgagePayment * 12) - (monthlyInterest * 12);
+  const currentMortgageBalance = property.mortgage?.remainingBalance || property.mortgage?.originalAmount || 0;
+  const futureMortgageBalance = Math.max(0, currentMortgageBalance - (annualPrincipalPayment * years));
+  
+  // Sale proceeds = future value - remaining mortgage - selling costs (assume 5%)
+  const sellingCosts = futureValue * 0.05;
+  const netSaleProceeds = futureValue - futureMortgageBalance - sellingCosts;
+  
+  // Use Newton-Raphson method to find IRR
+  // NPV = -Initial Investment + Sum(CF/(1+IRR)^t) + Sale Proceeds/(1+IRR)^n
+  let irr = 0.1; // Starting guess of 10%
+  const tolerance = 0.0001;
+  const maxIterations = 100;
+  
+  for (let i = 0; i < maxIterations; i++) {
+    let npv = -property.totalInvestment;
+    
+    // Add annual cash flows
+    for (let year = 1; year <= years; year++) {
+      npv += annualCashFlow / Math.pow(1 + irr, year);
+    }
+    
+    // Add sale proceeds
+    npv += netSaleProceeds / Math.pow(1 + irr, years);
+    
+    // Calculate derivative
+    let derivative = 0;
+    for (let year = 1; year <= years; year++) {
+      derivative -= (year * annualCashFlow) / Math.pow(1 + irr, year + 1);
+    }
+    derivative -= (years * netSaleProceeds) / Math.pow(1 + irr, years + 1);
+    
+    // Newton-Raphson update
+    const newIrr = irr - npv / derivative;
+    
+    if (Math.abs(newIrr - irr) < tolerance) {
+      irr = newIrr;
+      break;
+    }
+    
+    irr = newIrr;
+    
+    // Prevent negative or extreme values
+    if (irr < -0.99) irr = -0.99;
+    if (irr > 10) irr = 10;
+  }
+  
+  return irr * 100; // Convert to percentage
 }
 
 /**
