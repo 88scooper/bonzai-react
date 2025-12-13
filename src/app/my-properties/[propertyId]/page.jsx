@@ -14,6 +14,17 @@ import { X, ChevronDown, ChevronUp, FileText, DollarSign, TrendingUp, Home, User
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import { DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
 import { getPropertyNotes, savePropertyNotes } from "@/lib/property-notes-storage";
+import { 
+  calculateAnnualOperatingExpenses, 
+  calculateNOI, 
+  calculateCapRate, 
+  calculateAnnualCashFlow, 
+  calculateCashOnCashReturn,
+  calculateAnnualDebtService,
+  calculateDSCR,
+  calculateIRR
+} from "@/utils/financialCalculations";
+import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from "@/utils/mortgageCalculator";
 
 export default function PropertyDetailPage() {
   // Use useParams hook for client components - more reliable than use(params)
@@ -49,6 +60,10 @@ export default function PropertyDetailPage() {
 
   const [expenseView, setExpenseView] = useState('annual'); // 'monthly' or 'annual'
   const [hoveredSegment, setHoveredSegment] = useState(null); // For hover interactions
+  
+  // Historical Performance chart controls
+  const [historicalStartYear, setHistoricalStartYear] = useState(null);
+  const [historicalYears, setHistoricalYears] = useState(5);
   
   // Toggle state for Historical Performance chart
   const [visibleMetrics, setVisibleMetrics] = useState({
@@ -114,7 +129,7 @@ export default function PropertyDetailPage() {
     }));
   };
 
-  // Prepare expense data for pie chart
+  // Prepare expense data for pie chart with mortgage breakdown
   const expenseChartData = useMemo(() => {
     if (!isHydrated) return [];
     if (!property?.monthlyExpenses) {
@@ -123,30 +138,90 @@ export default function PropertyDetailPage() {
     }
     
     // Diverse color palette for better visualization
-    const colors = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+    const colors = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'];
     
-    const entries = Object.entries(property.monthlyExpenses)
-      .filter(([key, value]) => {
-        // Filter out 'total' and ensure value is a number > 0
-        if (key === 'total') return false;
+    const entries = [];
+    let colorIndex = 0;
+    
+    // Track which expense keys exist in monthlyExpenses for debugging
+    const availableExpenseKeys = Object.keys(property.monthlyExpenses).filter(
+      key => key !== 'total' && 
+             key !== 'mortgagePayment' && 
+             key !== 'mortgageInterest' && 
+             key !== 'mortgagePrincipal' &&
+             !key.toLowerCase().includes('mortgage')
+    );
+    console.log('Available expense categories in monthlyExpenses:', availableExpenseKeys);
+    
+    // Add regular expenses (excluding mortgage payment if it exists)
+    Object.entries(property.monthlyExpenses).forEach(([key, value]) => {
+      // Filter out 'total' and all mortgage-related entries (we'll add mortgage breakdown separately)
+      if (key === 'total' || 
+          key === 'mortgagePayment' || 
+          key === 'mortgageInterest' || 
+          key === 'mortgagePrincipal' ||
+          key.toLowerCase().includes('mortgage')) return;
+      
         const numValue = typeof value === 'number' ? value : 0;
-        return numValue > 0;
-      })
-      .map(([key, value], index) => {
-        const numValue = typeof value === 'number' ? value : 0;
-        return {
+      if (numValue > 0) {
+        entries.push({
           key,
         name: key.replace(/([A-Z])/g, ' $1').trim().replace(/^\w/, c => c.toUpperCase()),
           value: expenseView === 'annual' ? numValue * 12 : numValue,
-        color: colors[index % colors.length]
-        };
-      });
+          color: colors[colorIndex % colors.length]
+        });
+        colorIndex++;
+      } else if (numValue === 0) {
+        // Log zero-value expenses that exist but aren't shown
+        console.log(`Expense category "${key}" exists but has value 0, so it's not displayed`);
+      }
+    });
     
-    console.log('Expense chart data:', entries);
-    console.log('Monthly expenses object:', property.monthlyExpenses);
+    // Add mortgage breakdown as separate line items
+    if (property.mortgage) {
+      try {
+        const monthlyInterest = getMonthlyMortgageInterest(property.mortgage);
+        const monthlyPrincipal = getMonthlyMortgagePrincipal(property.mortgage);
+        const monthlyPayment = getMonthlyMortgagePayment(property.mortgage);
+        
+        const annualInterest = monthlyInterest * 12;
+        const annualPrincipal = monthlyPrincipal * 12;
+        const annualPayment = monthlyPayment * 12;
+        
+        // Add Mortgage Interest
+        if (annualInterest > 0) {
+          entries.push({
+            key: 'mortgageInterest',
+            name: 'Mortgage Interest',
+            value: expenseView === 'annual' ? annualInterest : monthlyInterest,
+            color: colors[colorIndex % colors.length]
+          });
+          colorIndex++;
+        }
+        
+        // Add Mortgage Principal
+        if (annualPrincipal > 0) {
+          entries.push({
+            key: 'mortgagePrincipal',
+            name: 'Mortgage Principal',
+            value: expenseView === 'annual' ? annualPrincipal : monthlyPrincipal,
+            color: colors[colorIndex % colors.length]
+          });
+          colorIndex++;
+        }
+        
+        // Note: Mortgage Payment (total) is intentionally excluded as it's redundant
+        // since it's just the sum of Mortgage Interest + Mortgage Principal
+      } catch (error) {
+        console.warn('Error calculating mortgage breakdown:', error);
+      }
+    }
+    
+    // Sort by value (descending) for better chart visualization
+    entries.sort((a, b) => b.value - a.value);
     
     return entries;
-  }, [property?.monthlyExpenses, expenseView, isHydrated, property]);
+  }, [property?.monthlyExpenses, property?.mortgage, expenseView, isHydrated, property]);
 
   // Generate historical income and cost data from actual property data
   const historicalData = useMemo(() => {
@@ -192,8 +267,54 @@ export default function PropertyDetailPage() {
       data.push(...propertyHistory);
     }
     
-    return data;
+    // Filter data based on start year and number of years
+    let filteredData = [...data];
+    
+    // Sort by year to ensure proper ordering
+    filteredData.sort((a, b) => parseInt(a.year) - parseInt(b.year));
+    
+    // If start year is set, filter from that year
+    if (historicalStartYear) {
+      filteredData = filteredData.filter(item => parseInt(item.year) >= historicalStartYear);
+    }
+    
+    // Limit to number of years (take the first N years from the filtered data)
+    if (historicalYears > 0 && filteredData.length > historicalYears) {
+      filteredData = filteredData.slice(0, historicalYears);
+    }
+    
+    return filteredData;
+  }, [property, isHydrated, historicalStartYear, historicalYears]);
+  
+  // Calculate available year range for the inputs
+  const availableYears = useMemo(() => {
+    if (!property || !isHydrated) return { min: null, max: null, all: [] };
+    
+    const historicalDataMap = {
+      'first-st-1': ['2021', '2022', '2023', '2024', '2025'],
+      'second-dr-1': ['2021', '2022', '2023', '2024']
+    };
+    
+    const propertyHistory = historicalDataMap[property.id] || [];
+    if (propertyHistory.length === 0) {
+      const currentYear = new Date().getFullYear().toString();
+      return { min: parseInt(currentYear), max: parseInt(currentYear), all: [parseInt(currentYear)] };
+    }
+    
+    const years = propertyHistory.map(y => parseInt(y));
+    return {
+      min: Math.min(...years),
+      max: Math.max(...years),
+      all: years.sort((a, b) => a - b)
+    };
   }, [property, isHydrated]);
+  
+  // Initialize start year to the earliest available year if not set
+  useEffect(() => {
+    if (historicalStartYear === null && availableYears.min !== null) {
+      setHistoricalStartYear(availableYears.min);
+    }
+  }, [historicalStartYear, availableYears.min]);
 
   // Calculate Year Over Year changes for expenses
   const expenseYoYData = useMemo(() => {
@@ -221,6 +342,101 @@ export default function PropertyDetailPage() {
     return yoYData;
   }, [expenseChartData, historicalData, property?.monthlyExpenses]);
 
+  // Calculate financial metrics
+  const financialMetrics = useMemo(() => {
+    if (!property) return null;
+
+    // Calculate current mortgage balance based on purchase date
+    const calculateMortgageBalance = () => {
+      if (!property.mortgage) return 0;
+      
+      const mortgage = property.mortgage;
+      const purchaseDate = new Date(property.purchaseDate);
+      const currentDate = new Date();
+      const monthsElapsed = Math.max(0, (currentDate.getFullYear() - purchaseDate.getFullYear()) * 12 + 
+        (currentDate.getMonth() - purchaseDate.getMonth()));
+      
+      // Use remainingBalance if available, otherwise calculate
+      if (mortgage.remainingBalance !== undefined && mortgage.remainingBalance !== null) {
+        return mortgage.remainingBalance;
+      }
+      
+      // Simplified calculation: assume linear amortization
+      const originalAmount = mortgage.originalAmount || 0;
+      const amortizationYears = mortgage.amortizationYears || 30;
+      const totalMonths = amortizationYears * 12;
+      const monthlyPayment = getMonthlyMortgagePayment(mortgage);
+      
+      if (monthlyPayment <= 0) return originalAmount;
+      
+      // Calculate approximate remaining balance
+      const annualRate = mortgage.interestRate || 0;
+      const monthlyRate = annualRate / 12;
+      
+      if (monthlyRate === 0) {
+        return Math.max(0, originalAmount - (monthlyPayment * monthsElapsed));
+      }
+      
+      // Standard amortization formula
+      const remainingMonths = totalMonths - monthsElapsed;
+      if (remainingMonths <= 0) return 0;
+      
+      return monthlyPayment * (1 - Math.pow(1 + monthlyRate, -remainingMonths)) / monthlyRate;
+    };
+
+    const propertyValue = property.currentMarketValue || property.currentValue || 0;
+    const mortgageBalance = calculateMortgageBalance();
+    const equity = propertyValue - mortgageBalance;
+    const annualRevenue = property.rent?.annualRent || (property.rent?.monthlyRent || 0) * 12;
+    const annualOperatingExpenses = calculateAnnualOperatingExpenses(property);
+    const annualDebtService = calculateAnnualDebtService(property);
+    const totalExpenses = annualOperatingExpenses + annualDebtService;
+    const netCashFlow = annualRevenue - totalExpenses;
+    const noi = calculateNOI(property);
+    const capRate = calculateCapRate(property);
+    const cashOnCash = calculateCashOnCashReturn(property);
+    const dscr = calculateDSCR(property);
+    const irr = calculateIRR(property, 5);
+
+    // Calculate portfolio LTV
+    const portfolioLTV = propertyValue > 0 ? (mortgageBalance / propertyValue) * 100 : 0;
+
+    // Calculate margin
+    const margin = annualRevenue > 0 ? (netCashFlow / annualRevenue) * 100 : 0;
+
+    // Calculate equity percentage
+    const equityPercentage = propertyValue > 0 ? (equity / propertyValue) * 100 : 0;
+
+    // Calculate forecasted equity (equity earned this year)
+    const currentYear = new Date().getFullYear();
+    const purchaseYear = new Date(property.purchaseDate).getFullYear();
+    const yearsOwned = currentYear - purchaseYear;
+    const previousYearEquity = propertyValue > property.purchasePrice 
+      ? propertyValue - (mortgageBalance + (getMonthlyMortgagePayment(property.mortgage) || 0) * 12)
+      : 0;
+    const forecastedEquity = equity - previousYearEquity;
+
+    return {
+      propertyValue,
+      mortgageBalance,
+      equity,
+      equityPercentage,
+      forecastedEquity,
+      annualRevenue,
+      annualOperatingExpenses,
+      annualDebtService,
+      totalExpenses,
+      netCashFlow,
+      noi,
+      capRate,
+      cashOnCash,
+      dscr,
+      irr,
+      portfolioLTV,
+      margin
+    };
+  }, [property]);
+
   if (!property) {
     return (
       <RequireAuth>
@@ -236,26 +452,123 @@ export default function PropertyDetailPage() {
     );
   }
 
+  if (!financialMetrics) {
+    return (
+      <RequireAuth>
+        <Layout>
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-semibold">Loading...</h1>
+          </div>
+        </Layout>
+      </RequireAuth>
+    );
+  }
+
+  // Helper function to get status label for metrics
+  const getStatusLabel = (value, thresholds) => {
+    if (value >= thresholds.strong) return { label: 'STRONG', color: 'text-green-600 dark:text-green-400' };
+    if (value >= thresholds.adequate) return { label: 'ADEQUATE', color: 'text-yellow-600 dark:text-yellow-400' };
+    return { label: 'LOW', color: 'text-red-600 dark:text-red-400' };
+  };
+
+  const capRateStatus = getStatusLabel(financialMetrics.capRate, { strong: 6, adequate: 4 });
+  const cashOnCashStatus = getStatusLabel(financialMetrics.cashOnCash, { strong: 8, adequate: 5 });
+  const dscrStatus = getStatusLabel(financialMetrics.dscr, { strong: 1.5, adequate: 1.0 });
+  const irrStatus = getStatusLabel(financialMetrics.irr, { strong: 20, adequate: 10 });
+
+  const totalCashInvested = (property.purchasePrice - (property.mortgage?.originalAmount || 0)) + 
+    (property.closingCosts || 0) + (property.initialRenovations || 0);
+  const pricePerSquareFoot = property.squareFootage > 0 
+    ? (property.purchasePrice / property.squareFootage) 
+    : 0;
+  const appreciation = financialMetrics.propertyValue - property.purchasePrice;
+  const downPayment = property.purchasePrice - (property.mortgage?.originalAmount || 0);
+  
+  // Calculate equity via mortgage principal payments
+  let equityViaPrincipalPayments = 0;
+  if (property.mortgage) {
+    try {
+      const monthlyPrincipal = getMonthlyMortgagePrincipal(property.mortgage);
+      const purchaseDate = new Date(property.purchaseDate);
+      const currentDate = new Date();
+      const monthsElapsed = Math.max(0, (currentDate.getFullYear() - purchaseDate.getFullYear()) * 12 + 
+        (currentDate.getMonth() - purchaseDate.getMonth()));
+      equityViaPrincipalPayments = monthlyPrincipal * monthsElapsed;
+    } catch (error) {
+      console.warn('Error calculating equity via principal payments:', error);
+      equityViaPrincipalPayments = 0;
+    }
+  }
+  
+  // Calculate total mortgage interest paid (including remaining scheduled for current year)
+  let totalMortgageInterestPaid = 0;
+  if (property.mortgage) {
+    try {
+      const monthlyInterest = getMonthlyMortgageInterest(property.mortgage);
+      const mortgageStartDate = new Date(property.mortgage.startDate || property.purchaseDate);
+      const currentDate = new Date();
+      
+      // Calculate months elapsed since mortgage start
+      const monthsElapsed = Math.max(0, (currentDate.getFullYear() - mortgageStartDate.getFullYear()) * 12 + 
+        (currentDate.getMonth() - mortgageStartDate.getMonth()));
+      
+      // Interest already paid
+      const interestPaidSoFar = monthlyInterest * monthsElapsed;
+      
+      // Remaining months in current calendar year
+      const currentMonth = currentDate.getMonth(); // 0-11
+      const remainingMonthsInYear = 12 - currentMonth - 1; // -1 because current month is partially paid
+      
+      // Remaining scheduled interest for current year
+      const remainingInterestForYear = monthlyInterest * remainingMonthsInYear;
+      
+      // Total = interest paid so far + remaining for current year
+      totalMortgageInterestPaid = interestPaidSoFar + remainingInterestForYear;
+    } catch (error) {
+      console.warn('Error calculating total mortgage interest paid:', error);
+      totalMortgageInterestPaid = 0;
+    }
+  }
+
+  // Calculate total mortgage principal paid (including remaining scheduled for current year)
+  let totalMortgagePrincipalPaid = 0;
+  if (property.mortgage) {
+    try {
+      const monthlyPrincipal = getMonthlyMortgagePrincipal(property.mortgage);
+      const mortgageStartDate = new Date(property.mortgage.startDate || property.purchaseDate);
+      const currentDate = new Date();
+      
+      // Calculate months elapsed since mortgage start
+      const monthsElapsed = Math.max(0, (currentDate.getFullYear() - mortgageStartDate.getFullYear()) * 12 + 
+        (currentDate.getMonth() - mortgageStartDate.getMonth()));
+      
+      // Principal already paid
+      const principalPaidSoFar = monthlyPrincipal * monthsElapsed;
+      
+      // Remaining months in current calendar year
+      const currentMonth = currentDate.getMonth(); // 0-11
+      const remainingMonthsInYear = 12 - currentMonth - 1; // -1 because current month is partially paid
+      
+      // Remaining scheduled principal for current year
+      const remainingPrincipalForYear = monthlyPrincipal * remainingMonthsInYear;
+      
+      // Total = principal paid so far + remaining for current year
+      totalMortgagePrincipalPaid = principalPaidSoFar + remainingPrincipalForYear;
+    } catch (error) {
+      console.warn('Error calculating total mortgage principal paid:', error);
+      totalMortgagePrincipalPaid = 0;
+    }
+  }
+
   return (
     <RequireAuth>
       <Layout>
         <div className="space-y-6">
-          {/* Header */}
+          {/* Header with Edit buttons */}
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold">{property.name}</h1>
+              <h1 className="text-3xl font-bold">{property.name || property.nickname}</h1>
               <p className="mt-1 text-gray-600 dark:text-gray-300">{property.address}</p>
-              <div className="mt-2 flex items-center gap-4 text-sm">
-                <span className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded">
-                  {property.type}
-                </span>
-                <span className="text-gray-500 dark:text-gray-400">
-                  {property.units} unit{property.units > 1 ? 's' : ''}
-                </span>
-                <span className="text-gray-500 dark:text-gray-400">
-                  {formatNumber(property.squareFootage)} sq ft
-                </span>
-              </div>
             </div>
             <div className="flex gap-3">
               <Button variant="secondary" onClick={() => setShowEditPropertyModal(true)}>Edit Property</Button>
@@ -263,146 +576,252 @@ export default function PropertyDetailPage() {
             </div>
           </div>
 
-          {/* Property Image */}
-          <div className="h-64 rounded-lg border border-black/10 dark:border-white/10 overflow-hidden shadow-sm">
-            {property.imageUrl ? (
-              <img 
-                src={`${property.imageUrl}?v=3`}
-                alt={property.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <div className="text-lg font-medium">Property Image</div>
-                  <div className="text-sm">Upload functionality coming soon</div>
+          {/* Property Summary & Purchase Details with Image */}
+          <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Home className="w-5 h-5 text-gray-500" />
+              <h2 className="text-xl font-semibold">Property Summary & Purchase Details</h2>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Column 1: Property Details */}
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Year Built</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{property.yearBuilt || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Number of Units</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{property.units || 1}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Unit Size</span>
+                  <span className="font-medium text-gray-900 dark:text-white text-right">
+                    {property.units > 1 && property.squareFootage ? (
+                      <div className="space-y-0.5">
+                        {Array.from({ length: property.units }, (_, index) => {
+                          const unitSize = property.squareFootage / property.units;
+                          return (
+                            <div key={index} className="text-xs">
+                              Unit {index + 1}: {formatNumber(unitSize)} sq ft
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : property.squareFootage && property.units 
+                      ? `${formatNumber(property.squareFootage / (property.units || 1))} sq ft`
+                      : property.squareFootage 
+                        ? `${formatNumber(property.squareFootage)} sq ft`
+                        : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Unit Type</span>
+                  <span className="font-medium text-gray-900 dark:text-white text-right">
+                    {property.units > 1 && property.bedrooms && property.bathrooms && property.bedrooms.length > 0 ? (
+                      <div className="space-y-0.5">
+                        {property.bedrooms.map((beds, index) => {
+                          const baths = property.bathrooms && property.bathrooms[index] !== undefined ? property.bathrooms[index] : (property.bathrooms && property.bathrooms[0] ? property.bathrooms[0] : 0);
+                          return (
+                            <div key={index} className="text-xs">
+                              Unit {index + 1}: {beds} Bed, {baths} Bath
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : property.unitConfig || (property.bedrooms && property.bedrooms[0] !== undefined && property.bathrooms && property.bathrooms[0] !== undefined
+                      ? `${property.bedrooms[0]} Bed, ${property.bathrooms[0]} Bath`
+                      : property.unitConfig || 'N/A')}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-black/10 dark:border-white/10"></div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-900 dark:text-white">Total Investment</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(totalCashInvested)}</span>
                 </div>
               </div>
-            )}
+              
+              {/* Column 2: Purchase & Value Details */}
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Purchase Date</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{new Date(property.purchaseDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Purchase Price</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.purchasePrice)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Purchase Price Per Sq.Ft</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(pricePerSquareFoot)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Down Payment</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.purchasePrice - (property.mortgage?.originalAmount || 0))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Original Mortgage</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.mortgage?.originalAmount || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Closing Costs</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.closingCosts || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Renovations</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.initialRenovations || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Forecasted Equity Earned This Year</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(financialMetrics.forecastedEquity)}</span>
+                </div>
+              </div>
+              
+              {/* Column 3: Thumbnail Image */}
+              <div className="flex items-center justify-center">
+                <div className="w-full h-64 rounded-lg border border-black/10 dark:border-white/10 overflow-hidden shadow-sm">
+                  {property.imageUrl ? (
+                    <img 
+                      src={`${property.imageUrl}?v=3`}
+                      alt={property.name || property.nickname}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center">
+                      <div className="text-center text-gray-500 dark:text-gray-400">
+                        <div className="text-lg font-medium">Property Image</div>
+                        <div className="text-sm">Upload functionality coming soon</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* General Notes Section */}
+          <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <button
+              onClick={() => toggleSection('generalNotes')}
+              className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#205A3E]" />
+                <h2 className="text-xl font-semibold">General Notes</h2>
+              </div>
+              {openSections.generalNotes ? (
+                <ChevronUp className="w-5 h-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-500" />
+              )}
+            </button>
+                {openSections.generalNotes && (
+                  <div>
+                    <textarea
+                      value={notes}
+                      onChange={handleNotesChange}
+                      placeholder="Add your notes about this property..."
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[100px]"
+                    />
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {notesChanged ? 'Saving...' : 'Notes are automatically saved'}
+                    </div>
+                  </div>
+                )}
           </div>
 
           {/* Key Financial Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Current Value - Emerald */}
-            <div className="relative rounded-2xl border border-[#205A3E]/30 dark:border-[#1C4F39]/40 bg-gradient-to-br from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent p-4">
-              <div className="flex items-start justify-between gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {/* Estimated Property Value */}
+            <div className="relative rounded-2xl border border-[#205A3E]/30 dark:border-[#1C4F39]/40 bg-gradient-to-br from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent p-3">
+              <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                    Current Value
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Estimated Property Value
                   </h3>
                 </div>
-                <div className="relative rounded-full p-2 text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70 cursor-help flex-shrink-0 flex items-center justify-center">
-                  <DollarSign className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                <div className="relative rounded-full p-1.5 text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70 cursor-help flex-shrink-0 flex items-center justify-center">
+                  <DollarSign className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
                 </div>
               </div>
-              <div className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(property.currentValue || 0)}
+              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(financialMetrics.propertyValue)}
               </div>
-              {property.purchasePrice > 0 && (
-                <>
-                  <div className="mt-3 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
-                  <div className="mt-2.5 w-full">
-                    <p 
-                      className="font-bold whitespace-nowrap text-[#205A3E] dark:text-[#66B894]"
-                      style={{ 
-                        fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
-                        lineHeight: '1.2'
-                      }}
-                    >
-                      {formatPercentage(((property.currentValue - property.purchasePrice) / property.purchasePrice) * 100)} appreciation
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Annual Income - Teal */}
-            <div className="relative rounded-2xl border border-[#1A4A5A]/25 dark:border-[#123640]/40 bg-gradient-to-br from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent p-4">
-              <div className="flex items-start justify-between gap-2.5">
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                    Annual Income
-                  </h3>
-                </div>
-                <div className="relative rounded-full p-2 text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70 cursor-help flex-shrink-0 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(property.rent?.annualRent || 0)}
-              </div>
-              {property.rent?.monthlyRent && (
-                <>
-                  <div className="mt-3 border-t-[2px] border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30" />
-                  <div className="mt-2.5 w-full">
-                    <p 
-                      className="font-bold whitespace-nowrap text-[#1A4A5A] dark:text-[#7AC0CF]"
-                      style={{ 
-                        fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
-                        lineHeight: '1.2'
-                      }}
-                    >
-                      {formatCurrency(property.rent.monthlyRent)}/month
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Net Cash Flow - Emerald */}
-            <div className="relative rounded-2xl border border-[#205A3E]/30 dark:border-[#1C4F39]/40 bg-gradient-to-br from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent p-4">
-              <div className="flex items-start justify-between gap-2.5">
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                    Net Cash Flow
-                  </h3>
-                </div>
-                <div className="relative rounded-full p-2 text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70 cursor-help flex-shrink-0 flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency((property.rent?.annualRent || 0) - ((property.monthlyExpenses?.total || 0) * 12))}
-              </div>
-              <div className="mt-3 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
-              <div className="mt-2.5 w-full">
-                <p 
-                  className="font-bold whitespace-nowrap text-[#205A3E] dark:text-[#66B894]"
-                  style={{ 
-                    fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
-                    lineHeight: '1.2'
-                  }}
-                >
-                  Annual
+              <div className="mt-2.5 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
+              <div className="mt-2 space-y-0.5">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  {formatCurrency(financialMetrics.equity)} equity ({formatPercentage(financialMetrics.equityPercentage)}) <span className="mx-1.5">●</span> {formatCurrency(financialMetrics.mortgageBalance)} debt
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  {(() => {
+                    const purchaseYear = new Date(property.purchaseDate).getFullYear();
+                    const purchasePrice = property.purchasePrice || 0;
+                    const currentValue = financialMetrics.propertyValue || 0;
+                    const changePercent = purchasePrice > 0 ? ((currentValue - purchasePrice) / purchasePrice) * 100 : 0;
+                    const isIncrease = changePercent >= 0;
+                    return `${isIncrease ? '+' : ''}${formatPercentage(Math.abs(changePercent))} ${isIncrease ? 'increase' : 'decrease'} since ${purchaseYear}`;
+                  })()}
                 </p>
               </div>
             </div>
 
-            {/* Equity - Teal */}
-            <div className="relative rounded-2xl border border-[#1A4A5A]/25 dark:border-[#123640]/40 bg-gradient-to-br from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent p-4">
-              <div className="flex items-start justify-between gap-2.5">
+            {/* Estimated Equity */}
+            <div className="relative rounded-2xl border border-[#1A4A5A]/25 dark:border-[#123640]/40 bg-gradient-to-br from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent p-3">
+              <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                    Equity
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Estimated Equity
                   </h3>
                 </div>
-                <div className="relative rounded-full p-2 text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70 cursor-help flex-shrink-0 flex items-center justify-center">
-                  <Home className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                <div className="relative rounded-full p-1.5 text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70 cursor-help flex-shrink-0 flex items-center justify-center">
+                  <Home className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
                 </div>
               </div>
-              <div className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency((property.currentValue || 0) - (property.mortgage?.originalAmount || 0))}
+              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(financialMetrics.equity)}
               </div>
-              <div className="mt-3 border-t-[2px] border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30" />
-              <div className="mt-2.5 w-full">
-                <p 
-                  className="font-bold whitespace-nowrap text-[#1A4A5A] dark:text-[#7AC0CF]"
-                  style={{ 
-                    fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
-                    lineHeight: '1.2'
-                  }}
-                >
-                  Estimated
+              <div className="mt-2.5 border-t-[2px] border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30" />
+              <div className="mt-2 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">- Down Payment</span>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{formatCurrency(downPayment)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">- Property Value Appreciation</span>
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">+{formatCurrency(appreciation)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">- Equity via Payments To Mortgage Principal</span>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{formatCurrency(equityViaPrincipalPayments)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Mortgage Debt */}
+            <div className="relative rounded-2xl border border-[#205A3E]/30 dark:border-[#1C4F39]/40 bg-gradient-to-br from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Mortgage Debt
+                  </h3>
+                </div>
+                <div className="relative rounded-full p-1.5 text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70 cursor-help flex-shrink-0 flex items-center justify-center">
+                  <DollarSign className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                </div>
+              </div>
+              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(financialMetrics.mortgageBalance)}
+              </div>
+              <div className="mt-2.5 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Portfolio LTV (Loan-to-Value): {formatPercentage(financialMetrics.portfolioLTV)}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Total Mortgage Interest Paid: <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(totalMortgageInterestPaid)}</span>
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Total Mortgage Principal Paid: <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(totalMortgagePrincipalPaid)}</span>
                 </p>
               </div>
             </div>
@@ -411,102 +830,168 @@ export default function PropertyDetailPage() {
           <div className="space-y-6">
             {/* Main Content - Full Width */}
             <div className="space-y-6">
-              {/* Property Summary & Purchase Details */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2 mb-4">
-                  <Home className="w-5 h-5 text-gray-500" />
-                  <h2 className="text-xl font-semibold">Property Summary & Purchase Details</h2>
+              {/* Income & Expenses Section */}
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
+                <div className="flex items-start justify-between gap-2 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">
+                      Income & Expenses
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Annualized snapshot of how rent covers operating costs and debt service.
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-full px-3 py-1 text-xs font-semibold flex-shrink-0 ${
+                      financialMetrics.netCashFlow >= 0
+                        ? 'bg-[#D9E5DC] text-[#205A3E] dark:bg-[#1D3A2C] dark:text-[#66B894]'
+                        : 'bg-[#F7D9D9] text-[#9F3838] dark:bg-[#2B1111] dark:text-[#F2A5A5]'
+                    }`}
+                  >
+                    {formatPercentage(financialMetrics.margin)} margin
+                  </div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Purchase Price</span>
-                      <span className="font-medium">{formatCurrency(property.purchasePrice)}</span>
+
+                <div className="space-y-3">
+                  {/* Total Revenue */}
+                  <div className="relative pl-2">
+                    <div className="flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <span>Total Revenue</span>
+                      <span className="text-gray-900 dark:text-white">{formatCurrency(financialMetrics.annualRevenue)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Original Mortgage</span>
-                      <span className="font-medium">{formatCurrency(property.mortgage.originalAmount)}</span>
-                    </div>
-                    
-                    {/* Visual Separator */}
-                    <div className="pt-2 border-t border-black/10 dark:border-white/10"></div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Down Payment</span>
-                      <span className="font-medium">{formatCurrency(property.purchasePrice - property.mortgage.originalAmount)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Closing Costs</span>
-                      <span className="font-medium">{formatCurrency(property.closingCosts)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Initial Renovations</span>
-                      <span className="font-medium">{formatCurrency(property.initialRenovations)}</span>
-                    </div>
-                    <div className="pt-2 border-t border-black/10 dark:border-white/10">
-                      <div className="flex justify-between font-semibold">
-                        <span>Total Investment (Cash)</span>
-                        <span>{formatCurrency((property.purchasePrice - property.mortgage.originalAmount) + property.closingCosts + property.initialRenovations)}</span>
-                      </div>
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                      <div
+                        className="h-full rounded-full bg-[#205A3E] dark:bg-[#2F7E57]"
+                        style={{ width: '100%' }}
+                        role="presentation"
+                      />
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Purchase Date</span>
-                      <span className="font-medium">{new Date(property.purchaseDate).toLocaleDateString()}</span>
+
+                  {/* Total Expenses */}
+                  <div className="relative pl-2">
+                    <span
+                      className="absolute left-0 top-0 h-full border-l border-dashed border-gray-300 dark:border-gray-700"
+                      aria-hidden="true"
+                    />
+                    <div className="flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <span>Total Expenses</span>
+                      <span className="text-gray-900 dark:text-white">-{formatCurrency(financialMetrics.totalExpenses)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Year Built</span>
-                      <span className="font-medium">{property.yearBuilt}</span>
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                      <div
+                        className="h-full rounded-full bg-[#E16262] dark:bg-[#A12424]"
+                        style={{ width: `${Math.min(100, (financialMetrics.totalExpenses / financialMetrics.annualRevenue) * 100)}%` }}
+                        role="presentation"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Purchase Price Per Square Foot</span>
-                      <span className="font-medium">{formatCurrency(property.pricePerSquareFoot)}</span>
+                  </div>
+
+                  {/* Operating Expenses */}
+                  <div className="relative pl-8">
+                    <div className="flex items-center justify-between text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <span>Operating Expenses ({Math.round((financialMetrics.annualOperatingExpenses / financialMetrics.annualRevenue) * 100)}%)</span>
+                      <span className="text-gray-900 dark:text-white">-{formatCurrency(financialMetrics.annualOperatingExpenses)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Current Value</span>
-                      <span className="font-medium">{formatCurrency(property.currentValue)}</span>
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                      <div
+                        className="h-full rounded-full bg-[#9CA3AF] dark:bg-[#E2E8F0]"
+                        style={{ width: `${Math.min(100, (financialMetrics.annualOperatingExpenses / financialMetrics.annualRevenue) * 100)}%` }}
+                        role="presentation"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Appreciation</span>
-                      <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                        +{formatCurrency(property.currentValue - property.purchasePrice)}
-                      </span>
+                  </div>
+
+                  {/* Debt Service */}
+                  <div className="relative pl-8">
+                    <div className="flex items-center justify-between text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <span>Debt Service ({Math.round((financialMetrics.annualDebtService / financialMetrics.annualRevenue) * 100)}%)</span>
+                      <span className="text-gray-900 dark:text-white">-{formatCurrency(financialMetrics.annualDebtService)}</span>
                     </div>
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                      <div
+                        className="h-full rounded-full bg-[#9CA3AF] dark:bg-[#E2E8F0]"
+                        style={{ width: `${Math.min(100, (financialMetrics.annualDebtService / financialMetrics.annualRevenue) * 100)}%` }}
+                        role="presentation"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Net Cash Flow */}
+                <div
+                  className={`mt-5 flex items-start justify-between rounded-md border px-4 py-3 text-sm ${
+                    financialMetrics.netCashFlow >= 0
+                      ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
+                      : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
+                  }`}
+                >
+                  <div>
+                    <p className="font-semibold">Net Cash Flow</p>
+                    <p className="text-xs opacity-80">After operating expenses and debt service</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-bold">{formatCurrency(financialMetrics.netCashFlow)}</p>
+                    <p className="text-xs font-medium opacity-80">
+                      {formatPercentage((financialMetrics.totalExpenses / financialMetrics.annualRevenue) * 100)}% of revenue consumed
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* General Notes Section */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
-                <button
-                  onClick={() => toggleSection('generalNotes')}
-                  className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
-                >
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-[#205A3E]" />
-                    <h2 className="text-xl font-semibold">General Notes</h2>
-                  </div>
-                  {openSections.generalNotes ? (
-                    <ChevronUp className="w-5 h-5 text-gray-500" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-500" />
-                  )}
-                </button>
-                {openSections.generalNotes && (
-                  <div>
-                    <textarea
-                      value={notes}
-                      onChange={handleNotesChange}
-                      placeholder="Add your notes about this property..."
-                      rows={8}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
-                    />
-                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      {notesChanged ? 'Saving...' : 'Notes are automatically saved'}
+              {/* Performance Metrics Section */}
+              <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
+                <h2 className="text-xl font-semibold mb-4">Performance Metrics</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* CAP RATE */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">CAP RATE</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      {formatPercentage(financialMetrics.capRate)}
+                    </div>
+                    <div className={`text-xs font-semibold ${capRateStatus.color}`}>
+                      {capRateStatus.label}
                     </div>
                   </div>
-                )}
+
+                  {/* CASH ON CASH */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">CASH ON CASH</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      {formatPercentage(financialMetrics.cashOnCash)}
+                    </div>
+                    <div className={`text-xs font-semibold ${cashOnCashStatus.color}`}>
+                      {cashOnCashStatus.label}
+                    </div>
+                  </div>
+
+                  {/* DSCR */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">DSCR</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      {financialMetrics.dscr.toFixed(2)}
+                    </div>
+                    <div className={`text-xs font-semibold ${dscrStatus.color}`}>
+                      {dscrStatus.label}
+                    </div>
+                  </div>
+
+                  {/* IRR */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">IRR</div>
+                      <select className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800">
+                        <option>5Y</option>
+                      </select>
+                    </div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      {formatPercentage(financialMetrics.irr)}
+                    </div>
+                    <div className={`text-xs font-semibold ${irrStatus.color}`}>
+                      {irrStatus.label}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Expense Summary Card */}
@@ -567,9 +1052,9 @@ export default function PropertyDetailPage() {
                     <div className="grid grid-cols-3 gap-6">
                       {/* Left Column: Donut Chart */}
                       <div className="flex flex-col items-center">
-                        <div className="relative overflow-visible" style={{ width: '280px', height: '280px' }}>
+                        <div className="relative overflow-visible" style={{ width: '320px', height: '320px' }}>
                           <ResponsiveContainer width="100%" height="100%">
-                            <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                            <PieChart margin={{ top: 30, right: 30, bottom: 30, left: 30 }}>
                               <Pie
                                 data={expenseChartData}
                                 cx="50%"
@@ -582,12 +1067,12 @@ export default function PropertyDetailPage() {
                                 onMouseEnter={(data, index) => setHoveredSegment(index)}
                                 onMouseLeave={() => setHoveredSegment(null)}
                                 label={({ percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
-                                  // Only show labels for segments > 3%
-                                  if (percent < 0.03) return null;
+                                  // Show labels for all segments (removed minimum threshold)
+                                  if (percent <= 0) return null;
                                   
                                   const RADIAN = Math.PI / 180;
                                   // Position label further outside the chart for better visibility
-                                  const labelRadius = outerRadius + 40;
+                                  const labelRadius = outerRadius + 35;
                                   const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
                                   const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
                                   
@@ -596,10 +1081,10 @@ export default function PropertyDetailPage() {
                                   
                                   // Calculate text width more accurately
                                   const percentText = `${(percent * 100).toFixed(0)}%`;
-                                  const textWidth = percentText.length * 9 + 8;
+                                  const textWidth = percentText.length * 9 + 10;
                                   const textHeight = 20;
                                   
-                                  // Adjust positioning based on quadrant
+                                  // Adjust positioning based on quadrant with padding to prevent clipping
                                   let rectX, textX, textAnchor;
                                   if (isRightSide) {
                                     rectX = x;
@@ -611,12 +1096,25 @@ export default function PropertyDetailPage() {
                                     textAnchor = 'end';
                                   }
                                   
+                                  // Ensure labels don't get clipped by checking bounds
+                                  const containerWidth = 320;
+                                  const containerHeight = 320;
+                                  const margin = 30;
+                                  const minX = margin;
+                                  const maxX = containerWidth - margin;
+                                  const minY = margin;
+                                  const maxY = containerHeight - margin;
+                                  
+                                  // Clamp label position to stay within visible bounds
+                                  const clampedRectX = Math.max(minX, Math.min(maxX - textWidth, rectX));
+                                  const clampedY = Math.max(minY + textHeight / 2, Math.min(maxY - textHeight / 2, y));
+                                  
                                   return (
                                     <g>
                                       {/* Background for better readability */}
                                       <rect
-                                        x={rectX}
-                                        y={y - textHeight / 2}
+                                        x={clampedRectX}
+                                        y={clampedY - textHeight / 2}
                                         width={textWidth}
                                         height={textHeight}
                                         fill="white"
@@ -627,8 +1125,8 @@ export default function PropertyDetailPage() {
                                         strokeWidth={0.5}
                                       />
                                       <text 
-                                        x={textX} 
-                                        y={y} 
+                                        x={isRightSide ? clampedRectX + 6 : clampedRectX + textWidth - 6} 
+                                        y={clampedY} 
                                         fill="#111827" 
                                         textAnchor={textAnchor} 
                                         dominantBaseline="central"
@@ -642,16 +1140,16 @@ export default function PropertyDetailPage() {
                                   );
                                 }}
                                 labelLine={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                                  // Only show label lines for segments > 3%
-                                  if (percent < 0.03) return null;
+                                  // Show label lines for all segments (removed minimum threshold)
+                                  if (percent <= 0) return null;
                                   
                                   const RADIAN = Math.PI / 180;
                                   // Start point: outer edge of segment (where the dot will be)
                                   const x1 = cx + outerRadius * Math.cos(-midAngle * RADIAN);
                                   const y1 = cy + outerRadius * Math.sin(-midAngle * RADIAN);
-                                  // End point: where label starts
-                                  const x2 = cx + (outerRadius + 40) * Math.cos(-midAngle * RADIAN);
-                                  const y2 = cy + (outerRadius + 40) * Math.sin(-midAngle * RADIAN);
+                                  // End point: where label starts (slightly shorter to prevent clipping)
+                                  const x2 = cx + (outerRadius + 35) * Math.cos(-midAngle * RADIAN);
+                                  const y2 = cy + (outerRadius + 35) * Math.sin(-midAngle * RADIAN);
                                   
                                   return (
                                     <g>
@@ -702,7 +1200,7 @@ export default function PropertyDetailPage() {
                               {formatCurrency(expenseChartData.reduce((sum, item) => sum + item.value, 0))}
                             </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                              Total {expenseView === 'monthly' ? 'Monthly' : 'Annual'} Expense
+                              Total Expenses
                           </div>
                         </div>
                       </div>
@@ -823,43 +1321,94 @@ export default function PropertyDetailPage() {
                 </button>
                 {openSections.historicalPerformance && (
                   <div>
-                  <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                    Based on actual records
-                  </span>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-600 dark:text-gray-400 mr-2">Show:</span>
-                      <button
-                        onClick={() => toggleMetric('income')}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                          visibleMetrics.income
-                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        Income
-                      </button>
-                      <button
-                        onClick={() => toggleMetric('expenses')}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                          visibleMetrics.expenses
-                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        Expenses
-                      </button>
-                      <button
-                        onClick={() => toggleMetric('cashFlow')}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                          visibleMetrics.cashFlow
-                            ? 'bg-[#205A3E]/10 dark:bg-[#205A3E]/20 text-[#205A3E] dark:text-[#4ade80] border border-[#205A3E]/30 dark:border-[#205A3E]/50'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        Cash Flow
-                      </button>
-                </div>
+                  <div className="flex flex-col gap-4 mb-4">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                        Based on actual records
+                      </span>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-600 dark:text-gray-400 mr-2">Show:</span>
+                        <button
+                          onClick={() => toggleMetric('income')}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                            visibleMetrics.income
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          Income
+                        </button>
+                        <button
+                          onClick={() => toggleMetric('expenses')}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                            visibleMetrics.expenses
+                              ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          Expenses
+                        </button>
+                        <button
+                          onClick={() => toggleMetric('cashFlow')}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                            visibleMetrics.cashFlow
+                              ? 'bg-[#205A3E]/10 dark:bg-[#205A3E]/20 text-[#205A3E] dark:text-[#4ade80] border border-[#205A3E]/30 dark:border-[#205A3E]/50'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          Cash Flow
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Year Range Controls */}
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="startYear" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Start Year:
+                        </label>
+                        <input
+                          id="startYear"
+                          type="number"
+                          min={availableYears.min || 2000}
+                          max={availableYears.max || new Date().getFullYear()}
+                          value={historicalStartYear || ''}
+                          onChange={(e) => {
+                            const year = parseInt(e.target.value);
+                            if (!isNaN(year) && year >= (availableYears.min || 2000) && year <= (availableYears.max || new Date().getFullYear())) {
+                              setHistoricalStartYear(year);
+                            }
+                          }}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#205A3E] focus:border-transparent"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="numYears" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Number of Years:
+                        </label>
+                        <input
+                          id="numYears"
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={historicalYears}
+                          onChange={(e) => {
+                            const years = parseInt(e.target.value);
+                            if (!isNaN(years) && years >= 1 && years <= 20) {
+                              setHistoricalYears(years);
+                            }
+                          }}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#205A3E] focus:border-transparent"
+                        />
+                      </div>
+                      
+                      {availableYears.min && availableYears.max && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Available: {availableYears.min} - {availableYears.max}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                 <div className="h-80">
@@ -966,23 +1515,48 @@ export default function PropertyDetailPage() {
                 {openSections.currentTenants && (
                   <div>
                     <div className="space-y-3">
-                  {property.tenants.map((tenant, index) => (
-                    <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900 dark:text-white">{tenant.name}</div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{tenant.unit}</div>
-                          <div className="flex items-center gap-4 mt-2">
-                            <div className="text-base font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(tenant.rent)}/mo</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(tenant.leaseStart).toLocaleDateString()} - {new Date(tenant.leaseEnd).toLocaleDateString()}
+                      {property.tenants && property.tenants.length > 0 ? (
+                        property.tenants.map((tenant, index) => {
+                          const formatDate = (dateStr) => {
+                            if (!dateStr || dateStr === 'Active' || dateStr === 'Invalid Date') return dateStr;
+                            try {
+                              const date = new Date(dateStr);
+                              return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                      } catch (e) {
+                              return dateStr;
+                            }
+                          };
+                          
+                          const leaseStartDate = formatDate(tenant.leaseStart);
+                          const leaseEndDate = tenant.leaseEnd === 'Active' ? 'Active' : formatDate(tenant.leaseEnd);
+                    
+                    return (
+                      <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                                  <div className="font-semibold text-gray-900 dark:text-white mb-2">{tenant.name}</div>
+                                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                                    <span className="font-medium">Unit {tenant.unit || 'N/A'}</span>
+                              </div>
+                                  <div className="flex items-center gap-4 mt-3">
+                                    <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                                      {formatCurrency(tenant.rent)}/mo
+                                    </div>
+                                    <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                                      <Calendar className="w-4 h-4" />
+                                      <span>Lease term: {leaseStartDate} - {leaseEndDate}</span>
+                                    </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      </div>
-                      </div>
-                      </div>
-                      </div>
-                  ))}
+                    );
+                        })
+                      ) : (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          <p className="text-sm">No tenants listed for this property.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
