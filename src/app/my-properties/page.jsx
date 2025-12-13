@@ -298,6 +298,7 @@ function PropertyCard({ property }) {
   const [irrYears, setIrrYears] = useState(5); // Default to 5 years
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [hoveredMetric, setHoveredMetric] = useState(null); // Track which metric is being hovered
   
   // Safety check
   if (!property) {
@@ -493,20 +494,20 @@ function PropertyCard({ property }) {
       prefetch={false}
       className="group block rounded-lg border border-black/10 dark:border-white/10 overflow-hidden bg-white dark:bg-neutral-900 hover:shadow-lg transition-all"
     >
-      <div className="p-4 md:p-5 lg:p-6">
+      <div className="p-2.5 md:p-3 lg:p-4">
         {/* Two-Column Layout: Left = Property Details, Right = All Financial Sections */}
         {/* Optimized proportions: 30% left, 70% right - prioritizing financial data */}
-        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_2.1fr] xl:grid-cols-[1fr_2.2fr] gap-4 md:gap-5 lg:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_2.1fr] xl:grid-cols-[1fr_2.2fr] gap-2.5 md:gap-3 lg:gap-4">
           {/* Left Column: Property Details - Compact */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div>
-              <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white group-hover:text-[#205A3E] dark:group-hover:text-[#4ade80] transition-colors mb-1.5">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white group-hover:text-[#205A3E] dark:group-hover:text-[#4ade80] transition-colors mb-0.5">
                 {property.nickname || property.name}
               </h3>
-              <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-2.5">
+              <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-1.5">
                 {property.address}
               </p>
-              <div className="grid grid-cols-2 gap-2 text-xs md:text-sm">
+              <div className="grid grid-cols-2 gap-1 text-xs md:text-sm">
                 <div>
                   <div className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5 uppercase tracking-wide">Purchase Price</div>
                   <div className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{formatCurrency(property.purchasePrice)}</div>
@@ -529,20 +530,38 @@ function PropertyCard({ property }) {
                   src={`${property.imageUrl}?v=3`}
                   alt={property.nickname || property.name || 'Property image'}
                   width={600}
-                  height={250}
+                  height={160}
                   className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
                   unoptimized
                 />
               ) : (
-                <div className="w-full h-36 md:h-40 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-neutral-800 dark:to-neutral-700" />
+                <div className="w-full h-20 md:h-24 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-neutral-800 dark:to-neutral-700" />
+              )}
+            </div>
+            
+            {/* Tooltip Display Area - Shows in empty space under thumbnail */}
+            <div className="mt-2 min-h-[60px] transition-all duration-200 ease-in-out">
+              {hoveredMetric ? (
+                <div className="rounded-lg border border-[#205A3E]/40 dark:border-[#66B894]/40 bg-gradient-to-br from-[#205A3E] to-[#1C4F39] dark:from-[#1D3A2C] dark:to-[#0F1F17] p-2.5 text-white text-xs leading-relaxed shadow-lg opacity-100 transition-opacity duration-200">
+                  <div className="font-semibold mb-1.5 text-[#66B894] dark:text-[#4ade80] text-[11px] uppercase tracking-wide">
+                    {hoveredMetric.title}
+                  </div>
+                  <div className="text-white/95 dark:text-gray-200 leading-snug">
+                    {hoveredMetric.text}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[10px] text-gray-400 dark:text-gray-500 text-center py-2 opacity-60 transition-opacity duration-200">
+                  Hover over a metric for details
+                </div>
               )}
             </div>
           </div>
           
           {/* Right Column: All Financial Sections - Prioritized */}
-          <div className="space-y-4 md:space-y-5">
+          <div className="space-y-2.5 md:space-y-3">
             {/* Top: Three Financial Overview Cards - Side by Side, Compact */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {/* Estimated Property Value */}
               <FinancialOverviewCard
                 title="Estimated Property Value"
@@ -587,17 +606,18 @@ function PropertyCard({ property }) {
             />
 
             {/* Bottom: Performance Metrics - Full Width, Compact Grid */}
-            <div className="pt-3 md:pt-4 border-t border-black/10 dark:border-white/10">
-              <div className="mb-2 md:mb-3">
+            <div className="pt-1.5 md:pt-2 border-t border-black/10 dark:border-white/10">
+              <div className="mb-1 md:mb-1.5">
                 <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Performance Metrics</h4>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2.5">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-1.5">
             <KeyMetricCard
               title="CAP RATE"
               value={formatPercentage(capRate)}
               tooltipText="The capitalization rate measures the property's return based on its income relative to its value. A strong cap rate for Toronto area rentals is typically 5-7%."
               statusTone={capRate >= 5 ? 'positive' : capRate >= 3.5 ? 'neutral' : 'warning'}
               statusMessage={capRate >= 5 ? 'STRONG' : capRate >= 3.5 ? 'MODERATE' : 'LOW'}
+              onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'CAP RATE', text: "The capitalization rate measures the property's return based on its income relative to its value. A strong cap rate for Toronto area rentals is typically 5-7%." } : null)}
             />
             <KeyMetricCard
               title="CASH ON CASH"
@@ -605,6 +625,7 @@ function PropertyCard({ property }) {
               tooltipText="Cash-on-cash return shows the annual return on your initial cash investment. A good cash-on-cash return is generally between 8-12%."
               statusTone={cashOnCashReturn >= 8 ? 'positive' : cashOnCashReturn >= 5 ? 'neutral' : 'warning'}
               statusMessage={cashOnCashReturn >= 8 ? 'STRONG' : cashOnCashReturn >= 5 ? 'MODERATE' : 'LOW'}
+              onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'CASH ON CASH', text: "Cash-on-cash return shows the annual return on your initial cash investment. A good cash-on-cash return is generally between 8-12%." } : null)}
             />
             <KeyMetricCard
               title="DSCR"
@@ -612,6 +633,7 @@ function PropertyCard({ property }) {
               tooltipText="Debt Service Coverage Ratio measures the property's ability to cover its debt payments. A DSCR above 1.25 is generally considered healthy."
               statusTone={dscr >= 1.25 ? 'positive' : dscr >= 1.0 ? 'neutral' : 'warning'}
               statusMessage={dscr >= 1.25 ? 'HEALTHY' : dscr >= 1.0 ? 'ADEQUATE' : 'RISK'}
+              onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'DSCR', text: "Debt Service Coverage Ratio measures the property's ability to cover its debt payments. A DSCR above 1.25 is generally considered healthy." } : null)}
             />
             <KeyMetricCard
               title="IRR"
@@ -619,6 +641,7 @@ function PropertyCard({ property }) {
               tooltipText="Internal Rate of Return estimates the annualized return on investment over the selected time period, accounting for cash flows and property appreciation."
               statusTone={irr >= 0.12 ? 'positive' : irr >= 0.08 ? 'neutral' : 'warning'}
               statusMessage={irr >= 0.12 ? 'STRONG' : irr >= 0.08 ? 'MODERATE' : 'LOW'}
+              onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'IRR', text: "Internal Rate of Return estimates the annualized return on investment over the selected time period, accounting for cash flows and property appreciation." } : null)}
               customContent={
                 <select 
                   value={irrYears} 
@@ -685,8 +708,8 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
   const config = accentConfig[accent] || accentConfig.emerald;
   
   return (
-    <div className={`relative rounded-lg border ${config.border} bg-gradient-to-br ${config.gradient} p-3 md:p-4`}>
-      <div className="flex items-start justify-between gap-2">
+    <div className={`relative rounded-lg border ${config.border} bg-gradient-to-br ${config.gradient} p-2 md:p-2.5`}>
+      <div className="flex items-start justify-between gap-1">
         <h3 className="text-xs md:text-sm font-semibold text-gray-900 dark:text-white flex-1 leading-tight line-clamp-2">
           {title}
         </h3>
@@ -696,8 +719,8 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
           >
-            <div className={`relative rounded-full p-1.5 ${config.icon} cursor-help flex items-center justify-center`}>
-              <Icon className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" aria-hidden="true" />
+            <div className={`relative rounded-full p-1 ${config.icon} cursor-help flex items-center justify-center`}>
+              <Icon className="h-2.5 w-2.5 md:h-3 md:w-3 flex-shrink-0" aria-hidden="true" />
             </div>
             {tooltipText && showTooltip && (
               <div className="absolute bottom-full right-0 mb-2 p-3 bg-[#205A3E] text-white text-xs leading-relaxed rounded-lg pointer-events-none whitespace-normal z-50 w-72 max-w-[calc(100vw-2rem)] shadow-2xl">
@@ -708,13 +731,13 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
           </div>
         )}
       </div>
-      <div className="mt-2 md:mt-3 text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
+      <div className="mt-1 md:mt-1.5 text-base md:text-lg font-bold text-gray-900 dark:text-white">
         {value}
       </div>
       {supporting && (
         <>
-          <div className={`mt-2 md:mt-3 border-t-[2px] ${config.separator}`} />
-          <p className={`mt-1.5 md:mt-2 text-[10px] md:text-xs font-bold ${config.supporting} leading-tight`}>
+          <div className={`mt-1 md:mt-1.5 border-t-[2px] ${config.separator}`} />
+          <p className={`mt-0.5 md:mt-1 text-[10px] md:text-xs font-bold ${config.supporting} leading-tight`}>
             {supporting}
           </p>
         </>
@@ -769,8 +792,8 @@ function IncomeExpensesSection({
   };
   
   return (
-    <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-4 md:p-5">
-      <div className="flex items-start justify-between gap-3 mb-4">
+    <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-2.5 md:p-3">
+      <div className="flex items-start justify-between gap-2 mb-2.5">
         <div className="flex-1 min-w-0">
           <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
             Income & Expenses
@@ -790,7 +813,7 @@ function IncomeExpensesSection({
         </div>
       </div>
 
-      <div className="space-y-2.5 md:space-y-3">
+      <div className="space-y-1.5 md:space-y-2">
         {steps.map((step, index) => (
           <div key={step.label} className={`relative ${step.isSub ? 'pl-6 md:pl-8' : 'pl-2 md:pl-3'}`}>
             {index > 0 && !step.isSub && (
@@ -807,7 +830,7 @@ function IncomeExpensesSection({
                 {step.type === 'subtract' ? `-${formatCurrency(step.value)}` : formatCurrency(step.value)}
               </span>
             </div>
-            <div className="mt-1.5 md:mt-2 h-2.5 md:h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+            <div className="mt-1 h-1.5 md:h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
               <div
                 className={`h-full rounded-full ${
                   step.type === 'base'
@@ -850,7 +873,7 @@ function IncomeExpensesSection({
 
 function MetricDisplayCard({ label, value, subvalue, isPositive, accent = 'emerald', size = 'large' }) {
   // Consistent font sizes across all metric cards
-  const valueSize = size === 'large' ? 'text-2xl' : 'text-xl';
+  const valueSize = size === 'large' ? 'text-xl' : 'text-lg';
   
   // Sophisticated tinted backgrounds matching Proplytics TopMetricCard style
   const accentConfig = {
@@ -882,12 +905,12 @@ function MetricDisplayCard({ label, value, subvalue, isPositive, accent = 'emera
   };
 
   return (
-    <div className={`relative overflow-hidden rounded-lg border ${config.border} bg-gradient-to-br ${config.gradient} p-4 hover:opacity-95 transition-opacity`}>
+    <div className={`relative overflow-hidden rounded-lg border ${config.border} bg-gradient-to-br ${config.gradient} p-2.5 hover:opacity-95 transition-opacity`}>
       <div className="text-center">
-        <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
+        <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">
           {label}
         </div>
-        <div className={`${valueSize} font-bold ${getValueColor()} mb-1`}>
+        <div className={`${valueSize} font-bold ${getValueColor()} mb-0.5`}>
           {value}
         </div>
         {subvalue && (
@@ -900,8 +923,18 @@ function MetricDisplayCard({ label, value, subvalue, isPositive, accent = 'emera
   );
 }
 
-function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', statusMessage, customContent }) {
+function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', statusMessage, customContent, onHover }) {
   const [showTooltip, setShowTooltip] = useState(false);
+  
+  const handleMouseEnter = () => {
+    setShowTooltip(true);
+    if (onHover) onHover(true);
+  };
+  
+  const handleMouseLeave = () => {
+    setShowTooltip(false);
+    if (onHover) onHover(false);
+  };
   
   // Sophisticated tinted backgrounds matching Proplytics TopMetricCard style
   const getCardStyles = () => {
@@ -956,32 +989,28 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
   };
 
   return (
-    <div className={`relative overflow-hidden rounded-lg border ${cardStyles.border} bg-gradient-to-br ${cardStyles.gradient} p-2.5 md:p-3 hover:opacity-95 transition-opacity`}>
-      <div className="flex items-start justify-between gap-1 mb-2">
+    <div 
+      className={`relative overflow-hidden rounded-lg border ${cardStyles.border} bg-gradient-to-br ${cardStyles.gradient} p-1.5 md:p-2 hover:opacity-95 transition-opacity`}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className="flex items-start justify-between gap-1 mb-1">
         <div className="flex items-center gap-1 flex-1 min-w-0">
           <h5 className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide truncate">{title}</h5>
           {tooltipText && (
             <div 
               className="relative flex-shrink-0 group"
-              onMouseEnter={() => setShowTooltip(true)}
-              onMouseLeave={() => setShowTooltip(false)}
+              onMouseEnter={handleMouseEnter}
             >
-              <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-white dark:bg-gray-100 border-2 border-[#205A3E] dark:border-[#4ade80] flex items-center justify-center cursor-help">
-                <span className="text-[#205A3E] dark:text-[#4ade80] text-[8px] md:text-[10px] font-bold leading-none">i</span>
+              <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-white dark:bg-gray-100 border-2 border-[#205A3E] dark:border-[#4ade80] flex items-center justify-center cursor-help transition-all duration-200 hover:scale-110 hover:bg-[#205A3E] dark:hover:bg-[#4ade80] group/icon">
+                <span className="text-[#205A3E] dark:text-[#4ade80] text-[8px] md:text-[10px] font-bold leading-none transition-colors duration-200 group-hover/icon:text-white dark:group-hover/icon:text-[#1D3A2C]">i</span>
               </div>
-              {showTooltip && (
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 p-2 bg-[#205A3E] text-white text-xs rounded-lg pointer-events-none whitespace-normal z-50 w-64 shadow-lg">
-                  {tooltipText}
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#205A3E]"></div>
-                </div>
-              )}
             </div>
           )}
         </div>
       </div>
       
-      <div className="mb-1.5">
-        <p className={`text-lg md:text-xl font-bold ${getValueColor()}`}>
+      <div className="mb-0.5">
+        <p className={`text-sm md:text-base font-bold ${getValueColor()}`}>
           {value}
         </p>
       </div>

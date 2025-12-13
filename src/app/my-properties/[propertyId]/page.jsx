@@ -116,19 +116,37 @@ export default function PropertyDetailPage() {
 
   // Prepare expense data for pie chart
   const expenseChartData = useMemo(() => {
-    if (!property?.monthlyExpenses || !isHydrated) return [];
+    if (!isHydrated) return [];
+    if (!property?.monthlyExpenses) {
+      console.log('No monthlyExpenses found on property:', property);
+      return [];
+    }
     
     // Diverse color palette for better visualization
     const colors = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
     
-    return Object.entries(property.monthlyExpenses)
-      .filter(([key, value]) => key !== 'total' && value > 0)
-      .map(([key, value], index) => ({
+    const entries = Object.entries(property.monthlyExpenses)
+      .filter(([key, value]) => {
+        // Filter out 'total' and ensure value is a number > 0
+        if (key === 'total') return false;
+        const numValue = typeof value === 'number' ? value : 0;
+        return numValue > 0;
+      })
+      .map(([key, value], index) => {
+        const numValue = typeof value === 'number' ? value : 0;
+        return {
+          key,
         name: key.replace(/([A-Z])/g, ' $1').trim().replace(/^\w/, c => c.toUpperCase()),
-        value: expenseView === 'annual' ? value * 12 : value,
+          value: expenseView === 'annual' ? numValue * 12 : numValue,
         color: colors[index % colors.length]
-      }));
-  }, [property?.monthlyExpenses, expenseView, isHydrated]);
+        };
+      });
+    
+    console.log('Expense chart data:', entries);
+    console.log('Monthly expenses object:', property.monthlyExpenses);
+    
+    return entries;
+  }, [property?.monthlyExpenses, expenseView, isHydrated, property]);
 
   // Generate historical income and cost data from actual property data
   const historicalData = useMemo(() => {
@@ -176,6 +194,32 @@ export default function PropertyDetailPage() {
     
     return data;
   }, [property, isHydrated]);
+
+  // Calculate Year Over Year changes for expenses
+  const expenseYoYData = useMemo(() => {
+    if (!property?.monthlyExpenses || !historicalData || historicalData.length < 2) {
+      return {};
+    }
+    
+    const currentYear = new Date().getFullYear();
+    const lastYear = currentYear - 1;
+    
+    // Get current and previous year expense data
+    const currentYearData = historicalData.find(d => d.year === currentYear.toString());
+    const lastYearData = historicalData.find(d => d.year === lastYear.toString());
+    
+    if (!currentYearData || !lastYearData) return {};
+    
+    // Calculate YoY change for each expense category
+    const yoYData = {};
+    expenseChartData.forEach(entry => {
+      // For now, return null as we don't have historical breakdown by category
+      // This would need to be calculated from actual historical expense records
+      yoYData[entry.key] = null;
+    });
+    
+    return yoYData;
+  }, [expenseChartData, historicalData, property?.monthlyExpenses]);
 
   if (!property) {
     return (
@@ -465,15 +509,15 @@ export default function PropertyDetailPage() {
                 )}
               </div>
 
-              {/* Unified Monthly Financials Card */}
+              {/* Expense Summary Card */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <button
                   onClick={() => toggleSection('propertyFinancials')}
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
                   <div className="flex items-center gap-2">
-                    <PieChartIcon className="w-5 h-5 text-[#205A3E]" />
-                    <h2 className="text-xl font-semibold">Property Financials</h2>
+                    <Calendar className="w-5 h-5 text-[#205A3E]" />
+                    <h2 className="text-xl font-semibold">Expense Summary</h2>
                   </div>
                   {openSections.propertyFinancials ? (
                     <ChevronUp className="w-5 h-5 text-gray-500" />
@@ -506,10 +550,10 @@ export default function PropertyDetailPage() {
                       >
                         Annual
                       </button>
-                    </div>
                   </div>
+                </div>
 
-                  <div className="space-y-6">
+                <div className="space-y-6">
                   {/* Income Section */}
                   <div>
                     <div className="flex justify-between">
@@ -520,28 +564,131 @@ export default function PropertyDetailPage() {
                     </div>
                   </div>
 
-                  {/* Expenses Section */}
+                  {/* Expenses Section - Three Column Layout */}
                   <div>
-                    <h3 className="font-medium mb-4 text-gray-900 dark:text-gray-100">
-                      {expenseView === 'monthly' ? 'Monthly' : 'Annual'} Total Expense
-                    </h3>
-                    <div className="grid grid-cols-2 gap-8">
-                      {/* Donut Chart */}
-                      <div className="flex justify-center">
-                        <div className="relative">
-                          <ResponsiveContainer width={140} height={140}>
-                            <PieChart>
+                    {expenseChartData.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                        <p className="text-sm">No expense data available. Please add expenses to see the breakdown.</p>
+                        {!isHydrated && <p className="text-xs mt-2">Loading...</p>}
+                        {isHydrated && !property?.monthlyExpenses && <p className="text-xs mt-2">Property expenses not found.</p>}
+                      </div>
+                    ) : (
+                    /* Three-Column Layout: Chart | Expenses | YoY Increase */
+                    <div className="grid grid-cols-3 gap-6">
+                      {/* Left Column: Donut Chart */}
+                      <div className="flex flex-col items-center">
+                        <div className="relative overflow-visible" style={{ width: '280px', height: '280px' }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                               <Pie
                                 data={expenseChartData}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={40}
-                                outerRadius={65}
+                                innerRadius={60}
+                                outerRadius={98}
                                 paddingAngle={2}
                                 dataKey="value"
                                 stroke="none"
                                 onMouseEnter={(data, index) => setHoveredSegment(index)}
                                 onMouseLeave={() => setHoveredSegment(null)}
+                                label={({ percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
+                                  // Only show labels for segments > 3%
+                                  if (percent < 0.03) return null;
+                                  
+                                  const RADIAN = Math.PI / 180;
+                                  // Position label further outside the chart for better visibility
+                                  const labelRadius = outerRadius + 40;
+                                  const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
+                                  const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
+                                  
+                                  // Determine quadrant for proper positioning
+                                  const isRightSide = x > cx;
+                                  
+                                  // Calculate text width more accurately
+                                  const percentText = `${(percent * 100).toFixed(0)}%`;
+                                  const textWidth = percentText.length * 9 + 8;
+                                  const textHeight = 20;
+                                  
+                                  // Adjust positioning based on quadrant
+                                  let rectX, textX, textAnchor;
+                                  if (isRightSide) {
+                                    rectX = x;
+                                    textX = x + 6;
+                                    textAnchor = 'start';
+                                  } else {
+                                    rectX = x - textWidth;
+                                    textX = x - 6;
+                                    textAnchor = 'end';
+                                  }
+                                  
+                                  return (
+                                    <g>
+                                      {/* Background for better readability */}
+                                      <rect
+                                        x={rectX}
+                                        y={y - textHeight / 2}
+                                        width={textWidth}
+                                        height={textHeight}
+                                        fill="white"
+                                        fillOpacity={0.95}
+                                        className="dark:fill-gray-900 dark:fill-opacity-95"
+                                        rx={4}
+                                        stroke="#e5e7eb"
+                                        strokeWidth={0.5}
+                                      />
+                                      <text 
+                                        x={textX} 
+                                        y={y} 
+                                        fill="#111827" 
+                                        textAnchor={textAnchor} 
+                                        dominantBaseline="central"
+                                        fontSize={14}
+                                        fontWeight="700"
+                                        className="pointer-events-none dark:fill-gray-100"
+                                      >
+                                        {percentText}
+                                      </text>
+                                    </g>
+                                  );
+                                }}
+                                labelLine={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                                  // Only show label lines for segments > 3%
+                                  if (percent < 0.03) return null;
+                                  
+                                  const RADIAN = Math.PI / 180;
+                                  // Start point: outer edge of segment (where the dot will be)
+                                  const x1 = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+                                  const y1 = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+                                  // End point: where label starts
+                                  const x2 = cx + (outerRadius + 40) * Math.cos(-midAngle * RADIAN);
+                                  const y2 = cy + (outerRadius + 40) * Math.sin(-midAngle * RADIAN);
+                                  
+                                  return (
+                                    <g>
+                                      {/* Larger, more visible black dot at connection point */}
+                                      <circle
+                                        cx={x1}
+                                        cy={y1}
+                                        r={4}
+                                        fill="#1f2937"
+                                        stroke="white"
+                                        strokeWidth={1}
+                                        className="dark:fill-gray-100 dark:stroke-gray-800"
+                                      />
+                                      {/* Thicker, more visible line connecting dot to label */}
+                                      <line
+                                        x1={x1}
+                                        y1={y1}
+                                        x2={x2}
+                                        y2={y2}
+                                        stroke="#1f2937"
+                                        strokeWidth={2.5}
+                                        strokeLinecap="round"
+                                        className="dark:stroke-gray-100"
+                                      />
+                                    </g>
+                                  );
+                                }}
                               >
                                 {expenseChartData.map((entry, index) => (
                                   <Cell
@@ -558,53 +705,54 @@ export default function PropertyDetailPage() {
                               </Pie>
                             </PieChart>
                           </ResponsiveContainer>
-                          {/* Center Text */}
-                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                        </div>
+                        {/* Total Expense Text - Below Chart */}
+                        <div className="mt-3 text-center">
+                          <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
                               {formatCurrency(expenseChartData.reduce((sum, item) => sum + item.value, 0))}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                               Total {expenseView === 'monthly' ? 'Monthly' : 'Annual'} Expense
-                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Data-Rich Legend */}
-                      <div className="space-y-2">
+                      {/* Middle Column: Expense Legend */}
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          Expenses
+                        </h3>
+                        <div className="space-y-1.5">
                         {expenseChartData.length > 0 ? (
                           expenseChartData.map((entry, index) => {
-                            const total = expenseChartData.reduce((sum, item) => sum + item.value, 0);
-                            const percentage = ((entry.value / total) * 100).toFixed(1);
-
                             return (
                               <div
                                 key={index}
-                                className={`flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
+                                  className={`flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
                                   hoveredSegment === index
-                                    ? 'bg-gray-100 dark:bg-gray-700 shadow-sm'
+                                      ? 'bg-gray-100 dark:bg-gray-700 shadow-sm scale-[1.02]'
                                     : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                                 }`}
                                 onMouseEnter={() => setHoveredSegment(index)}
                                 onMouseLeave={() => setHoveredSegment(null)}
                               >
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className="w-3 h-3 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: entry.color }}
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div
+                                      className={`w-3.5 h-3.5 rounded-full flex-shrink-0 transition-all duration-200 ${
+                                        hoveredSegment === index ? 'ring-2 ring-offset-1' : ''
+                                      }`}
+                                      style={{ 
+                                        backgroundColor: entry.color,
+                                        ringColor: entry.color
+                                      }}
                                   ></div>
-                                  <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors truncate">
                                     {entry.name}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-3 text-xs">
-                                  <span className="text-gray-500 dark:text-gray-400 min-w-[3rem] text-right">
-                                    {percentage}%
-                                  </span>
-                                  <span className="text-gray-900 dark:text-gray-100 font-medium min-w-[4rem] text-right">
+                                  <span className="text-sm text-gray-900 dark:text-gray-100 font-semibold ml-3 flex-shrink-0">
                                     {formatCurrency(entry.value)}
                                   </span>
-                                </div>
                               </div>
                             );
                           })
@@ -613,8 +761,52 @@ export default function PropertyDetailPage() {
                             <div className="text-sm">No expense data available</div>
                           </div>
                         )}
+                        </div>
+                      </div>
+
+                      {/* Right Column: Year Over Year Increase */}
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          Year Over Year Increase
+                        </h3>
+                        <div className="space-y-1.5">
+                          {expenseChartData.length > 0 ? (
+                            expenseChartData.map((entry, index) => {
+                              const yoYChange = expenseYoYData[entry.key];
+                              const hasIncrease = yoYChange !== null && yoYChange !== undefined;
+                              
+                              return (
+                                <div
+                                  key={index}
+                                  className={`flex items-center justify-end py-2.5 px-3 rounded-lg transition-all duration-200 ${
+                                    hoveredSegment === index
+                                      ? 'bg-gray-100 dark:bg-gray-700 shadow-sm scale-[1.02]'
+                                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                  }`}
+                                  onMouseEnter={() => setHoveredSegment(index)}
+                                  onMouseLeave={() => setHoveredSegment(null)}
+                                >
+                                  <span className={`text-sm font-semibold ${
+                                    hasIncrease && yoYChange > 0
+                                      ? 'text-red-600 dark:text-red-400'
+                                      : hasIncrease && yoYChange < 0
+                                      ? 'text-green-600 dark:text-green-400'
+                                      : 'text-gray-500 dark:text-gray-400'
+                                  }`}>
+                                    {hasIncrease ? `${yoYChange > 0 ? '+' : ''}${yoYChange.toFixed(1)}%` : 'N/A'}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                              <div className="text-xs">No data</div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    )}
                   </div>
 
                   {/* Net Cash Flow - Bottom Line */}
@@ -641,7 +833,7 @@ export default function PropertyDetailPage() {
                 >
                   <div className="flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-[#205A3E]" />
-                    <h2 className="text-xl font-semibold">Historical Performance</h2>
+                  <h2 className="text-xl font-semibold">Historical Performance</h2>
                   </div>
                   {openSections.historicalPerformance ? (
                     <ChevronUp className="w-5 h-5 text-gray-500" />
@@ -652,9 +844,9 @@ export default function PropertyDetailPage() {
                 {openSections.historicalPerformance && (
                   <div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                      Based on actual records
-                    </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                    Based on actual records
+                  </span>
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-gray-600 dark:text-gray-400 mr-2">Show:</span>
                       <button
@@ -687,10 +879,10 @@ export default function PropertyDetailPage() {
                       >
                         Cash Flow
                       </button>
-                    </div>
+                </div>
                   </div>
 
-                  <div className="h-80">
+                <div className="h-80">
                   {historicalData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={historicalData}>
@@ -729,34 +921,34 @@ export default function PropertyDetailPage() {
                           }}
                         />
                         {visibleMetrics.income && (
-                          <Line 
-                            type="monotone" 
-                            dataKey="income" 
-                            stroke="#22c55e" 
-                            strokeWidth={3}
-                            dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
-                            activeDot={{ r: 6, stroke: '#22c55e', strokeWidth: 2 }}
-                          />
+                        <Line 
+                          type="monotone" 
+                          dataKey="income" 
+                          stroke="#22c55e" 
+                          strokeWidth={3}
+                          dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: '#22c55e', strokeWidth: 2 }}
+                        />
                         )}
                         {visibleMetrics.expenses && (
-                          <Line 
-                            type="monotone" 
-                            dataKey="expenses" 
-                            stroke="#ef4444" 
-                            strokeWidth={3}
-                            dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
-                            activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
-                          />
+                        <Line 
+                          type="monotone" 
+                          dataKey="expenses" 
+                          stroke="#ef4444" 
+                          strokeWidth={3}
+                          dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
+                        />
                         )}
                         {visibleMetrics.cashFlow && (
-                          <Line 
-                            type="monotone" 
-                            dataKey="cashFlow" 
-                            stroke="#205A3E" 
-                            strokeWidth={3}
-                            dot={{ fill: '#205A3E', strokeWidth: 2, r: 4 }}
-                            activeDot={{ r: 6, stroke: '#205A3E', strokeWidth: 2 }}
-                          />
+                        <Line 
+                          type="monotone" 
+                          dataKey="cashFlow" 
+                          stroke="#205A3E" 
+                          strokeWidth={3}
+                          dot={{ fill: '#205A3E', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: '#205A3E', strokeWidth: 2 }}
+                        />
                         )}
                       </LineChart>
                     </ResponsiveContainer>
@@ -793,7 +985,7 @@ export default function PropertyDetailPage() {
                 </button>
                 {openSections.currentTenants && (
                   <div>
-                <div className="space-y-3">
+                    <div className="space-y-3">
                   {property.tenants.map((tenant, index) => (
                     <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                       <div className="flex items-start justify-between">
@@ -805,13 +997,13 @@ export default function PropertyDetailPage() {
                             <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               {new Date(tenant.leaseStart).toLocaleDateString()} - {new Date(tenant.leaseEnd).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </div>
                       </div>
-                    </div>
+                      </div>
+                      </div>
+                      </div>
+                      </div>
                   ))}
-                </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -824,22 +1016,22 @@ export default function PropertyDetailPage() {
                 >
                   <div className="flex items-center gap-2">
                     <PieChartIcon className="w-5 h-5 text-[#205A3E]" />
-                    <h2 className="text-xl font-semibold">Annual Expense History</h2>
+                  <h2 className="text-xl font-semibold">Annual Expense History</h2>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                      Categorized expenses
-                    </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                    Categorized expenses
+                  </span>
                     {openSections.annualExpenseHistory ? (
                       <ChevronUp className="w-5 h-5 text-gray-500" />
                     ) : (
                       <ChevronDown className="w-5 h-5 text-gray-500" />
                     )}
-                  </div>
+                </div>
                 </button>
                 {openSections.annualExpenseHistory && (
                   <div>
-                    <AnnualExpenseChart expenseHistory={property?.expenseHistory || []} />
+                <AnnualExpenseChart expenseHistory={property?.expenseHistory || []} />
                   </div>
                 )}
               </div>
