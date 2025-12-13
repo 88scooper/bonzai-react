@@ -47,7 +47,7 @@ export default function PropertyDetailPage() {
     setIsHydrated(true);
   }, []);
 
-  const [expenseView, setExpenseView] = useState('monthly'); // 'monthly' or 'annual'
+  const [expenseView, setExpenseView] = useState('annual'); // 'monthly' or 'annual'
   const [hoveredSegment, setHoveredSegment] = useState(null); // For hover interactions
   
   // Toggle state for Historical Performance chart
@@ -553,17 +553,7 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Income Section */}
-                  <div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-900 dark:text-gray-100">Total Income</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {isHydrated ? formatCurrency(expenseView === 'monthly' ? (property.rent?.monthlyRent || 0) : (property.rent?.annualRent || 0)) : '--'}
-                      </span>
-                    </div>
-                  </div>
-
+                <div>
                   {/* Expenses Section - Three Column Layout */}
                   <div>
                     {expenseChartData.length === 0 ? (
@@ -807,16 +797,6 @@ export default function PropertyDetailPage() {
                       </div>
                     </div>
                     )}
-                  </div>
-
-                  {/* Net Cash Flow - Bottom Line */}
-                  <div className="pt-4 border-t-2 border-gray-300 dark:border-gray-600">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">Net Cash Flow</span>
-                      <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        {isHydrated ? formatCurrency(expenseView === 'monthly' ? (property.rent?.monthlyRent || 0) - (property.monthlyExpenses?.total || 0) : (property.rent?.annualRent || 0) - ((property.monthlyExpenses?.total || 0) * 12)) : '--'}
-                      </span>
-                    </div>
                   </div>
                 </div>
                   </div>
