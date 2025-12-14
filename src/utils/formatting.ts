@@ -2,17 +2,22 @@
  * Currency formatting utilities for consistent display of financial values
  */
 
+import { getSetting } from '@/lib/settings-storage';
+
 /**
- * Formats a number as Canadian currency with exactly 2 decimal places
+ * Formats a number as Canadian currency
+ * Decimal places are controlled by the currencyDecimals setting
  * @param value - The numerical value to format
- * @returns Formatted currency string (e.g., "$1,234.56")
+ * @returns Formatted currency string (e.g., "$1,234.56" or "$1,235")
  */
 export const formatCurrency = (value: number): string => {
+  const showDecimals = getSetting('currencyDecimals');
+  
   return new Intl.NumberFormat('en-CA', {
     style: 'currency',
     currency: 'CAD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: showDecimals ? 2 : 0,
+    maximumFractionDigits: showDecimals ? 2 : 0,
   }).format(value);
 };
 
