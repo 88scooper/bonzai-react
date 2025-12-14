@@ -87,7 +87,7 @@ export default function PropertyDetailPage() {
   
   // State for collapsible sections
   const [openSections, setOpenSections] = useState({
-    generalNotes: true,
+    generalNotes: false,
     propertyFinancials: true,
     historicalPerformance: true,
     currentTenants: true,
@@ -741,14 +741,46 @@ export default function PropertyDetailPage() {
             </div>
           </div>
 
-          {/* Property Summary & Purchase Details with Image */}
+          {/* Purchase Summary & Property Details with Image */}
           <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <Home className="w-5 h-5 text-gray-500" />
-              <h2 className="text-xl font-semibold">Property Summary & Purchase Details</h2>
+              <h2 className="text-xl font-semibold">Purchase Summary & Property Details</h2>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Column 1: Property Details */}
+              {/* Column 1: Purchase & Value Details */}
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Purchase Date</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{new Date(property.purchaseDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Purchase Price</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.purchasePrice)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Purchase Price Per Sq.Ft</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(pricePerSquareFoot)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Down Payment</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.purchasePrice - (property.mortgage?.originalAmount || 0))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Original Mortgage</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.mortgage?.originalAmount || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Closing Costs</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.closingCosts || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Renovations</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.initialRenovations || 0)}</span>
+                </div>
+              </div>
+              
+              {/* Column 2: Property Details */}
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Year Built</span>
@@ -797,38 +829,6 @@ export default function PropertyDetailPage() {
                       ? `${property.bedrooms[0]} Bed, ${property.bathrooms[0]} Bath`
                       : property.unitConfig || 'N/A')}
                   </span>
-                </div>
-              </div>
-              
-              {/* Column 2: Purchase & Value Details */}
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Purchase Date</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{new Date(property.purchaseDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Purchase Price</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.purchasePrice)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Purchase Price Per Sq.Ft</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(pricePerSquareFoot)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Down Payment</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.purchasePrice - (property.mortgage?.originalAmount || 0))}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Original Mortgage</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.mortgage?.originalAmount || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Closing Costs</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.closingCosts || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Renovations</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(property.initialRenovations || 0)}</span>
                 </div>
               </div>
               
@@ -893,7 +893,7 @@ export default function PropertyDetailPage() {
                     <textarea
                       value={notes}
                       onChange={handleNotesChange}
-                      placeholder="Add your notes about this property - key events, paints colours, details on the replacement of applicances - all these details can live here..."
+                      placeholder="Add your notes about this property - dates key events, recording paint colours used, tracking the replacement of appliance - all these details can live here..."
                       rows={8}
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
                     />
@@ -1007,7 +1007,7 @@ export default function PropertyDetailPage() {
                         <textarea
                           value={notes}
                           onChange={handleNotesChange}
-                          placeholder="Add your notes about this property - key events, paints colours, details on the replacement of applicances - all these details can live here..."
+                          placeholder="Add your notes about this property - dates key events, recording paint colours used, tracking the replacement of appliance - all these details can live here..."
                           rows={8}
                           className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
                         />
@@ -1380,9 +1380,9 @@ export default function PropertyDetailPage() {
                     <div className="grid grid-cols-3 gap-6">
                       {/* Left Column: Donut Chart */}
                       <div className="flex flex-col items-center">
-                        <div className="relative overflow-visible" style={{ width: '295px', height: '295px' }}>
+                        <div className="relative overflow-visible" style={{ width: '310px', height: '310px' }}>
                           <ResponsiveContainer width="100%" height="100%">
-                            <PieChart margin={{ top: 30, right: 30, bottom: 30, left: 30 }}>
+                            <PieChart margin={{ top: 40, right: 40, bottom: 40, left: 40 }}>
                               <Pie
                                 data={expenseChartData}
                                 cx="50%"
@@ -1399,8 +1399,8 @@ export default function PropertyDetailPage() {
                                   if (percent <= 0) return null;
                                   
                                   const RADIAN = Math.PI / 180;
-                                  // Position label at the end of the line - extend further out
-                                  const labelRadius = outerRadius + 50;
+                                  // Position label at the end of the line - reduced by 50%
+                                  const labelRadius = outerRadius + 25;
                                   const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
                                   const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
                                   
@@ -1412,6 +1412,15 @@ export default function PropertyDetailPage() {
                                   const textWidth = percentText.length * 8 + 8;
                                   const textHeight = 20;
                                   
+                                  // Container dimensions with margins
+                                  const containerWidth = 310;
+                                  const containerHeight = 310;
+                                  const margin = 40;
+                                  const minX = margin;
+                                  const maxX = containerWidth - margin;
+                                  const minY = margin;
+                                  const maxY = containerHeight - margin;
+                                  
                                   // Position background and text at the end of the line
                                   let rectX, textX, textAnchor;
                                   if (isRightSide) {
@@ -1419,19 +1428,32 @@ export default function PropertyDetailPage() {
                                     rectX = x;
                                     textX = x + 4;
                                     textAnchor = 'start';
+                                    // Ensure label doesn't get clipped on the right
+                                    if (rectX + textWidth > maxX) {
+                                      rectX = maxX - textWidth;
+                                      textX = rectX + 4;
+                                    }
                                   } else {
                                     // For left side, label ends at line end
                                     rectX = x - textWidth;
                                     textX = x - 4;
                                     textAnchor = 'end';
+                                    // Ensure label doesn't get clipped on the left
+                                    if (rectX < minX) {
+                                      rectX = minX;
+                                      textX = rectX + textWidth - 4;
+                                    }
                                   }
+                                  
+                                  // Clamp Y position to stay within bounds
+                                  const clampedY = Math.max(minY + textHeight / 2, Math.min(maxY - textHeight / 2, y));
                                   
                                   return (
                                     <g>
                                       {/* Background for better readability */}
                                       <rect
                                         x={rectX}
-                                        y={y - textHeight / 2}
+                                        y={clampedY - textHeight / 2}
                                         width={textWidth}
                                         height={textHeight}
                                         fill="white"
@@ -1443,7 +1465,7 @@ export default function PropertyDetailPage() {
                                       />
                                       <text 
                                         x={textX} 
-                                        y={y} 
+                                        y={clampedY} 
                                         fill="#111827" 
                                         textAnchor={textAnchor} 
                                         dominantBaseline="central"
@@ -1464,9 +1486,9 @@ export default function PropertyDetailPage() {
                                   // Start point: outer edge of segment (where the dot will be)
                                   const x1 = cx + outerRadius * Math.cos(-midAngle * RADIAN);
                                   const y1 = cy + outerRadius * Math.sin(-midAngle * RADIAN);
-                                  // End point: where label is positioned (at the end of the line)
-                                  const x2 = cx + (outerRadius + 50) * Math.cos(-midAngle * RADIAN);
-                                  const y2 = cy + (outerRadius + 50) * Math.sin(-midAngle * RADIAN);
+                                  // End point: where label is positioned (at the end of the line) - reduced by 50%
+                                  const x2 = cx + (outerRadius + 25) * Math.cos(-midAngle * RADIAN);
+                                  const y2 = cy + (outerRadius + 25) * Math.sin(-midAngle * RADIAN);
                                   
                                   return (
                                     <g>

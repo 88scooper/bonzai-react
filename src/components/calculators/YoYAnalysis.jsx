@@ -31,9 +31,18 @@ export default function YoYAnalysis({ property, assumptions, baselineAssumptions
         >
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-            <span className="font-semibold text-gray-900 dark:text-white">
-              Year-over-Year Analysis
-            </span>
+            <div className="flex flex-col items-start">
+              <span className="font-semibold text-gray-900 dark:text-white">
+                Year-over-Year Analysis
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {(() => {
+                  const currentYear = new Date().getFullYear();
+                  const previousYear = currentYear - 1;
+                  return `${currentYear} vs ${previousYear}`;
+                })()}
+              </span>
+            </div>
           </div>
           <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -103,9 +112,18 @@ export default function YoYAnalysis({ property, assumptions, baselineAssumptions
       >
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          <span className="font-semibold text-gray-900 dark:text-white">
-            Year-over-Year Analysis
-          </span>
+          <div className="flex flex-col items-start">
+            <span className="font-semibold text-gray-900 dark:text-white">
+              Year-over-Year Analysis
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {(() => {
+                const currentYear = new Date().getFullYear();
+                const previousYear = currentYear - 1;
+                return `${currentYear} vs ${previousYear}`;
+              })()}
+            </span>
+          </div>
         </div>
         <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
