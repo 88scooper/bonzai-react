@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
+import AccountSwitcher from "@/components/AccountSwitcher";
 import Button from "@/components/Button";
 import { LogOut, UserCircle, Settings, User } from "lucide-react";
 
@@ -89,6 +90,9 @@ export default function Layout({ children }) {
               </div>
               
               <div className="flex items-center gap-3">
+                {/* Account Switcher */}
+                <AccountSwitcher />
+                
                 {/* User Profile Menu */}
                 <div className="relative" ref={userMenuRef}>
                   <button
