@@ -3,31 +3,90 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/utils/formatting';
+import { calculateAmortizationSchedule } from '@/utils/mortgageCalculator';
 
 const MortgageSummaryBanner = ({ mortgageData }) => {
-  // Use actual mortgage data from property context
-  const startingBalance = mortgageData?.mortgage?.originalAmount || 492000;
-  const currentBalance = mortgageData?.mortgage?.currentBalance || startingBalance * 0.77; // Estimate if not available
+  const mortgage = mortgageData?.mortgage;
+  const startingBalance = mortgage?.originalAmount || 0;
+
+  let currentBalance = typeof mortgage?.currentBalance === 'number' && mortgage.currentBalance > 0
+    ? mortgage.currentBalance
+    : startingBalance;
+
+  // Initialize with today's date (will be overwritten by schedule when available)
+  let nextPaymentDate = new Date();
+  let paymentAmount = mortgageData?.mortgage?.paymentAmount || 0;
+
+  try {
+    if (mortgage) {
+      const schedule = calculateAmortizationSchedule(mortgage);
+      const today = new Date();
+
+      // Find next payment on or after today
+      let nextPayment =
+        schedule.payments.find(p => new Date(p.paymentDate) >= today) ||
+        schedule.payments[schedule.payments.length - 1];
+
+      if (nextPayment) {
+        nextPaymentDate = new Date(nextPayment.paymentDate);
+        if (!paymentAmount) {
+          paymentAmount = nextPayment.monthlyPayment;
+        }
+
+        // If we don't have an explicit current balance, use the balance
+        // after the most recent completed payment.
+        if (!(typeof mortgage?.currentBalance === 'number' && mortgage.currentBalance > 0)) {
+          const idx = schedule.payments.findIndex(p => p === nextPayment);
+          const previousPayment = idx > 0 ? schedule.payments[idx - 1] : null;
+          if (previousPayment) {
+            currentBalance = previousPayment.remainingBalance;
+          } else {
+            currentBalance = nextPayment.remainingBalance;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Fallbacks already set above
+  }
+
   const balancePaid = startingBalance - currentBalance;
-  
+
   // Chart data for donut chart - using app's green color scheme
   const chartData = [
     { name: 'Current Balance', value: currentBalance, color: '#205A3E' },
     { name: 'Balance Paid', value: balancePaid, color: '#9CA3AF' }
   ];
 
-  // Calculate days until next payment (sample calculation)
-  const nextPaymentDate = new Date('2025-10-09');
   const today = new Date();
-  const daysUntilPayment = Math.ceil((nextPaymentDate - today) / (1000 * 60 * 60 * 24));
-  const paymentProgress = Math.max(0, Math.min(100, (14 - daysUntilPayment) / 14 * 100)); // Assuming bi-weekly
+  let daysUntilPayment = 0;
+  let paymentProgress = 0;
+
+  if (nextPaymentDate) {
+    daysUntilPayment = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Approximate progress between last and next payment for the bar
+    try {
+      const schedule = calculateAmortizationSchedule(mortgage);
+      const idx = schedule.payments.findIndex(p => new Date(p.paymentDate).getTime() === nextPaymentDate.getTime());
+      const previousPayment = idx > 0 ? schedule.payments[idx - 1] : null;
+      if (previousPayment) {
+        const lastDate = new Date(previousPayment.paymentDate).getTime();
+        const nextDate = nextPaymentDate.getTime();
+        const totalIntervalDays = (nextDate - lastDate) / (1000 * 60 * 60 * 24);
+        const elapsedDays = (today.getTime() - lastDate) / (1000 * 60 * 60 * 24);
+        paymentProgress = Math.max(0, Math.min(100, (elapsedDays / totalIntervalDays) * 100));
+      }
+    } catch {
+      // If we can't compute a precise interval, fall back to a simple 14‑day assumption
+      paymentProgress = Math.max(0, Math.min(100, (14 - daysUntilPayment) / 14 * 100));
+    }
+  }
 
   // Lump sum privilege data - use actual data if available
-  const lumpSumPrivilege = mortgageData?.mortgage?.lumpSumPrivilege || 98400;
-  const lumpSumUsed = mortgageData?.mortgage?.lumpSumUsed || 0;
+  const lumpSumPrivilege = mortgage?.lumpSumPrivilege || 98400;
+  const lumpSumUsed = mortgage?.lumpSumUsed || 0;
   const lumpSumProgress = (lumpSumUsed / lumpSumPrivilege) * 100;
-
-  const paymentAmount = mortgageData?.mortgage?.monthlyPayment || 1102.28;
 
   return (
     <div className="bg-gradient-to-r from-[#205A3E] to-[#2d7a5a] text-white p-6 rounded-xl">

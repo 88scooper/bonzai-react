@@ -28,6 +28,97 @@ export interface AmortizationSchedule {
   finalPaymentDate: string;
 }
 
+// -----------------------------
+// Richmond St E (Mortgage #8963064.1)
+// Custom amortization schedule sourced from lender CSV:
+// "Mortgage Amortization_All_8963064_1.csv"
+// -----------------------------
+
+const RICHMOND_MORTGAGE_NUMBER = "8963064.1";
+
+// Raw CSV exported from lender portal for remaining payments until renewal
+// Columns: Date, Principal Paid, Interest Paid, Total Paid, Principal Balance
+const richmondAmortizationCsv = `
+Date,Principal Paid,Interest Paid,Total Paid,Principal Balance
+"Thu, Dec 18, 2025",-$716.60,-$385.68,"-$1,102.28","$374,363.42"
+"Thu, Jan 1, 2026",-$717.34,-$384.94,"-$1,102.28","$373,646.08"
+"Thu, Jan 15, 2026",-$718.08,-$384.20,"-$1,102.28","$372,928.00"
+"Thu, Jan 29, 2026",-$718.82,-$383.46,"-$1,102.28","$372,209.18"
+"Thu, Feb 12, 2026",-$719.56,-$382.72,"-$1,102.28","$371,489.62"
+"Thu, Feb 26, 2026",-$720.30,-$381.98,"-$1,102.28","$370,769.32"
+"Thu, Mar 12, 2026",-$721.04,-$381.24,"-$1,102.28","$370,048.28"
+"Thu, Mar 26, 2026",-$721.78,-$380.50,"-$1,102.28","$369,326.50"
+"Thu, Apr 9, 2026",-$722.52,-$379.76,"-$1,102.28","$368,603.98"
+"Thu, Apr 23, 2026",-$723.26,-$379.02,"-$1,102.28","$367,880.72"
+"Thu, May 7, 2026",-$724.01,-$378.27,"-$1,102.28","$367,156.71"
+"Thu, May 21, 2026",-$724.75,-$377.53,"-$1,102.28","$366,431.96"
+"Thu, Jun 4, 2026",-$725.50,-$376.78,"-$1,102.28","$365,706.46"
+"Thu, Jun 18, 2026",-$726.24,-$376.04,"-$1,102.28","$364,980.22"
+"Thu, Jul 2, 2026",-$726.99,-$375.29,"-$1,102.28","$364,253.23"
+"Thu, Jul 16, 2026",-$727.74,-$374.54,"-$1,102.28","$363,525.49"
+"Thu, Jul 30, 2026",-$728.49,-$373.79,"-$1,102.28","$362,797.00"
+"Thu, Aug 13, 2026",-$729.23,-$373.05,"-$1,102.28","$362,067.77"
+"Thu, Aug 27, 2026",-$729.98,-$372.30,"-$1,102.28","$361,337.79"
+"Thu, Sep 10, 2026",-$730.74,-$371.54,"-$1,102.28","$360,607.05"
+"Thu, Sep 24, 2026",-$731.49,-$370.79,"-$1,102.28","$359,875.56"
+"Thu, Oct 8, 2026",-$732.24,-$370.04,"-$1,102.28","$359,143.32"
+"Thu, Oct 22, 2026",-$732.99,-$369.29,"-$1,102.28","$358,410.33"
+"Thu, Nov 5, 2026",-$733.75,-$368.53,"-$1,102.28","$357,676.58"
+"Thu, Nov 19, 2026",-$734.50,-$367.78,"-$1,102.28","$356,942.08"
+"Thu, Dec 3, 2026",-$735.26,-$367.02,"-$1,102.28","$356,206.82"
+"Thu, Dec 17, 2026",-$736.01,-$366.27,"-$1,102.28","$355,470.81"
+"Thu, Dec 31, 2026",-$736.77,-$365.51,"-$1,102.28","$354,734.04"
+"Thu, Jan 14, 2027",-$737.53,-$364.75,"-$1,102.28","$353,996.51"
+"Thu, Jan 28, 2027",-$738.28,-$364.00,"-$1,102.28","$353,258.23"
+`;
+
+function parseMoney(value: string): number {
+  if (!value) return 0;
+  const cleaned = value.replace(/[$,",]/g, "").trim();
+  if (!cleaned) return 0;
+  const num = parseFloat(cleaned);
+  return Number.isFinite(num) ? Math.abs(num) : 0;
+}
+
+function buildRichmondSchedule(): PaymentScheduleItem[] {
+  const lines = richmondAmortizationCsv.trim().split("\n");
+  const payments: PaymentScheduleItem[] = [];
+
+  // Skip header row (index 0)
+  for (let i = 1; i < lines.length; i++) {
+    const raw = lines[i].trim();
+    if (!raw) continue;
+
+    // CSV pattern: "Date",principal,interest,"total","balance"
+    const match = raw.match(
+      /^"([^"]+)",([^,]+),([^,]+),"([^"]+)","([^"]+)"$/
+    );
+    if (!match) {
+      continue;
+    }
+
+    const [, dateStr, principalStr, interestStr, totalStr, balanceStr] = match;
+
+    const jsDate = new Date(dateStr);
+    const isoDate = isNaN(jsDate.getTime())
+      ? dateStr
+      : jsDate.toISOString().split("T")[0];
+
+    payments.push({
+      paymentNumber: i,
+      paymentDate: isoDate,
+      monthlyPayment: parseMoney(totalStr),
+      principal: parseMoney(principalStr),
+      interest: parseMoney(interestStr),
+      remainingBalance: parseMoney(balanceStr),
+    });
+  }
+
+  return payments;
+}
+
+const richmondMortgageSchedule: PaymentScheduleItem[] = buildRichmondSchedule();
+
 export interface MortgageYearlySummary {
   /**
    * Year number in the projection horizon starting at 1.
@@ -167,6 +258,23 @@ function getPaymentIntervalDays(paymentFrequency: string): number {
  * Calculate complete amortization schedule for a mortgage
  */
 export function calculateAmortizationSchedule(mortgage: MortgageData): AmortizationSchedule {
+  // If we have a lender-provided custom schedule for this mortgage, use it directly.
+  // Currently supported: Richmond St E (mortgage number 8963064.1).
+  const mortgageAny = mortgage as any;
+  if (mortgageAny.mortgageNumber === RICHMOND_MORTGAGE_NUMBER) {
+    const payments = richmondMortgageSchedule;
+    const totalInterest = payments.reduce((sum, p) => sum + p.interest, 0);
+    const totalPayments = payments.length;
+    const finalPaymentDate = payments[payments.length - 1]?.paymentDate || "";
+
+    return {
+      payments,
+      totalInterest,
+      totalPayments,
+      finalPaymentDate,
+    };
+  }
+
   // Validate inputs
   if (!mortgage.originalAmount || mortgage.originalAmount <= 0) {
     throw new Error('Invalid mortgage amount');
@@ -283,6 +391,40 @@ export function getCurrentMortgagePayment(mortgage: MortgageData): {
  * Get monthly mortgage payment amount (converted to monthly equivalent for bi-weekly payments)
  */
 export function getMonthlyMortgagePayment(mortgage: MortgageData): number {
+  const paymentFrequency = (mortgage.paymentFrequency || "monthly").toLowerCase();
+
+  // Richmond St E (RMG 2.69% bi-weekly) – use lender schedule + exact payment
+  if ((mortgage as any).mortgageNumber === RICHMOND_MORTGAGE_NUMBER) {
+    try {
+      const schedule = calculateAmortizationSchedule(mortgage);
+      const today = new Date();
+      const nextPayment =
+        schedule.payments.find(p => new Date(p.paymentDate) >= today) ||
+        schedule.payments[schedule.payments.length - 1];
+
+      if (!nextPayment) {
+        return 0;
+      }
+
+      const periodicAmount = nextPayment.monthlyPayment;
+
+      switch (paymentFrequency) {
+        case "bi-weekly":
+        case "accelerated bi-weekly":
+          return periodicAmount * 26 / 12;
+        case "weekly":
+        case "accelerated weekly":
+          return periodicAmount * 52 / 12;
+        case "semi-monthly":
+        case "monthly":
+        default:
+          return periodicAmount;
+      }
+    } catch (e) {
+      // Fall through to generic calculation below if anything goes wrong
+    }
+  }
+
   // For accelerated payments, calculate based on monthly payment
   const monthlyPayment = calculatePaymentAmount(
     mortgage.originalAmount,
@@ -335,9 +477,42 @@ export function getMonthlyMortgagePayment(mortgage: MortgageData): number {
  */
 export function getMonthlyMortgageInterest(mortgage: MortgageData): number {
   const currentPayment = getCurrentMortgagePayment(mortgage);
+  const paymentFrequency = (mortgage.paymentFrequency || "monthly").toLowerCase();
+
+  // Richmond St E – use schedule and convert to monthly equivalent
+  if ((mortgage as any).mortgageNumber === RICHMOND_MORTGAGE_NUMBER) {
+    try {
+      const schedule = calculateAmortizationSchedule(mortgage);
+      const today = new Date();
+      const nextPayment =
+        schedule.payments.find(p => new Date(p.paymentDate) >= today) ||
+        schedule.payments[schedule.payments.length - 1];
+
+      if (!nextPayment) {
+        return 0;
+      }
+
+      const periodicInterest = nextPayment.interest;
+
+      switch (paymentFrequency) {
+        case "bi-weekly":
+        case "accelerated bi-weekly":
+          return periodicInterest * 26 / 12;
+        case "weekly":
+        case "accelerated weekly":
+          return periodicInterest * 52 / 12;
+        case "semi-monthly":
+        case "monthly":
+        default:
+          return periodicInterest;
+      }
+    } catch (e) {
+      // Fall through to generic conversion below
+    }
+  }
   
   // Convert to monthly equivalent based on payment frequency
-  switch (mortgage.paymentFrequency.toLowerCase()) {
+  switch (paymentFrequency) {
     case 'monthly':
       return currentPayment.interest;
     case 'semi-monthly':
@@ -366,9 +541,42 @@ export function getMonthlyMortgageInterest(mortgage: MortgageData): number {
  */
 export function getMonthlyMortgagePrincipal(mortgage: MortgageData): number {
   const currentPayment = getCurrentMortgagePayment(mortgage);
+  const paymentFrequency = (mortgage.paymentFrequency || "monthly").toLowerCase();
+
+  // Richmond St E – use schedule principal and convert to monthly equivalent
+  if ((mortgage as any).mortgageNumber === RICHMOND_MORTGAGE_NUMBER) {
+    try {
+      const schedule = calculateAmortizationSchedule(mortgage);
+      const today = new Date();
+      const nextPayment =
+        schedule.payments.find(p => new Date(p.paymentDate) >= today) ||
+        schedule.payments[schedule.payments.length - 1];
+
+      if (!nextPayment) {
+        return 0;
+      }
+
+      const periodicPrincipal = nextPayment.principal;
+
+      switch (paymentFrequency) {
+        case "bi-weekly":
+        case "accelerated bi-weekly":
+          return periodicPrincipal * 26 / 12;
+        case "weekly":
+        case "accelerated weekly":
+          return periodicPrincipal * 52 / 12;
+        case "semi-monthly":
+        case "monthly":
+        default:
+          return periodicPrincipal;
+      }
+    } catch (e) {
+      // Fall through to generic conversion below
+    }
+  }
   
   // Convert to monthly equivalent based on payment frequency
-  switch (mortgage.paymentFrequency.toLowerCase()) {
+  switch (paymentFrequency) {
     case 'monthly':
       return currentPayment.principal;
     case 'semi-monthly':

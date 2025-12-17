@@ -19,49 +19,65 @@ const MortgageCardView = ({ mortgage }) => {
       const schedule = calculateAmortizationSchedule(mortgageObj);
       const now = new Date();
       const startDate = new Date(mortgageObj.startDate);
-      const monthsElapsed = Math.max(0, (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth()));
-      
-      const currentPayment = schedule.payments[monthsElapsed] || schedule.payments[0];
-      const currentBalance = currentPayment?.remainingBalance || mortgageObj.originalAmount;
+
+      // Find the next payment in the schedule based on today's date
+      let nextPaymentIndex = schedule.payments.findIndex(payment => {
+        const paymentDate = new Date(payment.paymentDate);
+        return paymentDate >= now;
+      });
+
+      if (nextPaymentIndex === -1) {
+        // All payments are in the past – fall back to the final payment
+        nextPaymentIndex = schedule.payments.length - 1;
+      }
+
+      const currentPayment = schedule.payments[nextPaymentIndex] || schedule.payments[0];
+
+      // Determine current balance:
+      // 1) Prefer an explicit currentBalance field from the mortgage (e.g., Richmond RMG statement)
+      // 2) Otherwise use the balance after the most recent completed payment
+      // 3) Fallback to the schedule balance or original amount
+      let currentBalance = typeof mortgageObj.currentBalance === 'number' && mortgageObj.currentBalance > 0
+        ? mortgageObj.currentBalance
+        : undefined;
+
+      if (currentBalance === undefined) {
+        const previousPayment = nextPaymentIndex > 0 ? schedule.payments[nextPaymentIndex - 1] : null;
+        if (previousPayment) {
+          currentBalance = previousPayment.remainingBalance;
+        } else {
+          currentBalance = currentPayment?.remainingBalance || mortgageObj.originalAmount;
+        }
+      }
+
       const principalPaid = mortgageObj.originalAmount - currentBalance;
-      const totalInterestPaid = schedule.payments.slice(0, monthsElapsed).reduce((sum, payment) => sum + payment.interest, 0);
+
+      // Total interest paid up to today based on schedule dates
+      const totalInterestPaid = schedule.payments
+        .filter(payment => new Date(payment.paymentDate) < now)
+        .reduce((sum, payment) => sum + payment.interest, 0);
       
       // Calculate term remaining
-      const termEndDate = new Date(startDate);
-      termEndDate.setFullYear(termEndDate.getFullYear() + (mortgage.termYears || mortgageObj.termYears));
+      const termEndDate = mortgageObj.renewalDate
+        ? new Date(mortgageObj.renewalDate)
+        : (() => {
+            const d = new Date(startDate);
+            d.setFullYear(d.getFullYear() + (mortgage.termYears || mortgageObj.termYears));
+            return d;
+          })();
       const termRemainingMs = termEndDate - now;
       const termRemainingYears = Math.floor(termRemainingMs / (365.25 * 24 * 60 * 60 * 1000));
       const termRemainingMonths = Math.floor((termRemainingMs % (365.25 * 24 * 60 * 60 * 1000)) / (30.44 * 24 * 60 * 60 * 1000));
       
-      // Calculate next payment date based on payment frequency and amortization schedule
-      const nextPaymentDate = new Date(now);
-      const paymentFreq = (mortgageObj.paymentFrequency || mortgage.paymentFrequency || '').toUpperCase();
-      
-      if (paymentFreq === 'BIWEEKLY' || paymentFreq === 'BI-WEEKLY') {
-        // For bi-weekly, assume payments every 14 days from start date
-        const daysSinceStart = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
-        const paymentsMade = Math.floor(daysSinceStart / 14);
-        const nextPaymentDay = (paymentsMade + 1) * 14;
-        nextPaymentDate.setTime(startDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
-      } else if (paymentFreq === 'MONTHLY') {
-        // For monthly, calculate based on 30-day intervals from start date (matching amortization schedule)
-        const daysSinceStart = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
-        const paymentsMade = Math.floor(daysSinceStart / 30);
-        const nextPaymentDay = (paymentsMade + 1) * 30;
-        nextPaymentDate.setTime(startDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
-      } else {
-        // Default to monthly with 30-day intervals
-        const daysSinceStart = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
-        const paymentsMade = Math.floor(daysSinceStart / 30);
-        const nextPaymentDay = (paymentsMade + 1) * 30;
-        nextPaymentDate.setTime(startDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
-      }
+      // Use the schedule's payment date for the next payment
+      const nextPaymentDate = currentPayment
+        ? new Date(currentPayment.paymentDate)
+        : new Date(now);
       
       const daysUntilPayment = Math.ceil((nextPaymentDate - now) / (1000 * 60 * 60 * 24));
       
       // Calculate renewal date remaining (current date to renewal date)
-      const renewalDate = new Date(startDate);
-      renewalDate.setFullYear(renewalDate.getFullYear() + (mortgage.termYears || mortgageObj.termYears));
+      const renewalDate = termEndDate;
       const renewalRemainingMs = renewalDate - now;
       const renewalRemainingYears = Math.floor(renewalRemainingMs / (365.25 * 24 * 60 * 60 * 1000));
       const renewalRemainingMonths = Math.floor((renewalRemainingMs % (365.25 * 24 * 60 * 60 * 1000)) / (30.44 * 24 * 60 * 60 * 1000));
@@ -71,9 +87,9 @@ const MortgageCardView = ({ mortgage }) => {
         currentBalance,
         principalPaid,
         totalInterestPaid,
-        monthsElapsed,
+        monthsElapsed: nextPaymentIndex, // approximate timeline position
         totalPayments: schedule.payments.length,
-        monthlyPayment: schedule.payments[0]?.monthlyPayment || 0,
+        monthlyPayment: currentPayment?.monthlyPayment || schedule.payments[0]?.monthlyPayment || 0,
         termRemaining: `${termRemainingYears} Years ${termRemainingMonths} Months`,
         renewalRemaining: `${renewalRemainingYears} Years ${renewalRemainingMonths} Months`,
         renewalDate,
@@ -201,25 +217,29 @@ const MortgageCardView = ({ mortgage }) => {
 
           {/* Right Section - Payment Breakdown */}
           <div className="space-y-4">
-            <div className="text-left">
-              <div className="text-xs font-medium text-white/80 uppercase tracking-wide mb-2">
-                Total Monthly Payment
-              </div>
-              <div className="text-xl font-bold text-white">
-                {mortgageObj.paymentFrequency === 'Bi-weekly' ? formatCurrency(monthlyPayment * 26 / 12) : formatCurrency(monthlyPayment)}
-              </div>
-              {mortgageObj.paymentFrequency === 'Bi-weekly' && (
-                <div className="text-xs font-medium text-white/70 mt-1">
-                  Bi-weekly
-                </div>
-              )}
+          <div className="text-left">
+            <div className="text-xs font-medium text-white/80 uppercase tracking-wide mb-2">
+              Total Monthly Payment
             </div>
+            <div className="text-xl font-bold text-white">
+              {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
+                ? formatCurrency(monthlyPayment * 26 / 12)
+                : formatCurrency(monthlyPayment)}
+            </div>
+            {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly' && (
+              <div className="text-xs font-medium text-white/70 mt-1">
+                Bi-weekly
+              </div>
+            )}
+          </div>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-[#205A3E] flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium text-white/80 uppercase tracking-wide">
-                    {mortgageObj.paymentFrequency === 'Bi-weekly' ? 'Principal (bi-weekly)' : 'Principal'}
+                    {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
+                      ? 'Principal (bi-weekly)'
+                      : 'Principal'}
                   </div>
                   <div className="font-bold text-white text-sm">{formatCurrency(principalAmount)}</div>
                 </div>
@@ -228,7 +248,9 @@ const MortgageCardView = ({ mortgage }) => {
                 <div className="w-3 h-3 rounded-full bg-white/20 flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium text-white/80 uppercase tracking-wide">
-                    {mortgageObj.paymentFrequency === 'Bi-weekly' ? 'Interest (bi-weekly)' : 'Interest'}
+                    {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
+                      ? 'Interest (bi-weekly)'
+                      : 'Interest'}
                   </div>
                   <div className="font-bold text-white text-sm">{formatCurrency(interestAmount)}</div>
                 </div>
@@ -361,7 +383,11 @@ const MortgageCardView = ({ mortgage }) => {
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Remaining Amortization</span>
                         <InfoIcon />
                       </div>
-                      <span className="font-semibold text-gray-900 dark:text-white">{Math.floor((mortgage.amortizationPeriodYears || mortgageObj.amortizationYears) - Math.floor(mortgageData.monthsElapsed / 12))} Years {Math.floor(mortgageData.monthsElapsed % 12)} Months</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {mortgageObj.remainingAmortization
+                          ? mortgageObj.remainingAmortization
+                          : `${Math.max(0, Math.floor((mortgage.amortizationPeriodYears || mortgageObj.amortizationYears) - Math.floor(mortgageData.monthsElapsed / 12)))} Years ${Math.max(0, Math.floor(mortgageData.monthsElapsed % 12))} Months`}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Term Remaining</span>
