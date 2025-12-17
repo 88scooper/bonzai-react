@@ -3,6 +3,7 @@
 // Property context for managing property data and calculations
 import React, { createContext, useContext, useMemo, useCallback, ReactNode, useEffect, useState } from 'react';
 import { getAllProperties, getPortfolioMetrics } from '@/data/properties';
+import { useAccount } from '@/context/AccountContext';
 import { 
   calculateAnnualOperatingExpenses, 
   calculateNOI, 
@@ -330,18 +331,35 @@ const PropertyContext = createContext<PropertyContextType | undefined>(undefined
 
 // Provider component
 export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Get account-specific properties from AccountContext
+  const { properties: accountProperties, saveProperties } = useAccount();
+  
   const [propertiesState, setPropertiesState] = useState<Property[]>(() => {
-    const initialProperties = getAllProperties() as unknown as Property[];
+    // Use account properties if available, otherwise fall back to default properties
+    const initialProperties = (accountProperties && accountProperties.length > 0) 
+      ? accountProperties 
+      : (getAllProperties() as unknown as Property[]);
     return initialProperties.map((property) => preparePropertyData(property));
   });
   const [calculationsComplete, setCalculationsComplete] = useState(false);
+  
+  // Update properties when account properties change
+  useEffect(() => {
+    // Use account properties if available, otherwise fall back to default properties
+    const initialProperties = (accountProperties && accountProperties.length > 0) 
+      ? accountProperties 
+      : (getAllProperties() as unknown as Property[]);
+    
+    const preparedProperties = initialProperties.map((property) => preparePropertyData(property));
+    setPropertiesState(preparedProperties);
+  }, [accountProperties]);
   
   // Get all properties and portfolio metrics
   const allProperties = propertiesState;
 
   const updateProperty = useCallback((id: string, updatedProperty: Property) => {
-    setPropertiesState(prevProperties =>
-      prevProperties.map(property => {
+    setPropertiesState(prevProperties => {
+      const updated = prevProperties.map(property => {
         if (property.id !== id) {
           return property;
         }
@@ -375,9 +393,14 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
         } as Property;
 
         return preparePropertyData(mergedProperty);
-      })
-    );
-  }, []);
+      });
+      
+      // Save updated properties to account storage
+      saveProperties(updated);
+      
+      return updated;
+    });
+  }, [saveProperties]);
   
   // Calculate mortgage payments and update property data in browser environment
   useEffect(() => {
