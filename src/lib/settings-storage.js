@@ -71,3 +71,4 @@ export function setSettings(newSettings) {
     console.error('Error saving settings to localStorage:', error);
   }
 }
+
