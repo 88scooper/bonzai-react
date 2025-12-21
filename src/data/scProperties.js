@@ -95,12 +95,21 @@ export const scProperties = [
     mortgage: {
       lender: 'RMG',
       originalAmount: 492000,
-      interestRate: 0.05, // Variable rate with -0.95% spread, using 5% as base
-      rateType: 'Variable',
+      // Updated to match lender statement for 403-311 Richmond St E
+      // 2.69% fixed rate, stored as a decimal for calculations
+      interestRate: 0.0269,
+      rateType: 'Fixed',
       termMonths: 60,
       amortizationYears: 25, // 300 months
-      paymentFrequency: 'Monthly',
+      // Bi-weekly payment schedule (matches $1,102.28 bi-weekly payment)
+      paymentFrequency: 'Bi-Weekly',
       startDate: '2019-02-04',
+      // Optional real-world metadata used by mortgage UI components
+      mortgageNumber: '8963064.1',
+      currentBalance: 375080.02, // As of 2025-12-16 lender statement
+      paymentAmount: 1102.28,
+      renewalDate: '2027-01-28',
+      remainingAmortization: '16 Years 1 Month',
     },
 
     rent: {
@@ -109,16 +118,16 @@ export const scProperties = [
     },
 
     expenseHistory: [
-      // 2023 Expenses
+      // 2023 Expenses - aligned to 2023 Schedule of Rental Income (total $6,059.94)
       { id: 'richmond-2023-insurance', date: '2023-01-15', amount: 0, category: 'Insurance', description: 'Property insurance' },
       { id: 'richmond-2023-interest', date: '2023-06-01', amount: 1696.05, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'richmond-2023-professional', date: '2023-03-15', amount: 3785.59, category: 'Professional Fees', description: 'Professional fees' },
+      { id: 'richmond-2023-professional', date: '2023-03-15', amount: 3785.50, category: 'Professional Fees', description: 'Professional fees' },
       { id: 'richmond-2023-maintenance', date: '2023-08-15', amount: 0, category: 'Maintenance', description: 'Repairs & maintenance' },
       { id: 'richmond-2023-tax', date: '2023-01-15', amount: 524.39, category: 'Property Tax', description: 'Property taxes' },
       { id: 'richmond-2023-utilities', date: '2023-01-15', amount: 54, category: 'Other', description: 'Utilities' },
-      { id: 'richmond-2023-condo', date: '2023-01-15', amount: 1580.58, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      { id: 'richmond-2023-condo', date: '2023-01-15', amount: 0, category: 'Condo Fees', description: 'Condo maintenance fees' },
       
-      // 2024 Expenses
+      // 2024 Expenses - aligned to 2024 Schedule of Rental Income (total $23,493.77)
       { id: 'richmond-2024-insurance', date: '2024-01-15', amount: 310.14, category: 'Insurance', description: 'Property insurance' },
       { id: 'richmond-2024-interest', date: '2024-06-01', amount: 10343.11, category: 'Other', description: 'Interest & bank charges' },
       { id: 'richmond-2024-professional', date: '2024-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
@@ -126,12 +135,12 @@ export const scProperties = [
       { id: 'richmond-2024-tax', date: '2024-01-15', amount: 3218.8, category: 'Property Tax', description: 'Property taxes' },
       { id: 'richmond-2024-condo', date: '2024-01-15', amount: 9562.04, category: 'Condo Fees', description: 'Condo maintenance fees' },
       
-      // 2025 Expenses
-      { id: 'richmond-2025-insurance', date: '2025-01-15', amount: 512, category: 'Insurance', description: 'Property insurance' },
-      { id: 'richmond-2025-interest', date: '2025-06-01', amount: 0, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'richmond-2025-professional', date: '2025-03-15', amount: 3898.5, category: 'Professional Fees', description: 'Professional fees' },
+      // 2025 Expenses - aligned to 2025 Schedule of Rental Income (total $28,893.69)
+      { id: 'richmond-2025-insurance', date: '2025-01-15', amount: 552.96, category: 'Insurance', description: 'Property insurance' },
+      { id: 'richmond-2025-interest', date: '2025-06-01', amount: 10264.83, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'richmond-2025-professional', date: '2025-03-15', amount: 3898.50, category: 'Professional Fees', description: 'Professional fees' },
       { id: 'richmond-2025-maintenance', date: '2025-08-15', amount: 829.17, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'richmond-2025-tax', date: '2025-01-15', amount: 2205.39, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'richmond-2025-tax', date: '2025-01-15', amount: 3393.39, category: 'Property Tax', description: 'Property taxes' },
       { id: 'richmond-2025-condo', date: '2025-01-15', amount: 9954.84, category: 'Condo Fees', description: 'Condo maintenance fees' },
     ],
 
@@ -146,26 +155,27 @@ export const scProperties = [
     // Calculated fields
     totalInvestment: 233150, // down payment (123000) + closingCosts (18150) + initialRenovations (100000)
     appreciation: 185000, // currentMarketValue - purchasePrice
-    monthlyPropertyTax: 183.78, // 2205.39 / 12 (using 2025 data)
+    // Monthly operating expenses derived from 2025 Schedule of Rental Income (non-interest expenses)
+    monthlyPropertyTax: 3393.39 / 12, // ≈ 282.78
     monthlyCondoFees: 829.57, // 9954.84 / 12 (using 2025 data)
-    monthlyInsurance: 42.67, // 512 / 12 (using 2025 data)
+    monthlyInsurance: 552.96 / 12, // ≈ 46.08
     monthlyMaintenance: 69.10, // 829.17 / 12 (using 2025 data)
-    monthlyProfessionalFees: 324.88, // 3898.5 / 12 (using 2025 data)
+    monthlyProfessionalFees: 3898.50 / 12, // ≈ 324.88 (using 2025 data)
     
     monthlyExpenses: {
-      propertyTax: 183.78,
+      propertyTax: 3393.39 / 12,
       condoFees: 829.57,
-      insurance: 42.67,
+      insurance: 552.96 / 12,
       maintenance: 69.10,
-      professionalFees: 324.88,
+      professionalFees: 3898.50 / 12,
       mortgagePayment: 0, // Will be calculated below
       mortgageInterest: 0, // Will be calculated below
       mortgagePrincipal: 0, // Will be calculated below
-      total: 1449.00 // Will be recalculated below
+      total: 0 // Will be recalculated below
     },
     
-    monthlyCashFlow: 2001.00, // monthlyRent - monthlyExpenses.total (will be recalculated)
-    annualCashFlow: 24012, // monthlyCashFlow * 12
+    monthlyCashFlow: 0, // Will be recalculated below
+    annualCashFlow: 0, // Will be recalculated below
     capRate: 5.2, // (annualRent / currentMarketValue) * 100 = (41400 / 800000) * 100
     occupancy: 100,
     
@@ -475,3 +485,5 @@ export const getSCPropertyById = (id, propertyList = scProperties) => {
 export const getAllSCProperties = () => {
   return scProperties;
 };
+
+

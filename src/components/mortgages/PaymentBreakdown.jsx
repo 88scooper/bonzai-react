@@ -1,21 +1,60 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { formatCurrency } from '@/utils/formatting';
+import { calculateAmortizationSchedule } from '@/utils/mortgageCalculator';
 
 const PaymentBreakdown = ({ mortgageData }) => {
-  // Use actual mortgage data from property context
-  const monthlyPayment = mortgageData?.mortgage?.monthlyPayment || 1102.28;
-  const propertyTax = mortgageData?.mortgage?.propertyTax || null;
+  const mortgage = mortgageData?.mortgage;
+
+  const { periodicPayment, monthlyEquivalent, propertyTax } = useMemo(() => {
+    if (!mortgage) {
+      return {
+        periodicPayment: 1102.28,
+        monthlyEquivalent: 1102.28,
+        propertyTax: null,
+      };
+    }
+
+    try {
+      const schedule = calculateAmortizationSchedule(mortgage);
+      const today = new Date();
+      const nextPayment =
+        schedule.payments.find(p => new Date(p.paymentDate) >= today) ||
+        schedule.payments[schedule.payments.length - 1];
+
+      const periodic = nextPayment ? nextPayment.monthlyPayment : 0;
+      const freq = (mortgage.paymentFrequency || 'monthly').toLowerCase();
+
+      let monthlyEq = periodic;
+      if (freq === 'bi-weekly' || freq === 'accelerated bi-weekly') {
+        monthlyEq = periodic * 26 / 12;
+      } else if (freq === 'weekly' || freq === 'accelerated weekly') {
+        monthlyEq = periodic * 52 / 12;
+      }
+
+      return {
+        periodicPayment: periodic,
+        monthlyEquivalent: monthlyEq,
+        propertyTax: mortgage.propertyTax ?? null,
+      };
+    } catch {
+      return {
+        periodicPayment: mortgage.paymentAmount || 1102.28,
+        monthlyEquivalent: (mortgage.paymentAmount || 1102.28) * 26 / 12,
+        propertyTax: mortgage.propertyTax ?? null,
+      };
+    }
+  }, [mortgage]);
   
   const paymentComponents = [
-    { label: "Principal and Interest", amount: monthlyPayment },
+    { label: "Principal and Interest", amount: periodicPayment },
     { label: "Property Tax", amount: propertyTax } // null means not included or zero
   ];
 
-  const paymentFrequency = mortgageData?.mortgage?.paymentFrequency || "Bi-Weekly";
-  const remainingAmortization = mortgageData?.mortgage?.remainingAmortization || "16 Years 4 Months";
-  const secureStart = mortgageData?.mortgage?.secureStart || "0";
+  const paymentFrequency = mortgage?.paymentFrequency || "Bi-Weekly";
+  const remainingAmortization = mortgage?.remainingAmortization || "16 Years 4 Months";
+  const secureStart = mortgage?.secureStart || "0";
 
   const additionalDetails = [
     { label: "Payment Frequency", value: paymentFrequency },

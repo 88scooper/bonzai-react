@@ -3,7 +3,7 @@
 // Property context for managing property data and calculations
 import React, { createContext, useContext, useMemo, useCallback, ReactNode, useEffect, useState } from 'react';
 import { getAllProperties, getPortfolioMetrics } from '@/data/properties';
-import { useAccount } from './AccountContext';
+import { useAccount } from '@/context/AccountContext';
 import { 
   calculateAnnualOperatingExpenses, 
   calculateNOI, 
@@ -299,18 +299,46 @@ const preparePropertyData = (property: Property): Property => {
   const initialRenovations = ensureNumber('initialRenovations' in cloned ? (cloned as any).initialRenovations : undefined);
   const renovationCosts = ensureNumber((cloned as any).renovationCosts);
 
-  cloned.mortgage = {
-    lender: cloned.mortgage?.lender || "",
-    originalAmount: ensureNumber(cloned.mortgage?.originalAmount),
-    interestRate: typeof cloned.mortgage?.interestRate === "number"
-      ? cloned.mortgage.interestRate
-      : ensureNumber(cloned.mortgage?.interestRate),
-    rateType: cloned.mortgage?.rateType || "",
-    termMonths: ensureNumber(cloned.mortgage?.termMonths),
-    amortizationYears: ensureNumber(cloned.mortgage?.amortizationYears),
-    paymentFrequency: cloned.mortgage?.paymentFrequency || "Monthly",
-    startDate: cloned.mortgage?.startDate || "",
+  // Normalize core mortgage fields while preserving any additional metadata
+  const originalMortgage: any = cloned.mortgage || {};
+
+  // Special-case fix for SC property 403-311 Richmond St E to ensure
+  // the current RMG 2.69% bi-weekly mortgage is always reflected,
+  // even if older account data was seeded with outdated values.
+  let normalizedMortgage: any = {
+    ...originalMortgage,
+    lender: originalMortgage.lender || "",
+    originalAmount: ensureNumber(originalMortgage.originalAmount),
+    interestRate: typeof originalMortgage.interestRate === "number"
+      ? originalMortgage.interestRate
+      : ensureNumber(originalMortgage.interestRate),
+    rateType: originalMortgage.rateType || "",
+    termMonths: ensureNumber(originalMortgage.termMonths),
+    amortizationYears: ensureNumber(originalMortgage.amortizationYears),
+    paymentFrequency: originalMortgage.paymentFrequency || "Monthly",
+    startDate: originalMortgage.startDate || "",
   };
+
+  if (cloned.id === 'richmond-st-e-403') {
+    normalizedMortgage = {
+      ...normalizedMortgage,
+      lender: 'RMG',
+      originalAmount: 492000,
+      interestRate: 0.0269,
+      rateType: 'Fixed',
+      termMonths: 60,
+      amortizationYears: 25,
+      paymentFrequency: 'Bi-Weekly',
+      startDate: '2019-02-04',
+      mortgageNumber: '8963064.1',
+      currentBalance: 375080.02,
+      paymentAmount: 1102.28,
+      renewalDate: '2027-01-28',
+      remainingAmortization: '16 Years 1 Month',
+    };
+  }
+
+  cloned.mortgage = normalizedMortgage;
 
   const downPayment = Math.max(0, purchasePrice - cloned.mortgage.originalAmount);
   cloned.totalInvestment = Number((downPayment + closingCosts + initialRenovations + renovationCosts).toFixed(2));

@@ -14,15 +14,15 @@ export default function Providers({ children }) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AccountProvider>
-          <SettingsProvider>
-            <ToastProvider>
-              <PropertyProvider>
-                <MortgageProvider>
-                  {children}
-                </MortgageProvider>
-              </PropertyProvider>
-            </ToastProvider>
-          </SettingsProvider>
+        <SettingsProvider>
+          <ToastProvider>
+            <PropertyProvider>
+              <MortgageProvider>
+                {children}
+              </MortgageProvider>
+            </PropertyProvider>
+          </ToastProvider>
+        </SettingsProvider>
         </AccountProvider>
       </AuthProvider>
     </QueryClientProvider>
