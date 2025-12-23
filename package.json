@@ -29,12 +29,16 @@
     "react-hook-form": "^7.63.0",
     "recharts": "^3.2.1",
     "xlsx": "^0.18.5",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/react": "19.2.6",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.6",
     "eslint": "^9",
     "eslint-config-next": "15.4.8",
     "tailwindcss": "^4"
