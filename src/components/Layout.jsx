@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import AccountSwitcher from "@/components/AccountSwitcher";
 import Button from "@/components/Button";
-import { LogOut, UserCircle, Settings, User } from "lucide-react";
+import { LogOut, UserCircle, Settings } from "lucide-react";
 
 export default function Layout({ children }) {
   const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { user, logOut } = useAuth();
+  const router = useRouter();
   const userMenuRef = useRef(null);
 
   useEffect(() => {
@@ -54,11 +56,10 @@ export default function Layout({ children }) {
 
     if (isUserMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
   }, [isUserMenuOpen]);
 
   const toggleDarkMode = () => {
@@ -84,7 +85,7 @@ export default function Layout({ children }) {
                   </svg>
                 </button>
                 
-                <Link href="/portfolio-summary" className="font-semibold tracking-tight">
+                <Link href="/" className="font-semibold tracking-tight">
                   Proplytics
                 </Link>
               </div>
@@ -96,7 +97,10 @@ export default function Layout({ children }) {
                 {/* User Profile Menu */}
                 <div className="relative" ref={userMenuRef}>
                   <button
-                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    onClick={() => {
+                      console.log("User menu button clicked, current state:", isUserMenuOpen);
+                      setIsUserMenuOpen(!isUserMenuOpen);
+                    }}
                     className="p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                     aria-label="User menu"
                   >
@@ -105,7 +109,10 @@ export default function Layout({ children }) {
 
                   {/* User Dropdown Menu */}
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-900 rounded-lg shadow-lg border border-black/10 dark:border-white/10 py-2 z-50">
+                    <div 
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-900 rounded-lg shadow-lg border border-black/10 dark:border-white/10 py-2 z-50"
+                      data-testid="user-menu-dropdown"
+                    >
                       {/* User Info Section */}
                       <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -118,17 +125,6 @@ export default function Layout({ children }) {
 
                       {/* Menu Items */}
                       <div className="py-1">
-                        <button
-                          onClick={() => {
-                            // TODO: Navigate to My Account page
-                            setIsUserMenuOpen(false);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 transition-colors"
-                        >
-                          <User className="w-4 h-4" />
-                          My Account
-                        </button>
-                        
                         <Link
                           href="/settings"
                           onClick={() => setIsUserMenuOpen(false)}
@@ -164,8 +160,13 @@ export default function Layout({ children }) {
                         <div className="px-4 py-2 border-t border-black/10 dark:border-white/10">
                           <button
                             onClick={() => {
-                              logOut();
                               setIsUserMenuOpen(false);
+                              // Set flag FIRST before clearing token - this prevents RequireAuth from redirecting to /login
+                              sessionStorage.setItem('isLoggingOut', 'true');
+                              // Clear auth data
+                              localStorage.removeItem('auth_token');
+                              // Immediately redirect to landing page - use replace to avoid history entry
+                              window.location.replace('/');
                             }}
                             className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors rounded-md"
                           >

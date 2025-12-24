@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
@@ -9,6 +9,13 @@ import { useAuth } from "@/context/AuthContext";
 export default function HomePage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
+
+  // Clear logout flag when homepage loads
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('isLoggingOut');
+    }
+  }, []);
 
   function openLogin() {
     setIsSignupOpen(false);
@@ -137,10 +144,12 @@ function LoginModal({ onClose, onSwitchToSignup }) {
   const { addToast } = useToast();
   const { logIn } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function onSubmit(e) {
     e.preventDefault();
     setLoading(true);
+    setError("");
     try {
       const form = new FormData(e.currentTarget);
       const email = String(form.get("email") || "");
@@ -148,8 +157,21 @@ function LoginModal({ onClose, onSwitchToSignup }) {
       await logIn(email, password);
       addToast("Logged in!", { type: "success" });
       onClose();
+      // Redirect based on user state
+      setTimeout(() => {
+        window.location.href = "/portfolio-summary";
+      }, 100);
     } catch (e) {
-      addToast("Login failed.", { type: "error" });
+      let errorMessage = "Login failed.";
+      if (e.message) {
+        if (e.message.includes("Invalid email or password") || e.message.includes("401")) {
+          errorMessage = "Invalid email or password.";
+        } else {
+          errorMessage = e.message;
+        }
+      }
+      setError(errorMessage);
+      addToast(errorMessage, { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -158,7 +180,14 @@ function LoginModal({ onClose, onSwitchToSignup }) {
   return (
     <Modal onClose={onClose}>
       <h3 className="text-xl font-semibold">Log in</h3>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Proplytics.</p>
+      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Proplytics.</p>
+      
+      {error && (
+        <div className="mt-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      )}
+      
       <form onSubmit={onSubmit} className="mt-6 grid gap-4">
         <div className="grid gap-2">
           <label htmlFor="login-email" className="text-sm">Email</label>
@@ -182,19 +211,38 @@ function SignupModal({ onClose, onSwitchToLogin }) {
   const { addToast } = useToast();
   const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function onSubmit(e) {
     e.preventDefault();
     setLoading(true);
+    setError("");
     try {
       const form = new FormData(e.currentTarget);
       const email = String(form.get("email") || "");
       const password = String(form.get("password") || "");
-      await signUp(email, password);
+      const name = String(form.get("name") || email.split('@')[0] || "");
+      
+      await signUp(email, password, name || null);
       addToast("Account created!", { type: "success" });
       onClose();
+      // Redirect to onboarding for new users
+      setTimeout(() => {
+        window.location.href = "/onboarding";
+      }, 100);
     } catch (e) {
-      addToast("Sign up failed.", { type: "error" });
+      let errorMessage = "Sign up failed.";
+      if (e.message) {
+        if (e.message.includes("already exists") || e.message.includes("duplicate") || e.message.includes("409")) {
+          errorMessage = "An account with this email already exists.";
+        } else if (e.message.includes("Validation failed")) {
+          errorMessage = e.message.replace("Validation failed: ", "");
+        } else {
+          errorMessage = e.message;
+        }
+      }
+      setError(errorMessage);
+      addToast(errorMessage, { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -204,7 +252,18 @@ function SignupModal({ onClose, onSwitchToLogin }) {
     <Modal onClose={onClose}>
       <h3 className="text-xl font-semibold">Create your account</h3>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Start managing your portfolio.</p>
+      
+      {error && (
+        <div className="mt-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      )}
+      
       <form onSubmit={onSubmit} className="mt-6 grid gap-4">
+        <div className="grid gap-2">
+          <label htmlFor="signup-name" className="text-sm">Full name (optional)</label>
+          <input id="signup-name" name="name" type="text" className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" />
+        </div>
         <div className="grid gap-2">
           <label htmlFor="signup-email" className="text-sm">Email</label>
           <input id="signup-email" name="email" type="email" required className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" />

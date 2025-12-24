@@ -47,9 +47,13 @@ class ApiClient {
 
     // Build headers
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
       ...fetchOptions.headers,
     };
+
+    // Only set Content-Type if not FormData (browser will set it with boundary)
+    if (!(fetchOptions.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // Add authentication token if required
     if (requireAuth) {
@@ -146,6 +150,41 @@ class ApiClient {
     }
   }
 
+  // User profile methods
+  async getUserProfile() {
+    return this.request<{
+      id: string;
+      email: string;
+      name: string | null;
+      created_at: string;
+    }>('/auth/user');
+  }
+
+  async updateUserProfile(data: { name?: string | null; email?: string }) {
+    return this.request<{
+      id: string;
+      email: string;
+      name: string | null;
+      created_at: string;
+    }>('/auth/user', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
+  async deleteAccount() {
+    return this.request<{ message: string }>('/auth/user', {
+      method: 'DELETE',
+    });
+  }
+
   // Account methods
   async getAccounts(page = 1, limit = 10) {
     return this.request<{
@@ -214,6 +253,23 @@ class ApiClient {
   async deleteProperty(id: string) {
     return this.request<{ message: string }>(`/properties/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async bulkUploadProperties(accountId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('accountId', accountId);
+
+    return this.request<{
+      created: number;
+      failed: number;
+      total: number;
+      errors?: string[];
+      failedProperties?: Array<{ index: number; error: string }>;
+    }>('/properties/bulk-upload', {
+      method: 'POST',
+      body: formData,
     });
   }
 

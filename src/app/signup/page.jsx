@@ -20,21 +20,32 @@ export default function SignupPage() {
       const form = new FormData(e.currentTarget);
       const email = String(form.get("email") || "");
       const password = String(form.get("password") || "");
+      const name = String(form.get("name") || "");
       
-      await signUp(email, password);
+      await signUp(email, password, name || null);
       addToast("Account created successfully!", { type: "success" });
-      // Redirect to portfolio summary after successful signup
-      window.location.href = "/portfolio-summary";
+      
+      // Redirect to onboarding for new users, otherwise portfolio summary
+      // The AuthContext will check if user is new and redirect accordingly
+      setTimeout(() => {
+        window.location.href = "/onboarding";
+      }, 100);
     } catch (error) {
       console.error("Signup error:", error);
       let errorMessage = "Sign up failed. Please try again.";
       
-      if (error.code === "auth/email-already-in-use") {
-        errorMessage = "An account with this email already exists.";
-      } else if (error.code === "auth/weak-password") {
-        errorMessage = "Password should be at least 6 characters long.";
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Please enter a valid email address.";
+      if (error.message) {
+        if (error.message.includes("already exists") || error.message.includes("duplicate") || error.message.includes("409")) {
+          errorMessage = "An account with this email already exists.";
+        } else if (error.message.includes("password") && error.message.includes("short")) {
+          errorMessage = "Password should be at least 6 characters long.";
+        } else if (error.message.includes("email") || error.message.includes("Invalid email")) {
+          errorMessage = "Please enter a valid email address.";
+        } else if (error.message.includes("Validation failed")) {
+          errorMessage = error.message.replace("Validation failed: ", "");
+        } else {
+          errorMessage = error.message;
+        }
       }
       
       setError(errorMessage);

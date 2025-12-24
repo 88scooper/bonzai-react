@@ -23,18 +23,22 @@ export default function LoginPage() {
       
       await logIn(email, password);
       addToast("Logged in successfully!", { type: "success" });
+      // Redirect to portfolio summary
+      setTimeout(() => {
+        window.location.href = "/portfolio-summary";
+      }, 100);
     } catch (error) {
       console.error("Login error:", error);
       let errorMessage = "Login failed. Please try again.";
       
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email address.";
-      } else if (error.code === "auth/wrong-password") {
-        errorMessage = "Incorrect password. Please try again.";
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Please enter a valid email address.";
-      } else if (error.code === "auth/too-many-requests") {
-        errorMessage = "Too many failed attempts. Please try again later.";
+      if (error.message) {
+        if (error.message.includes("Invalid email or password") || error.message.includes("401")) {
+          errorMessage = "Invalid email or password.";
+        } else if (error.message.includes("Validation failed")) {
+          errorMessage = error.message.replace("Validation failed: ", "");
+        } else {
+          errorMessage = error.message;
+        }
       }
       
       setError(errorMessage);
