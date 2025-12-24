@@ -1,13 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { auth } from "@/lib/firebase";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-} from "firebase/auth";
+import { apiClient } from "@/lib/api-client";
+import { getUserFromToken, isTokenExpired } from "@/lib/jwt-utils";
 
 const AuthContext = createContext({
   user: null,
@@ -25,55 +20,121 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Check for existing token on mount
   useEffect(() => {
-    // Temporarily provide a mock user for demo access
-    const mockUser = {
-      uid: 'demo-user',
-      email: 'demo@proplytics.com',
-      displayName: 'Demo User'
+    const checkAuth = () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        
+        if (token && !isTokenExpired(token)) {
+          // Token exists and is valid, decode it to get user info
+          const userInfo = getUserFromToken(token);
+          if (userInfo) {
+            setUser({
+              uid: userInfo.id,
+              id: userInfo.id,
+              email: userInfo.email,
+              displayName: userInfo.email.split('@')[0], // Use email prefix as display name
+            });
+          } else {
+            // Invalid token, remove it
+            localStorage.removeItem('auth_token');
+            setUser(null);
+          }
+        } else {
+          // No token or expired token
+          if (token) {
+            localStorage.removeItem('auth_token');
+          }
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    setUser(mockUser);
-    setLoading(false);
-    
-    // Keep original Firebase logic commented for later restoration
-    /*
-    // Check if Firebase auth is available
-    if (!auth) {
-      console.warn('Firebase auth not available. Using mock authentication.');
-      setLoading(false);
-      return;
-    }
 
-    const unsub = onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser);
-      setLoading(false);
-    });
-    return () => unsub();
-    */
+    checkAuth();
   }, []);
 
-  const signUp = useCallback(async (email, password) => {
-    if (!auth) {
-      throw new Error('Firebase auth not available');
+  const signUp = useCallback(async (email, password, name) => {
+    try {
+      const response = await apiClient.register(email, password, name);
+      
+      if (response.success && response.data) {
+        const userData = response.data.user;
+        const token = response.data.token;
+        
+        // Token is already stored by apiClient
+        // Decode token to get user info
+        const userInfo = getUserFromToken(token);
+        
+        setUser({
+          uid: userData.id || userInfo?.id,
+          id: userData.id || userInfo?.id,
+          email: userData.email || userInfo?.email,
+          displayName: userData.name || name || userInfo?.email?.split('@')[0],
+        });
+        
+        return {
+          uid: userData.id,
+          email: userData.email,
+          displayName: userData.name,
+        };
+      } else {
+        throw new Error(response.error || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
     }
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    return cred.user;
   }, []);
 
   const logIn = useCallback(async (email, password) => {
-    if (!auth) {
-      throw new Error('Firebase auth not available');
+    try {
+      const response = await apiClient.login(email, password);
+      
+      if (response.success && response.data) {
+        const userData = response.data.user;
+        const token = response.data.token;
+        
+        // Token is already stored by apiClient
+        // Decode token to get user info
+        const userInfo = getUserFromToken(token);
+        
+        setUser({
+          uid: userData.id || userInfo?.id,
+          id: userData.id || userInfo?.id,
+          email: userData.email || userInfo?.email,
+          displayName: userData.name || userInfo?.email?.split('@')[0],
+        });
+        
+        return {
+          uid: userData.id,
+          email: userData.email,
+          displayName: userData.name,
+        };
+      } else {
+        throw new Error(response.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    return cred.user;
   }, []);
 
   const logOut = useCallback(async () => {
-    if (!auth) {
-      throw new Error('Firebase auth not available');
+    try {
+      await apiClient.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if API call fails, clear local state
+    } finally {
+      setUser(null);
+      localStorage.removeItem('auth_token');
     }
-    await signOut(auth);
   }, []);
 
   const value = useMemo(() => ({ user, loading, signUp, logIn, logOut }), [user, loading, signUp, logIn, logOut]);
@@ -82,7 +143,24 @@ export function AuthProvider({ children }) {
 }
 
 export function RequireAuth({ children }) {
-  // Temporarily allow access without authentication
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#205A3E]"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    // Redirect to login page
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+    return null;
+  }
+
   return children;
 }
 

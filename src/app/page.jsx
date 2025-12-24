@@ -148,8 +148,11 @@ function LoginModal({ onClose, onSwitchToSignup }) {
       await logIn(email, password);
       addToast("Logged in!", { type: "success" });
       onClose();
+      // Redirect to portfolio summary
+      window.location.href = "/portfolio-summary";
     } catch (e) {
-      addToast("Login failed.", { type: "error" });
+      const errorMessage = e.message || "Login failed.";
+      addToast(errorMessage, { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -190,11 +193,14 @@ function SignupModal({ onClose, onSwitchToLogin }) {
       const form = new FormData(e.currentTarget);
       const email = String(form.get("email") || "");
       const password = String(form.get("password") || "");
-      await signUp(email, password);
+      await signUp(email, password, email.split('@')[0]); // Use email prefix as name
       addToast("Account created!", { type: "success" });
       onClose();
+      // Redirect to portfolio summary
+      window.location.href = "/portfolio-summary";
     } catch (e) {
-      addToast("Sign up failed.", { type: "error" });
+      const errorMessage = e.message || "Sign up failed.";
+      addToast(errorMessage, { type: "error" });
     } finally {
       setLoading(false);
     }

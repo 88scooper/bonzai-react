@@ -23,18 +23,21 @@ export default function LoginPage() {
       
       await logIn(email, password);
       addToast("Logged in successfully!", { type: "success" });
+      // Redirect to portfolio summary after successful login
+      window.location.href = "/portfolio-summary";
     } catch (error) {
       console.error("Login error:", error);
       let errorMessage = "Login failed. Please try again.";
       
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email address.";
-      } else if (error.code === "auth/wrong-password") {
-        errorMessage = "Incorrect password. Please try again.";
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Please enter a valid email address.";
-      } else if (error.code === "auth/too-many-requests") {
-        errorMessage = "Too many failed attempts. Please try again later.";
+      // Handle API error messages
+      if (error.message) {
+        if (error.message.includes("Invalid email or password")) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.message.includes("email")) {
+          errorMessage = "Please enter a valid email address.";
+        } else {
+          errorMessage = error.message;
+        }
       }
       
       setError(errorMessage);
