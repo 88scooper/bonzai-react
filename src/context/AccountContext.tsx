@@ -96,6 +96,63 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }
   }, [currentAccountId]);
 
+  // Map API property format (snake_case) to frontend format (camelCase)
+  function mapApiPropertyToFrontend(apiProperty: any): any {
+    // Extract rent and mortgage from property_data if they exist
+    const propertyData = apiProperty.property_data || {};
+    const rent = propertyData.rent || {};
+    const tenants = propertyData.tenants || [];
+    
+    // Get mortgage from separate endpoint or property_data
+    // For now, we'll need to fetch it separately or it should be in property_data
+    
+    return {
+      id: apiProperty.id,
+      nickname: apiProperty.nickname || '',
+      address: apiProperty.address || '',
+      purchasePrice: parseFloat(apiProperty.purchase_price || 0),
+      purchaseDate: apiProperty.purchase_date || null,
+      closingCosts: parseFloat(apiProperty.closing_costs || 0),
+      renovationCosts: parseFloat(apiProperty.renovation_costs || 0),
+      initialRenovations: parseFloat(apiProperty.initial_renovations || 0),
+      currentMarketValue: parseFloat(apiProperty.current_market_value || 0),
+      yearBuilt: apiProperty.year_built || null,
+      propertyType: apiProperty.property_type || '',
+      size: parseFloat(apiProperty.size || 0),
+      squareFootage: parseFloat(apiProperty.size || 0), // Map size to squareFootage
+      unitConfig: apiProperty.unit_config || '',
+      rent: {
+        monthlyRent: rent.monthlyRent || rent.monthly_rent || 0,
+        annualRent: rent.annualRent || rent.annual_rent || 0,
+      },
+      tenants: tenants,
+      // Mortgage will be loaded separately or from property_data
+      mortgage: propertyData.mortgage || null,
+      // Additional fields
+      name: apiProperty.nickname || '',
+      type: apiProperty.property_type || '',
+      units: propertyData.units || 1,
+      currentValue: parseFloat(apiProperty.current_market_value || 0),
+      // Initialize empty structures that will be populated
+      expenses: {},
+      tenant: tenants.length > 0 ? {
+        name: tenants[0].name || '',
+        leaseStartDate: tenants[0].leaseStart || tenants[0].lease_start || '',
+        leaseEndDate: tenants[0].leaseEnd || tenants[0].lease_end || '',
+        rent: tenants[0].rent || 0,
+        status: tenants[0].status || '',
+      } : {
+        name: '',
+        leaseStartDate: '',
+        leaseEndDate: '',
+        rent: 0,
+        status: '',
+      },
+      monthlyExpenses: {},
+      expenseHistory: [],
+    };
+  }
+
   // Load properties for current account
   const loadProperties = useCallback(async (accountId: string) => {
     if (!isAuthenticated() || !accountId) {
@@ -108,7 +165,197 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       
       if (response.success && response.data) {
         const propertiesData = response.data.data || response.data;
-        setProperties(Array.isArray(propertiesData) ? propertiesData : []);
+        const propertiesArray = Array.isArray(propertiesData) ? propertiesData : [];
+        
+        // Map each property and load mortgage data
+        const mappedProperties = await Promise.all(
+          propertiesArray.map(async (apiProperty: any) => {
+            const mapped = mapApiPropertyToFrontend(apiProperty);
+            
+            // Load mortgage for this property
+            try {
+              const mortgageResponse = await apiClient.getMortgage(apiProperty.id);
+              if (mortgageResponse.success && mortgageResponse.data) {
+                const mortgage = mortgageResponse.data;
+                const mortgageData = mortgage.mortgage_data || {};
+                mapped.mortgage = {
+                  lender: mortgage.lender || '',
+                  originalAmount: parseFloat(mortgage.original_amount || 0),
+                  interestRate: parseFloat(mortgage.interest_rate || 0),
+                  rateType: mortgage.rate_type || 'Fixed',
+                  termMonths: mortgage.term_months || 60,
+                  amortizationYears: mortgage.amortization_years || 25,
+                  paymentFrequency: mortgage.payment_frequency || 'Monthly',
+                  startDate: mortgage.start_date || null,
+                  // Include additional mortgage data fields
+                  mortgageNumber: mortgageData.mortgageNumber || mortgageData.mortgage_number || null,
+                  currentBalance: mortgageData.currentBalance || mortgageData.current_balance || null,
+                  paymentAmount: mortgageData.paymentAmount || mortgageData.payment_amount || null,
+                  renewalDate: mortgageData.renewalDate || mortgageData.renewal_date || null,
+                  remainingAmortization: mortgageData.remainingAmortization || mortgageData.remaining_amortization || null,
+                };
+              }
+            } catch (err) {
+              console.warn(`Could not load mortgage for property ${apiProperty.id}:`, err);
+            }
+            
+            // Load expenses for this property and convert to monthly expenses
+            try {
+              const expensesResponse = await apiClient.getExpenses(apiProperty.id, 1, 1000);
+              if (expensesResponse.success && expensesResponse.data) {
+                const expensesData = expensesResponse.data.data || expensesResponse.data || [];
+                const expensesArray = Array.isArray(expensesData) ? expensesData : [];
+                
+                // Convert expense history to monthly expenses format
+                mapped.expenseHistory = expensesArray.map((exp: any) => ({
+                  id: exp.id,
+                  date: exp.date,
+                  amount: parseFloat(exp.amount || 0),
+                  category: exp.category || 'Other',
+                  description: exp.description || '',
+                }));
+                
+                // Calculate monthly averages from expense history
+                // Use the most recent year with actual expense data
+                const currentYear = new Date().getFullYear();
+                
+                // Group expenses by year and find the most recent year with data
+                const expensesByYear: Record<number, any[]> = {};
+                expensesArray.forEach((exp: any) => {
+                  const expDate = new Date(exp.date);
+                  const year = expDate.getFullYear();
+                  if (!expensesByYear[year]) {
+                    expensesByYear[year] = [];
+                  }
+                  expensesByYear[year].push(exp);
+                });
+                
+                // Find the most recent year with non-zero expenses
+                let selectedYear = currentYear;
+                const years = Object.keys(expensesByYear).map(Number).sort((a, b) => b - a);
+                for (const year of years) {
+                  const yearTotal = expensesByYear[year].reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+                  if (yearTotal > 0) {
+                    selectedYear = year;
+                    break;
+                  }
+                }
+                
+                // Use expenses from the selected year
+                const selectedYearExpenses = expensesByYear[selectedYear] || [];
+                
+                // Group expenses by category and calculate monthly averages
+                const categoryTotals: Record<string, number> = {};
+                selectedYearExpenses.forEach((exp: any) => {
+                  const category = exp.category || 'Other';
+                  const amount = parseFloat(exp.amount || 0);
+                  categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+                });
+                
+                // Map categories to monthly expense fields
+                // Handle both exact matches and description-based matching for utilities
+                const categoryMapping: Record<string, string> = {
+                  'Property Tax': 'propertyTax',
+                  'Condo Fees': 'condoFees',
+                  'Insurance': 'insurance',
+                  'Maintenance': 'maintenance',
+                  'Professional Fees': 'professionalFees',
+                  'Utilities': 'utilities',
+                  'Other': 'other',
+                };
+                
+                // Calculate monthly averages (divide annual total by 12)
+                const monthlyExpenses: Record<string, number> = {
+                  propertyTax: 0,
+                  condoFees: 0,
+                  insurance: 0,
+                  maintenance: 0,
+                  professionalFees: 0,
+                  utilities: 0,
+                  other: 0,
+                  mortgagePayment: 0,
+                  mortgageInterest: 0,
+                  mortgagePrincipal: 0,
+                  total: 0,
+                };
+                
+                Object.entries(categoryTotals).forEach(([category, annualTotal]) => {
+                  // Check if it's utilities in "Other" category by description
+                  let monthlyKey = categoryMapping[category] || 'other';
+                  
+                  // If category is "Other" but description mentions utilities, map to utilities
+                  if (category === 'Other') {
+                    const expensesInCategory = selectedYearExpenses.filter((e: any) => e.category === 'Other');
+                    const hasUtilities = expensesInCategory.some((e: any) => 
+                      e.description?.toLowerCase().includes('utilities') || 
+                      e.description?.toLowerCase().includes('utility')
+                    );
+                    if (hasUtilities) {
+                      // Split: utilities go to utilities, rest to other
+                      const utilitiesTotal = expensesInCategory
+                        .filter((e: any) => e.description?.toLowerCase().includes('utilities') || e.description?.toLowerCase().includes('utility'))
+                        .reduce((sum: number, e: any) => sum + parseFloat(e.amount || 0), 0);
+                      const otherTotal = annualTotal - utilitiesTotal;
+                      monthlyExpenses.utilities = utilitiesTotal / 12;
+                      monthlyExpenses.other = otherTotal / 12;
+                      return; // Skip the default assignment below
+                    }
+                  }
+                  
+                  monthlyExpenses[monthlyKey] = annualTotal / 12;
+                });
+                
+                // Calculate total operating expenses (excluding mortgage)
+                const operatingTotal = 
+                  monthlyExpenses.propertyTax +
+                  monthlyExpenses.condoFees +
+                  monthlyExpenses.insurance +
+                  monthlyExpenses.maintenance +
+                  monthlyExpenses.professionalFees +
+                  monthlyExpenses.utilities +
+                  monthlyExpenses.other;
+                
+                monthlyExpenses.total = operatingTotal;
+                mapped.monthlyExpenses = monthlyExpenses;
+              } else {
+                mapped.expenseHistory = [];
+                mapped.monthlyExpenses = {
+                  propertyTax: 0,
+                  condoFees: 0,
+                  insurance: 0,
+                  maintenance: 0,
+                  professionalFees: 0,
+                  utilities: 0,
+                  other: 0,
+                  mortgagePayment: 0,
+                  mortgageInterest: 0,
+                  mortgagePrincipal: 0,
+                  total: 0,
+                };
+              }
+            } catch (err) {
+              console.warn(`Could not load expenses for property ${apiProperty.id}:`, err);
+              mapped.expenseHistory = [];
+              mapped.monthlyExpenses = {
+                propertyTax: 0,
+                condoFees: 0,
+                insurance: 0,
+                maintenance: 0,
+                professionalFees: 0,
+                utilities: 0,
+                other: 0,
+                mortgagePayment: 0,
+                mortgageInterest: 0,
+                mortgagePrincipal: 0,
+                total: 0,
+              };
+            }
+            
+            return mapped;
+          })
+        );
+        
+        setProperties(mappedProperties);
       } else {
         setProperties([]);
       }

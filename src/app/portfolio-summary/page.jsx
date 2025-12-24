@@ -373,18 +373,28 @@ export default function PortfolioSummaryPage() {
     }
   );
 
-  const deductibleExpenseCategoryList = [
+  // Build deductible expense category list
+  // Ensure mortgage interest is always included if it has a value
+  const allDeductibleCategories = [
     { id: 'propertyTax', label: 'Property Tax', value: deductibleExpenseAggregates.propertyTax },
     { id: 'insurance', label: 'Insurance', value: deductibleExpenseAggregates.insurance },
     { id: 'maintenance', label: 'Maintenance', value: deductibleExpenseAggregates.maintenance },
     { id: 'utilities', label: 'Utilities', value: deductibleExpenseAggregates.utilities },
     { id: 'condoFees', label: 'Condo Fees', value: deductibleExpenseAggregates.condoFees },
     { id: 'professionalFees', label: 'Professional Fees', value: deductibleExpenseAggregates.professionalFees },
-    { id: 'mortgageInterest', label: 'Mortgage Interest', value: deductibleExpenseAggregates.mortgageInterest },
+    { id: 'mortgageInterest', label: 'Mortgage Payment - Interest', value: deductibleExpenseAggregates.mortgageInterest },
   ]
-    .filter((category) => category.value > 0)
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+    .filter((category) => category.value > 0);
+  
+  // Sort by value, but ensure mortgage interest is included
+  const sorted = allDeductibleCategories.sort((a, b) => b.value - a.value);
+  const mortgageInterestCategory = sorted.find(cat => cat.id === 'mortgageInterest');
+  const otherCategories = sorted.filter(cat => cat.id !== 'mortgageInterest');
+  
+  // Show top 5 other categories + mortgage interest (if it has value)
+  const deductibleExpenseCategoryList = mortgageInterestCategory && mortgageInterestCategory.value > 0
+    ? [...otherCategories.slice(0, 4), mortgageInterestCategory].sort((a, b) => b.value - a.value)
+    : otherCategories.slice(0, 5);
 
   const totalTrackedDeductibleExpenses = deductibleExpenseCategoryList.reduce((sum, category) => sum + category.value, 0);
 
@@ -409,20 +419,42 @@ export default function PortfolioSummaryPage() {
   }, 0);
   const blendedCashOnCashReturn = totalInitialCashInvested > 0 ? (totalAnnualCashFlowBeforeTax / totalInitialCashInvested) * 100 : 0;
 
-  // 4. Anticipated Annual Equity Built = Sum of annual principal payments from all mortgages
+  // 4. Anticipated Annual Equity Built = Sum of annual principal payments + annual appreciation
   // This accounts for rent paid to date and anticipated rent for the remainder of the year
   const annualEquityBuilt = (properties || []).reduce((sum, property) => {
+    let propertyEquityBuilt = 0;
+    
+    // Add annual principal payments
     if (property.mortgage && property.monthlyExpenses?.mortgagePrincipal) {
-      // Calculate equity built based on rent paid to date and anticipated rent
       const monthlyPrincipal = property.monthlyExpenses.mortgagePrincipal;
-      
-      // Calculate anticipated equity built for the full year
-      // This assumes consistent rent payments and principal payments
-      const anticipatedAnnualEquity = monthlyPrincipal * 12;
-      
-      return sum + anticipatedAnnualEquity;
+      const annualPrincipal = monthlyPrincipal * 12;
+      propertyEquityBuilt += annualPrincipal;
     }
-    return sum;
+    
+    // Add annual appreciation (estimated based on historical appreciation)
+    const purchasePrice = property.purchasePrice || 0;
+    const currentValue = property.currentMarketValue || property.currentValue || purchasePrice;
+    if (currentValue > purchasePrice && purchasePrice > 0) {
+      const totalAppreciation = currentValue - purchasePrice;
+      
+      // Calculate years held
+      let yearsHeld = 1;
+      try {
+        if (property.purchaseDate) {
+          const currentYear = new Date().getFullYear();
+          const purchaseYear = new Date(property.purchaseDate).getFullYear();
+          yearsHeld = Math.max(1, currentYear - purchaseYear);
+        }
+      } catch (error) {
+        yearsHeld = 1;
+      }
+      
+      // Estimate annual appreciation based on historical appreciation
+      const annualAppreciation = yearsHeld > 0 ? totalAppreciation / yearsHeld : 0;
+      propertyEquityBuilt += annualAppreciation;
+    }
+    
+    return sum + propertyEquityBuilt;
   }, 0);
 
   const capRateTone = overallCapRate >= 5

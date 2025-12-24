@@ -13,7 +13,7 @@ import {
   calculateCashOnCashReturn,
   updatePropertyFinancialMetrics
 } from '@/utils/financialCalculations';
-import { getMonthlyMortgagePayment } from '@/utils/mortgageCalculator';
+import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from '@/utils/mortgageCalculator';
 
 // Define TypeScript interfaces for better type safety
 export interface Property {
@@ -282,6 +282,42 @@ const preparePropertyData = (property: Property): Property => {
   }
 
   monthlyExpensesRecord.mortgagePayment = derivedMortgagePayment;
+
+  // Calculate mortgage interest
+  let derivedMortgageInterest = ensureNumber(monthlyExpensesRecord.mortgageInterest);
+  if (derivedMortgageInterest <= 0 && cloned.mortgage && cloned.mortgage.originalAmount) {
+    try {
+      derivedMortgageInterest = getMonthlyMortgageInterest(cloned.mortgage as any) || 0;
+    } catch (error) {
+      // Fallback calculation: approximate monthly interest
+      const principal = ensureNumber(cloned.mortgage.originalAmount);
+      const annualRate = ensureNumber(cloned.mortgage.interestRate);
+      if (principal > 0 && annualRate > 0) {
+        derivedMortgageInterest = (principal * annualRate) / 12;
+      }
+    }
+    derivedMortgageInterest = Number.isFinite(derivedMortgageInterest) ? Number(derivedMortgageInterest.toFixed(2)) : 0;
+  }
+  monthlyExpensesRecord.mortgageInterest = derivedMortgageInterest;
+
+  // Calculate mortgage principal
+  let derivedMortgagePrincipal = ensureNumber(monthlyExpensesRecord.mortgagePrincipal);
+  if (derivedMortgagePrincipal <= 0 && cloned.mortgage && cloned.mortgage.originalAmount) {
+    try {
+      derivedMortgagePrincipal = getMonthlyMortgagePrincipal(cloned.mortgage as any) || 0;
+    } catch (error) {
+      // Fallback calculation: approximate monthly principal
+      // Principal = Payment - Interest
+      const principal = ensureNumber(cloned.mortgage.originalAmount);
+      const annualRate = ensureNumber(cloned.mortgage.interestRate);
+      if (principal > 0 && annualRate > 0 && derivedMortgagePayment > 0) {
+        const monthlyInterest = (principal * annualRate) / 12;
+        derivedMortgagePrincipal = Math.max(0, derivedMortgagePayment - monthlyInterest);
+      }
+    }
+    derivedMortgagePrincipal = Number.isFinite(derivedMortgagePrincipal) ? Number(derivedMortgagePrincipal.toFixed(2)) : 0;
+  }
+  monthlyExpensesRecord.mortgagePrincipal = derivedMortgagePrincipal;
 
   const mortgagePayment = ensureNumber(monthlyExpensesRecord.mortgagePayment);
   monthlyExpensesRecord.total = Number((operatingExpensesTotal + mortgagePayment).toFixed(2));

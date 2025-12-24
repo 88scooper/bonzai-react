@@ -1,46 +1,34 @@
-import { auth } from '@/lib/firebase';
+// NOTE: This file is kept for backward compatibility with legacy API routes
+// New API routes should use @/lib/auth-middleware.ts instead
 
-// Mock user data for development when Firebase is not configured
-const mockUsers = {
-  'demo-user': {
-    uid: 'demo-user',
-    email: 'demo@proplytics.com',
-    email_verified: true
-  }
-};
+import { verifyToken } from '@/lib/auth';
 
-// Authentication middleware for API routes
+// Authentication middleware for API routes (legacy - use auth-middleware.ts for new routes)
 export async function authenticateRequest(req) {
   try {
-    // Check if Firebase is configured
-    if (!auth) {
-      // Return mock user for development
-      return mockUsers['demo-user'];
-    }
-
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.get?.('authorization') || req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new Error('No authorization token provided');
     }
 
     const token = authHeader.split('Bearer ')[1];
     
-    // For client-side Firebase Auth, we'll validate the token differently
-    // In a production app, you'd use Firebase Admin SDK here
-    const user = await auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated');
+    // Validate JWT token using the new auth system
+    const decoded = verifyToken(token);
+    
+    if (!decoded) {
+      throw new Error('Invalid or expired token');
     }
 
     return {
-      uid: user.uid,
-      email: user.email,
-      email_verified: user.emailVerified
+      uid: decoded.userId,
+      id: decoded.userId,
+      email: decoded.email,
+      email_verified: true // JWT tokens are considered verified
     };
   } catch (error) {
-    // Fallback to mock user for development
-    console.warn('Authentication failed, using mock user:', error.message);
-    return mockUsers['demo-user'];
+    console.warn('Authentication failed:', error.message);
+    throw new Error('Authentication required');
   }
 }
 

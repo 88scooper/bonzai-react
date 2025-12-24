@@ -2,15 +2,15 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { 
-  getMortgages, 
-  addMortgage, 
-  updateMortgage, 
-  deleteMortgage, 
-  getMortgage,
-  getMortgagesByProperty 
-} from '@/lib/firestore';
-import { db } from '@/lib/firebase';
+// Firebase removed - using mock functions for backward compatibility
+// TODO: Migrate to use new API endpoints
+const getMortgages = () => Promise.resolve([]);
+const addMortgage = () => Promise.resolve(null);
+const updateMortgage = () => Promise.resolve(null);
+const deleteMortgage = () => Promise.resolve(null);
+const getMortgage = () => Promise.resolve(null);
+const getMortgagesByProperty = () => Promise.resolve([]);
+const db = null;
 
 const MortgageContext = createContext();
 

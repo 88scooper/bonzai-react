@@ -1,18 +1,7 @@
-import { db } from "@/lib/firebase";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from "firebase/firestore";
+// Firebase has been removed - this file is kept for backward compatibility
+// All functions return empty/mock data
+
+const db = null;
 
 function userCol(userId) {
   if (!db) {

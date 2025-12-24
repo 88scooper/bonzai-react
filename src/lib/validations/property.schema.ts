@@ -17,7 +17,7 @@ export const createPropertySchema = z.object({
   propertyType: z.string().optional(),
   size: z.number().min(0, 'Size must be positive').optional(),
   unitConfig: z.string().optional(),
-  propertyData: z.record(z.any()).optional(), // JSONB field for additional data
+  propertyData: z.any().optional(), // JSONB field for additional data
 });
 
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
