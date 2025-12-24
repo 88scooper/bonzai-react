@@ -84,7 +84,7 @@ export default function Layout({ children }) {
                   </svg>
                 </button>
                 
-                <Link href="/portfolio-summary" className="font-semibold tracking-tight">
+                <Link href="/" className="font-semibold tracking-tight">
                   Proplytics
                 </Link>
               </div>

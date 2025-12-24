@@ -1,27 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import Button from "@/components/Button";
-import { useToast } from "@/context/ToastContext";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthModal } from "@/context/AuthModalContext";
 
 export default function HomePage() {
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [isSignupOpen, setIsSignupOpen] = useState(false);
-
-  function openLogin() {
-    setIsSignupOpen(false);
-    setIsLoginOpen(true);
-  }
-  function openSignup() {
-    setIsLoginOpen(false);
-    setIsSignupOpen(true);
-  }
-  function closeModals() {
-    setIsLoginOpen(false);
-    setIsSignupOpen(false);
-  }
+  const { openLogin, openSignup } = useAuthModal();
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100">
@@ -31,13 +15,6 @@ export default function HomePage() {
         <FeaturesSection />
         <CtaSection onGetStarted={openSignup} />
       </main>
-
-      {isLoginOpen && (
-        <LoginModal onClose={closeModals} onSwitchToSignup={openSignup} />
-      )}
-      {isSignupOpen && (
-        <SignupModal onClose={closeModals} onSwitchToLogin={openLogin} />
-      )}
       <Footer />
     </div>
   );
@@ -115,117 +92,10 @@ function CtaSection({ onGetStarted }) {
         <p className="mt-2 text-gray-700 dark:text-gray-300">Create your account in seconds.</p>
         <div className="mt-6 flex items-center justify-center gap-3">
           <Button onClick={onGetStarted}>Get started free</Button>
-          <Link className="text-sm underline" href="/signup">Or create from the signup page →</Link>
+          <button className="text-sm underline" onClick={onGetStarted}>Or sign up here →</button>
         </div>
       </div>
     </section>
-  );
-}
-
-function Modal({ children, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 w-[min(560px,calc(100vw-32px))] rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 p-6 shadow-xl">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function LoginModal({ onClose, onSwitchToSignup }) {
-  const { addToast } = useToast();
-  const { logIn } = useAuth();
-  const [loading, setLoading] = useState(false);
-
-  async function onSubmit(e) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const form = new FormData(e.currentTarget);
-      const email = String(form.get("email") || "");
-      const password = String(form.get("password") || "");
-      await logIn(email, password);
-      addToast("Logged in!", { type: "success" });
-      onClose();
-      // Redirect to portfolio summary
-      window.location.href = "/portfolio-summary";
-    } catch (e) {
-      const errorMessage = e.message || "Login failed.";
-      addToast(errorMessage, { type: "error" });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Modal onClose={onClose}>
-      <h3 className="text-xl font-semibold">Log in</h3>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Proplytics.</p>
-      <form onSubmit={onSubmit} className="mt-6 grid gap-4">
-        <div className="grid gap-2">
-          <label htmlFor="login-email" className="text-sm">Email</label>
-          <input id="login-email" name="email" type="email" required className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" />
-        </div>
-        <div className="grid gap-2">
-          <label htmlFor="login-password" className="text-sm">Password</label>
-          <input id="login-password" name="password" type="password" required className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" />
-        </div>
-        <Button type="submit" loading={loading} className="w-full">Continue</Button>
-      </form>
-      <div className="mt-4 text-sm">
-        Don&apos;t have an account?{" "}
-        <button className="underline" onClick={onSwitchToSignup}>Sign up</button>
-      </div>
-    </Modal>
-  );
-}
-
-function SignupModal({ onClose, onSwitchToLogin }) {
-  const { addToast } = useToast();
-  const { signUp } = useAuth();
-  const [loading, setLoading] = useState(false);
-
-  async function onSubmit(e) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const form = new FormData(e.currentTarget);
-      const email = String(form.get("email") || "");
-      const password = String(form.get("password") || "");
-      await signUp(email, password, email.split('@')[0]); // Use email prefix as name
-      addToast("Account created!", { type: "success" });
-      onClose();
-      // Redirect to portfolio summary
-      window.location.href = "/portfolio-summary";
-    } catch (e) {
-      const errorMessage = e.message || "Sign up failed.";
-      addToast(errorMessage, { type: "error" });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Modal onClose={onClose}>
-      <h3 className="text-xl font-semibold">Create your account</h3>
-      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Start managing your portfolio.</p>
-      <form onSubmit={onSubmit} className="mt-6 grid gap-4">
-        <div className="grid gap-2">
-          <label htmlFor="signup-email" className="text-sm">Email</label>
-          <input id="signup-email" name="email" type="email" required className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" />
-        </div>
-        <div className="grid gap-2">
-          <label htmlFor="signup-password" className="text-sm">Password</label>
-          <input id="signup-password" name="password" type="password" required className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" />
-        </div>
-        <Button type="submit" loading={loading} className="w-full">Create account</Button>
-      </form>
-      <div className="mt-4 text-sm">
-        Already have an account?{" "}
-        <button className="underline" onClick={onSwitchToLogin}>Log in</button>
-      </div>
-    </Modal>
   );
 }
 
