@@ -34,12 +34,12 @@ export async function GET(
     const { id } = await params;
 
     // Get account and verify ownership
-    const result = await sql<Account[]>`
+    const result = await sql`
       SELECT id, user_id, name, email, is_demo, created_at, updated_at
       FROM accounts
       WHERE id = ${id} AND user_id = ${user.id}
       LIMIT 1
-    `;
+    ` as Account[];
 
     if (!result[0]) {
       return NextResponse.json(
@@ -102,12 +102,12 @@ export async function PATCH(
 
     // Build dynamic UPDATE query using sql template
     if (updateData.name !== undefined && updateData.email !== undefined) {
-      const result = await sql<Account[]>`
+      const result = await sql`
         UPDATE accounts
         SET name = ${updateData.name}, email = ${updateData.email || null}
         WHERE user_id = ${user.id} AND id = ${id}
         RETURNING id, user_id, name, email, is_demo, created_at, updated_at
-      `;
+      ` as Account[];
       
       if (!result[0]) {
         return NextResponse.json(
@@ -121,12 +121,12 @@ export async function PATCH(
         { status: 200 }
       );
     } else if (updateData.name !== undefined) {
-      const result = await sql<Account[]>`
+      const result = await sql`
         UPDATE accounts
         SET name = ${updateData.name}
         WHERE user_id = ${user.id} AND id = ${id}
         RETURNING id, user_id, name, email, is_demo, created_at, updated_at
-      `;
+      ` as Account[];
       
       if (!result[0]) {
         return NextResponse.json(
@@ -140,12 +140,12 @@ export async function PATCH(
         { status: 200 }
       );
     } else if (updateData.email !== undefined) {
-      const result = await sql<Account[]>`
+      const result = await sql`
         UPDATE accounts
         SET email = ${updateData.email || null}
         WHERE user_id = ${user.id} AND id = ${id}
         RETURNING id, user_id, name, email, is_demo, created_at, updated_at
-      `;
+      ` as Account[];
       
       if (!result[0]) {
         return NextResponse.json(
@@ -196,11 +196,11 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if account exists and belongs to user
-    const checkResult = await sql<Account[]>`
+    const checkResult = await sql`
       SELECT id FROM accounts
       WHERE id = ${id} AND user_id = ${user.id}
       LIMIT 1
-    `;
+    ` as Account[];
 
     if (!checkResult[0]) {
       return NextResponse.json(
@@ -210,11 +210,11 @@ export async function DELETE(
     }
 
     // Prevent deleting demo account
-    const account = await sql<Account[]>`
+    const account = await sql`
       SELECT is_demo FROM accounts
       WHERE id = ${id} AND user_id = ${user.id}
       LIMIT 1
-    `;
+    ` as Account[];
 
     if (account[0]?.is_demo) {
       return NextResponse.json(
