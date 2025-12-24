@@ -1,11 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import Button from "@/components/Button";
 import { useAuthModal } from "@/context/AuthModalContext";
 
 export default function HomePage() {
   const { openLogin, openSignup } = useAuthModal();
+
+  // Clear logout flag when homepage loads
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('isLoggingOut');
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100">

@@ -145,6 +145,36 @@ export function AuthProvider({ children }) {
 export function RequireAuth({ children }) {
   const { user, loading } = useAuth();
 
+  useEffect(() => {
+    if (!loading && !user && typeof window !== 'undefined') {
+      // Check if user is logging out FIRST - before any other logic
+      // This prevents redirecting to /login when user explicitly logs out
+      const isLoggingOut = sessionStorage.getItem('isLoggingOut') === 'true';
+      if (isLoggingOut) {
+        // Don't clear the flag here - let the landing page do it
+        // Just redirect immediately and return
+        window.location.replace('/');
+        return;
+      }
+      
+      const currentPath = window.location.pathname;
+      
+      // CRITICAL: Always allow homepage and other public paths
+      const publicPaths = ['/', '/login', '/signup', '/onboarding'];
+      const isPublicPath = publicPaths.includes(currentPath);
+      
+      // If we're on a public path, never redirect
+      if (isPublicPath) {
+        return;
+      }
+      
+      // We're on a protected path with no user - redirect to login
+      if (!isPublicPath) {
+        window.location.href = '/login';
+      }
+    }
+  }, [user, loading]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -154,10 +184,6 @@ export function RequireAuth({ children }) {
   }
 
   if (!user) {
-    // Redirect to login page
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
     return null;
   }
 

@@ -164,8 +164,13 @@ export default function Layout({ children }) {
                         <div className="px-4 py-2 border-t border-black/10 dark:border-white/10">
                           <button
                             onClick={() => {
-                              logOut();
                               setIsUserMenuOpen(false);
+                              // Set flag FIRST before clearing token - this prevents RequireAuth from redirecting to /login
+                              sessionStorage.setItem('isLoggingOut', 'true');
+                              // Clear auth data
+                              localStorage.removeItem('auth_token');
+                              // Immediately redirect to landing page - use replace to avoid history entry
+                              window.location.replace('/');
                             }}
                             className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors rounded-md"
                           >
