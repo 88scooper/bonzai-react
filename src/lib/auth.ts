@@ -10,7 +10,6 @@ export interface User {
   email: string;
   name: string | null;
   created_at: Date;
-  is_admin: boolean;
 }
 
 export interface JWTPayload {
@@ -37,8 +36,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * Generate a JWT token for a user
  */
 export function generateToken(payload: JWTPayload): string {
-  // @ts-ignore - JWT_SECRET type issue with jsonwebtoken types
-  return jwt.sign(payload, JWT_SECRET, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (jwt.sign as any)(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
 }
@@ -48,7 +47,7 @@ export function generateToken(payload: JWTPayload): string {
  */
 export function verifyToken(token: string): JWTPayload {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET as string) as JWTPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     return decoded;
   } catch (error) {
     throw new Error('Invalid or expired token');
@@ -61,7 +60,7 @@ export function verifyToken(token: string): JWTPayload {
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
     const result = await sql`
-      SELECT id, email, name, created_at, is_admin
+      SELECT id, email, name, created_at
       FROM users
       WHERE email = ${email}
       LIMIT 1
@@ -79,7 +78,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 export async function getUserById(id: string): Promise<User | null> {
   try {
     const result = await sql`
-      SELECT id, email, name, created_at, is_admin
+      SELECT id, email, name, created_at
       FROM users
       WHERE id = ${id}
       LIMIT 1
@@ -103,7 +102,7 @@ export async function createUser(
     const result = await sql`
       INSERT INTO users (email, password_hash, name)
       VALUES (${email}, ${passwordHash}, ${name || null})
-      RETURNING id, email, name, created_at, is_admin
+      RETURNING id, email, name, created_at
     ` as User[];
     
     if (!result[0]) {
@@ -171,154 +170,5 @@ export async function deleteExpiredSessions(): Promise<void> {
 export function hashToken(token: string): string {
   // Simple hash for session tracking - in production, use crypto.createHash
   return Buffer.from(token).toString('base64').substring(0, 255);
-}
-
-/**
- * Get user with password hash (for password verification)
- */
-async function getUserWithPasswordHash(id: string): Promise<{ id: string; email: string; name: string | null; password_hash: string } | null> {
-  try {
-    const result = await sql`
-      SELECT id, email, name, password_hash
-      FROM users
-      WHERE id = ${id}
-      LIMIT 1
-    ` as Array<{ id: string; email: string; name: string | null; password_hash: string }>;
-    return result[0] || null;
-  } catch (error) {
-    console.error('Error getting user with password hash:', error);
-    return null;
-  }
-}
-
-/**
- * Update user profile (name and/or email)
- */
-export async function updateUser(
-  userId: string,
-  data: { name?: string; email?: string }
-): Promise<User> {
-  try {
-    // If email is being updated, check for duplicates
-    if (data.email) {
-      const existingUser = await getUserByEmail(data.email);
-      if (existingUser && existingUser.id !== userId) {
-        throw new Error('Email already in use');
-      }
-    }
-
-    // Build update query based on provided fields
-    let result: User[];
-    
-    if (data.name !== undefined && data.email !== undefined) {
-      // Update both name and email
-      result = await sql`
-        UPDATE users
-        SET name = ${data.name || null}, email = ${data.email}
-        WHERE id = ${userId}
-        RETURNING id, email, name, created_at, is_admin
-      ` as User[];
-    } else if (data.name !== undefined) {
-      // Update name only
-      result = await sql`
-        UPDATE users
-        SET name = ${data.name || null}
-        WHERE id = ${userId}
-        RETURNING id, email, name, created_at, is_admin
-      ` as User[];
-    } else if (data.email !== undefined) {
-      // Update email only
-      result = await sql`
-        UPDATE users
-        SET email = ${data.email}
-        WHERE id = ${userId}
-        RETURNING id, email, name, created_at, is_admin
-      ` as User[];
-    } else {
-      // No updates to make, return current user
-      const user = await getUserById(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      return user;
-    }
-
-    if (!result[0]) {
-      throw new Error('User not found');
-    }
-
-    return result[0];
-  } catch (error) {
-    console.error('Error updating user:', error);
-    throw error;
-  }
-}
-
-/**
- * Update user password
- */
-export async function updateUserPassword(
-  userId: string,
-  currentPassword: string,
-  newPassword: string
-): Promise<void> {
-  try {
-    // Get user with password hash
-    const user = await getUserWithPasswordHash(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // Verify current password
-    const isValidPassword = await verifyPassword(currentPassword, user.password_hash);
-    if (!isValidPassword) {
-      throw new Error('Current password is incorrect');
-    }
-
-    // Hash new password
-    const newPasswordHash = await hashPassword(newPassword);
-
-    // Update password
-    await sql`
-      UPDATE users
-      SET password_hash = ${newPasswordHash}
-      WHERE id = ${userId}
-    `;
-  } catch (error) {
-    console.error('Error updating user password:', error);
-    throw error;
-  }
-}
-
-/**
- * Delete user and related data
- */
-export async function deleteUser(userId: string): Promise<void> {
-  try {
-    // Delete all user sessions first
-    await sql`
-      DELETE FROM sessions
-      WHERE user_id = ${userId}
-    `;
-
-    // Note: Accounts and properties might have foreign key constraints
-    // If there are foreign key relationships, they should cascade delete
-    // or we need to delete them explicitly here
-    // For now, we'll delete the user - the database should handle cascades
-    
-    // Delete user
-    const result = await sql`
-      DELETE FROM users
-      WHERE id = ${userId}
-      RETURNING id
-    `;
-
-    if (result.length === 0) {
-      throw new Error('User not found');
-    }
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    throw error;
-  }
 }
 

@@ -155,7 +155,7 @@ export async function POST(
       SELECT id FROM mortgages
       WHERE property_id = ${propertyId}
       LIMIT 1
-    ` as Array<{ id: string }>;
+    ` as Mortgage[];
 
     let result: Mortgage[];
 

@@ -80,7 +80,7 @@ export async function GET(
       ORDER BY date DESC, created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}
-    `;
+    ` as Expense[];
 
     const paginatedResponse = createPaginatedResponse(expenses, total, page, limit);
 
@@ -158,7 +158,7 @@ export async function POST(
       )
       RETURNING id, property_id, date, amount, category, description, expense_data,
                  created_at, updated_at
-    `;
+    ` as Expense[];
 
     if (!result[0]) {
       return NextResponse.json(

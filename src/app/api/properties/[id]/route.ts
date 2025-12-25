@@ -67,7 +67,7 @@ export async function GET(
       INNER JOIN accounts a ON p.account_id = a.id
       WHERE p.id = ${id} AND a.user_id = ${user.id}
       LIMIT 1
-    `;
+    ` as Property[];
 
     if (!result[0]) {
       return NextResponse.json(
@@ -160,7 +160,7 @@ export async function PATCH(
                  closing_costs, renovation_costs, initial_renovations, current_market_value,
                  year_built, property_type, size, unit_config, property_data,
                  created_at, updated_at
-    `;
+    ` as Property[];
 
     if (!result[0]) {
       return NextResponse.json(

@@ -1,56 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
-import { useSettings } from "@/context/SettingsContext";
 import AccountSwitcher from "@/components/AccountSwitcher";
 import Button from "@/components/Button";
-import MyAccountModal from "@/components/MyAccountModal";
-import SettingsModal from "@/components/SettingsModal";
-import { LogOut, UserCircle, Settings, User } from "lucide-react";
+import { LogOut, UserCircle, Settings } from "lucide-react";
 
 export default function Layout({ children }) {
+  const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isMyAccountModalOpen, setIsMyAccountModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const { user, logOut } = useAuth();
-  const { darkMode, updateSetting } = useSettings();
-  const router = useRouter();
   const userMenuRef = useRef(null);
 
-  // Determine if dark mode should be active
-  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches;
-    }
-    return false;
-  });
-
-  const isDark = darkMode === null ? systemPrefersDark : darkMode;
-
-  // Listen for system preference changes
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (e) => {
-      setSystemPrefersDark(e.matches);
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    const saved = localStorage.getItem("theme");
+    const shouldDark = saved ? saved === "dark" : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setIsDark(shouldDark);
   }, []);
 
   useEffect(() => {
     const root = document.documentElement;
     if (isDark) {
       root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
     } else {
       root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
     }
   }, [isDark]);
 
@@ -76,12 +54,16 @@ export default function Layout({ children }) {
 
     if (isUserMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
     }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [isUserMenuOpen]);
 
+  const toggleDarkMode = () => {
+    setIsDark(!isDark);
+  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100">
@@ -114,10 +96,7 @@ export default function Layout({ children }) {
                 {/* User Profile Menu */}
                 <div className="relative" ref={userMenuRef}>
                   <button
-                    onClick={() => {
-                      console.log("User menu button clicked, current state:", isUserMenuOpen);
-                      setIsUserMenuOpen(!isUserMenuOpen);
-                    }}
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                     aria-label="User menu"
                   >
@@ -126,10 +105,7 @@ export default function Layout({ children }) {
 
                   {/* User Dropdown Menu */}
                   {isUserMenuOpen && (
-                    <div 
-                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-900 rounded-lg shadow-lg border border-black/10 dark:border-white/10 py-2 z-50"
-                      data-testid="user-menu-dropdown"
-                    >
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-900 rounded-lg shadow-lg border border-black/10 dark:border-white/10 py-2 z-50">
                       {/* User Info Section */}
                       <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -142,26 +118,34 @@ export default function Layout({ children }) {
 
                       {/* Menu Items */}
                       <div className="py-1">
-                        <button
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            setIsMyAccountModalOpen(true);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 transition-colors"
-                        >
-                          <User className="w-4 h-4" />
-                          My Account
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            setIsSettingsModalOpen(true);
-                          }}
+                        <Link
+                          href="/settings"
+                          onClick={() => setIsUserMenuOpen(false)}
                           className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 transition-colors"
                         >
                           <Settings className="w-4 h-4" />
                           Settings
-                        </button>
+                        </Link>
+                      </div>
+
+                      {/* Light/Dark Mode Toggle */}
+                      <div className="px-4 py-3 border-t border-black/10 dark:border-white/10">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Theme</span>
+                          <button
+                            onClick={toggleDarkMode}
+                            className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            style={{
+                              backgroundColor: isDark ? '#3b82f6' : '#d1d5db'
+                            }}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                isDark ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Logout Button */}
@@ -193,14 +177,6 @@ export default function Layout({ children }) {
           <main className="mx-auto w-full max-w-7xl px-4 py-6">{children}</main>
         </div>
       </div>
-      <MyAccountModal 
-        isOpen={isMyAccountModalOpen} 
-        onClose={() => setIsMyAccountModalOpen(false)} 
-      />
-      <SettingsModal 
-        isOpen={isSettingsModalOpen} 
-        onClose={() => setIsSettingsModalOpen(false)} 
-      />
     </div>
   );
 }
