@@ -9,7 +9,7 @@ export const createExpenseSchema = z.object({
   amount: z.number().min(0, 'Amount must be positive'),
   category: z.string().optional(),
   description: z.string().optional(),
-  expenseData: z.record(z.any()).optional(), // JSONB field for additional data
+  expenseData: z.record(z.string(), z.any()).optional(), // JSONB field for additional data
 });
 
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;

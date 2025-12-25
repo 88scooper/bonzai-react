@@ -36,6 +36,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * Generate a JWT token for a user
  */
 export function generateToken(payload: JWTPayload): string {
+  // @ts-ignore - JWT_SECRET type issue with jsonwebtoken types
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
@@ -46,7 +47,7 @@ export function generateToken(payload: JWTPayload): string {
  */
 export function verifyToken(token: string): JWTPayload {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, JWT_SECRET as string) as JWTPayload;
     return decoded;
   } catch (error) {
     throw new Error('Invalid or expired token');
@@ -58,12 +59,12 @@ export function verifyToken(token: string): JWTPayload {
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
-    const result = await sql<User[]>`
+    const result = await sql`
       SELECT id, email, name, created_at
       FROM users
       WHERE email = ${email}
       LIMIT 1
-    `;
+    ` as User[];
     return result[0] || null;
   } catch (error) {
     console.error('Error getting user by email:', error);
@@ -76,12 +77,12 @@ export async function getUserByEmail(email: string): Promise<User | null> {
  */
 export async function getUserById(id: string): Promise<User | null> {
   try {
-    const result = await sql<User[]>`
+    const result = await sql`
       SELECT id, email, name, created_at
       FROM users
       WHERE id = ${id}
       LIMIT 1
-    `;
+    ` as User[];
     return result[0] || null;
   } catch (error) {
     console.error('Error getting user by id:', error);
@@ -98,11 +99,11 @@ export async function createUser(
   name?: string
 ): Promise<User> {
   try {
-    const result = await sql<User[]>`
+    const result = await sql`
       INSERT INTO users (email, password_hash, name)
       VALUES (${email}, ${passwordHash}, ${name || null})
       RETURNING id, email, name, created_at
-    `;
+    ` as User[];
     
     if (!result[0]) {
       throw new Error('Failed to create user');
@@ -176,12 +177,12 @@ export function hashToken(token: string): string {
  */
 async function getUserWithPasswordHash(id: string): Promise<{ id: string; email: string; name: string | null; password_hash: string } | null> {
   try {
-    const result = await sql<Array<{ id: string; email: string; name: string | null; password_hash: string }>>`
+    const result = await sql`
       SELECT id, email, name, password_hash
       FROM users
       WHERE id = ${id}
       LIMIT 1
-    `;
+    ` as Array<{ id: string; email: string; name: string | null; password_hash: string }>;
     return result[0] || null;
   } catch (error) {
     console.error('Error getting user with password hash:', error);
@@ -210,28 +211,28 @@ export async function updateUser(
     
     if (data.name !== undefined && data.email !== undefined) {
       // Update both name and email
-      result = await sql<User[]>`
+      result = await sql`
         UPDATE users
         SET name = ${data.name || null}, email = ${data.email}
         WHERE id = ${userId}
         RETURNING id, email, name, created_at
-      `;
+      ` as User[];
     } else if (data.name !== undefined) {
       // Update name only
-      result = await sql<User[]>`
+      result = await sql`
         UPDATE users
         SET name = ${data.name || null}
         WHERE id = ${userId}
         RETURNING id, email, name, created_at
-      `;
+      ` as User[];
     } else if (data.email !== undefined) {
       // Update email only
-      result = await sql<User[]>`
+      result = await sql`
         UPDATE users
         SET email = ${data.email}
         WHERE id = ${userId}
         RETURNING id, email, name, created_at
-      `;
+      ` as User[];
     } else {
       // No updates to make, return current user
       const user = await getUserById(userId);

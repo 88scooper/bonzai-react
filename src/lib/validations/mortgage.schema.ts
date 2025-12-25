@@ -13,7 +13,7 @@ export const createMortgageSchema = z.object({
   amortizationYears: z.number().int().min(1).max(50).optional(),
   paymentFrequency: z.string().optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)').optional(),
-  mortgageData: z.record(z.any()).optional(), // JSONB field for additional data
+  mortgageData: z.record(z.string(), z.any()).optional(), // JSONB field for additional data
 });
 
 export type CreateMortgageInput = z.infer<typeof createMortgageSchema>;
