@@ -70,7 +70,7 @@ export async function GET(
       FROM mortgages
       WHERE property_id = ${propertyId}
       LIMIT 1
-    `;
+    ` as Mortgage[];
 
     if (!result[0]) {
       return NextResponse.json(
@@ -155,7 +155,7 @@ export async function POST(
       SELECT id FROM mortgages
       WHERE property_id = ${propertyId}
       LIMIT 1
-    `;
+    ` as Array<{ id: string }>;
 
     let result: Mortgage[];
 
@@ -177,7 +177,7 @@ export async function POST(
         RETURNING id, property_id, lender, original_amount, interest_rate, rate_type,
                    term_months, amortization_years, payment_frequency, start_date,
                    mortgage_data, created_at, updated_at
-      `;
+      ` as Mortgage[];
     } else {
       // Create new mortgage
       result = await sql`
