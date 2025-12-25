@@ -220,7 +220,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                      closing_costs, renovation_costs, initial_renovations, current_market_value,
                      year_built, property_type, size, unit_config, property_data,
                      created_at, updated_at
-        `;
+        ` as Property[];
 
         if (result[0]) {
           createdProperties.push(result[0]);
