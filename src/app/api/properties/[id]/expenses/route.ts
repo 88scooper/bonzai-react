@@ -21,13 +21,13 @@ interface Expense {
  * Helper function to verify property ownership
  */
 async function verifyPropertyOwnership(propertyId: string, userId: string): Promise<boolean> {
-  const result = await sql<Array<{ id: string }>>`
+  const result = await sql`
     SELECT p.id
     FROM properties p
     INNER JOIN accounts a ON p.account_id = a.id
     WHERE p.id = ${propertyId} AND a.user_id = ${userId}
     LIMIT 1
-  `;
+  ` as Array<{ id: string }>;
   return !!result[0];
 }
 
@@ -64,15 +64,15 @@ export async function GET(
     const offset = getOffset(page, limit);
 
     // Get total count
-    const countResult = await sql<Array<{ count: bigint }>>`
+    const countResult = await sql`
       SELECT COUNT(*) as count
       FROM expenses
       WHERE property_id = ${propertyId}
-    `;
+    ` as Array<{ count: bigint }>;
     const total = Number(countResult[0]?.count || 0);
 
     // Get expenses with pagination
-    const expenses = await sql<Expense[]>`
+    const expenses = await sql`
       SELECT id, property_id, date, amount, category, description, expense_data,
              created_at, updated_at
       FROM expenses
@@ -146,7 +146,7 @@ export async function POST(
     const { date, amount, category, description, expenseData } = validationResult.data;
 
     // Create expense
-    const result = await sql<Expense[]>`
+    const result = await sql`
       INSERT INTO expenses (property_id, date, amount, category, description, expense_data)
       VALUES (
         ${propertyId},

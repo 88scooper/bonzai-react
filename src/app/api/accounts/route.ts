@@ -26,22 +26,22 @@ export const GET = withAuth(async (request: NextRequest, user) => {
     const offset = getOffset(page, limit);
 
     // Get total count
-    const countResult = await sql<Array<{ count: bigint }>>`
+    const countResult = await sql`
       SELECT COUNT(*) as count
       FROM accounts
       WHERE user_id = ${user.id}
-    `;
+    ` as Array<{ count: bigint }>;
     const total = Number(countResult[0]?.count || 0);
 
     // Get accounts with pagination
-    const accounts = await sql<Account[]>`
+    const accounts = await sql`
       SELECT id, user_id, name, email, is_demo, created_at, updated_at
       FROM accounts
       WHERE user_id = ${user.id}
       ORDER BY created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}
-    `;
+    ` as Account[];
 
     // Return paginated response
     const paginatedResponse = createPaginatedResponse(accounts, total, page, limit);
@@ -86,11 +86,11 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     const { name, email, isDemo } = validationResult.data;
 
     // Create account
-    const result = await sql<Account[]>`
+    const result = await sql`
       INSERT INTO accounts (user_id, name, email, is_demo)
       VALUES (${user.id}, ${name}, ${email || null}, ${isDemo || false})
       RETURNING id, user_id, name, email, is_demo, created_at, updated_at
-    `;
+    ` as Account[];
 
     if (!result[0]) {
       return NextResponse.json(

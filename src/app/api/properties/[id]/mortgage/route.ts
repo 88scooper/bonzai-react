@@ -24,13 +24,13 @@ interface Mortgage {
  * Helper function to verify property ownership
  */
 async function verifyPropertyOwnership(propertyId: string, userId: string): Promise<boolean> {
-  const result = await sql<Array<{ id: string }>>`
+  const result = await sql`
     SELECT p.id
     FROM properties p
     INNER JOIN accounts a ON p.account_id = a.id
     WHERE p.id = ${propertyId} AND a.user_id = ${userId}
     LIMIT 1
-  `;
+  ` as Array<{ id: string }>;
   return !!result[0];
 }
 
@@ -63,7 +63,7 @@ export async function GET(
     }
 
     // Get mortgage
-    const result = await sql<Mortgage[]>`
+    const result = await sql`
       SELECT id, property_id, lender, original_amount, interest_rate, rate_type,
              term_months, amortization_years, payment_frequency, start_date,
              mortgage_data, created_at, updated_at
@@ -151,7 +151,7 @@ export async function POST(
     } = validationResult.data;
 
     // Check if mortgage already exists
-    const existing = await sql<Mortgage[]>`
+    const existing = await sql`
       SELECT id FROM mortgages
       WHERE property_id = ${propertyId}
       LIMIT 1
@@ -161,7 +161,7 @@ export async function POST(
 
     if (existing[0]) {
       // Update existing mortgage
-      result = await sql<Mortgage[]>`
+      result = await sql`
         UPDATE mortgages
         SET 
           lender = COALESCE(${lender || null}, lender),
@@ -180,7 +180,7 @@ export async function POST(
       `;
     } else {
       // Create new mortgage
-      result = await sql<Mortgage[]>`
+      result = await sql`
         INSERT INTO mortgages (
           property_id, lender, original_amount, interest_rate, rate_type,
           term_months, amortization_years, payment_frequency, start_date, mortgage_data

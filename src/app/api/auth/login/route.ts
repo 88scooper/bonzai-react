@@ -29,12 +29,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { email, password } = validationResult.data;
 
     // Get user from database (including password hash)
-    const result = await sql<Array<{ id: string; email: string; name: string | null; password_hash: string }>>`
+    const result = await sql`
       SELECT id, email, name, password_hash
       FROM users
       WHERE email = ${email}
       LIMIT 1
-    `;
+    ` as Array<{ id: string; email: string; name: string | null; password_hash: string }>;
 
     const user = result[0];
     if (!user) {

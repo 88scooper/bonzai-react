@@ -51,11 +51,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (accountId) {
       // Verify account belongs to user
-      const accountCheck = await sql<Array<{ id: string }>>`
+      const accountCheck = await sql`
         SELECT id FROM accounts
         WHERE id = ${accountId} AND user_id = ${user.id}
         LIMIT 1
-      `;
+      ` as Array<{ id: string }>;
 
       if (!accountCheck[0]) {
         return NextResponse.json(
@@ -64,13 +64,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         );
       }
 
-      countQuery = sql<Array<{ count: bigint }>>`
+      countQuery = sql`
         SELECT COUNT(*) as count
         FROM properties
         WHERE account_id = ${accountId}
-      `;
+      ` as Array<{ count: bigint }>;
 
-      dataQuery = sql<Property[]>`
+      dataQuery = sql`
         SELECT id, account_id, nickname, address, purchase_price, purchase_date,
                closing_costs, renovation_costs, initial_renovations, current_market_value,
                year_built, property_type, size, unit_config, property_data,
@@ -80,17 +80,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ORDER BY created_at DESC
         LIMIT ${limit}
         OFFSET ${offset}
-      `;
+      ` as Property[];
     } else {
       // Get all properties for user's accounts
-      countQuery = sql<Array<{ count: bigint }>>`
+      countQuery = sql`
         SELECT COUNT(*) as count
         FROM properties p
         INNER JOIN accounts a ON p.account_id = a.id
         WHERE a.user_id = ${user.id}
-      `;
+      ` as Array<{ count: bigint }>;
 
-      dataQuery = sql<Property[]>`
+      dataQuery = sql`
         SELECT p.id, p.account_id, p.nickname, p.address, p.purchase_price, p.purchase_date,
                p.closing_costs, p.renovation_costs, p.initial_renovations, p.current_market_value,
                p.year_built, p.property_type, p.size, p.unit_config, p.property_data,
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ORDER BY p.created_at DESC
         LIMIT ${limit}
         OFFSET ${offset}
-      `;
+      ` as Property[];
     }
 
     const countResult = await countQuery;
@@ -174,11 +174,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     } = validationResult.data;
 
     // Verify account belongs to user
-    const accountCheck = await sql<Array<{ id: string }>>`
+    const accountCheck = await sql`
       SELECT id FROM accounts
       WHERE id = ${accountId} AND user_id = ${user.id}
       LIMIT 1
-    `;
+    ` as Array<{ id: string }>;
 
     if (!accountCheck[0]) {
       return NextResponse.json(
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Create property
-    const result = await sql<Property[]>`
+    const result = await sql`
       INSERT INTO properties (
         account_id, nickname, address, purchase_price, purchase_date,
         closing_costs, renovation_costs, initial_renovations, current_market_value,

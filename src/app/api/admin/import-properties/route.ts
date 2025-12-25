@@ -81,9 +81,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Get accounts
-    const accountsResult = await sql<Array<{ id: string; name: string; is_demo: boolean }>>`
+    const accountsResult = await sql`
       SELECT id, name, is_demo FROM accounts WHERE user_id = ${user.id}
-    `;
+    ` as Array<{ id: string; name: string; is_demo: boolean }>;
 
     const demoAccount = accountsResult.find(a => a.name === 'Demo Account' || a.is_demo);
     const scAccount = accountsResult.find(a => a.name === 'SC Properties');

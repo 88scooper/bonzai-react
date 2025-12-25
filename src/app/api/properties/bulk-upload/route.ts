@@ -59,11 +59,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Verify account belongs to user
-    const accountCheck = await sql<Array<{ id: string }>>`
+    const accountCheck = await sql`
       SELECT id FROM accounts
       WHERE id = ${accountId} AND user_id = ${user.id}
       LIMIT 1
-    `;
+    ` as Array<{ id: string }>;
 
     if (!accountCheck[0]) {
       return NextResponse.json(
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     for (let i = 0; i < properties.length; i++) {
       const prop = properties[i];
       try {
-        const result = await sql<Property[]>`
+        const result = await sql`
           INSERT INTO properties (
             account_id, nickname, address, purchase_price, purchase_date,
             closing_costs, renovation_costs, initial_renovations, current_market_value,

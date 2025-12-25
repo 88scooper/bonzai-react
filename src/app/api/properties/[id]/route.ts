@@ -58,7 +58,7 @@ export async function GET(
     const { id } = await params;
 
     // Get property and verify ownership
-    const result = await sql<Property[]>`
+    const result = await sql`
       SELECT p.id, p.account_id, p.nickname, p.address, p.purchase_price, p.purchase_date,
              p.closing_costs, p.renovation_costs, p.initial_renovations, p.current_market_value,
              p.year_built, p.property_type, p.size, p.unit_config, p.property_data,
@@ -139,7 +139,7 @@ export async function PATCH(
 
     // Build dynamic UPDATE query - this is simplified, in production you'd want a more robust solution
     // For now, we'll update all fields that are provided
-    const result = await sql<Property[]>`
+    const result = await sql`
       UPDATE properties
       SET 
         nickname = COALESCE(${updateData.nickname || null}, nickname),
