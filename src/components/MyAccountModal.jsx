@@ -150,7 +150,7 @@ export default function MyAccountModal({ isOpen, onClose }) {
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
-      const response = await apiClient.deleteAccount();
+      const response = await apiClient.deleteUserAccount();
       if (response.success) {
         addToast("Account deleted successfully", { type: "success" });
         // Log out and redirect
