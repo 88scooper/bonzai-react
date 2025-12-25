@@ -7,12 +7,14 @@ import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import AccountSwitcher from "@/components/AccountSwitcher";
 import Button from "@/components/Button";
-import { LogOut, UserCircle, Settings } from "lucide-react";
+import MyAccountModal from "@/components/MyAccountModal";
+import { LogOut, UserCircle, Settings, User } from "lucide-react";
 
 export default function Layout({ children }) {
   const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMyAccountModalOpen, setIsMyAccountModalOpen] = useState(false);
   const { user, logOut } = useAuth();
   const router = useRouter();
   const userMenuRef = useRef(null);
@@ -125,6 +127,16 @@ export default function Layout({ children }) {
 
                       {/* Menu Items */}
                       <div className="py-1">
+                        <button
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            setIsMyAccountModalOpen(true);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 transition-colors"
+                        >
+                          <User className="w-4 h-4" />
+                          My Account
+                        </button>
                         <Link
                           href="/settings"
                           onClick={() => setIsUserMenuOpen(false)}
@@ -184,6 +196,10 @@ export default function Layout({ children }) {
           <main className="mx-auto w-full max-w-7xl px-4 py-6">{children}</main>
         </div>
       </div>
+      <MyAccountModal 
+        isOpen={isMyAccountModalOpen} 
+        onClose={() => setIsMyAccountModalOpen(false)} 
+      />
     </div>
   );
 }

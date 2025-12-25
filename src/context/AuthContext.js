@@ -86,7 +86,8 @@ export function AuthProvider({ children }) {
     };
 
     loadUser();
-  }, [checkIsNewUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const signUp = useCallback(async (email, password, name) => {
     try {

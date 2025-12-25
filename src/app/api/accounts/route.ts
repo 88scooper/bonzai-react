@@ -53,6 +53,14 @@ export const GET = withAuth(async (request: NextRequest, user) => {
   } catch (error) {
     console.error('Error fetching accounts:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    // Log full error details for debugging
+    console.error('Full error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      error: error
+    });
 
     return NextResponse.json(
       createErrorResponse(errorMessage, 500),

@@ -68,6 +68,7 @@ export default function LoginPage() {
               name="email" 
               type="email" 
               required 
+              suppressHydrationWarning
               className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
             />
           </div>
@@ -78,6 +79,7 @@ export default function LoginPage() {
               name="password" 
               type="password" 
               required 
+              suppressHydrationWarning
               className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
             />
           </div>
