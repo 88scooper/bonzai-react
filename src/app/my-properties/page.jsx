@@ -6,9 +6,10 @@ import Image from "next/image";
 import Layout from "@/components/Layout";
 import { RequireAuth } from "@/context/AuthContext";
 import Button from "@/components/Button";
+import AddPropertyModal from "@/components/AddPropertyModal";
 import { useProperties, usePropertyContext } from "@/context/PropertyContext";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
-import { Building2, PiggyBank, FileSpreadsheet } from "lucide-react";
+import { Building2, PiggyBank, FileSpreadsheet, Plus } from "lucide-react";
 import { getCurrentMortgageBalance, getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from "@/utils/mortgageCalculator";
 
 // Calculate YoY change percentage
@@ -187,6 +188,7 @@ export default function MyPropertiesPage() {
   const { calculationsComplete } = usePropertyContext();
   const properties = useProperties();
   const [forceShow, setForceShow] = useState(false);
+  const [isAddPropertyModalOpen, setIsAddPropertyModalOpen] = useState(false);
   
   // Debug logging
   console.log('MyPropertiesPage - calculationsComplete:', calculationsComplete);
@@ -239,9 +241,14 @@ export default function MyPropertiesPage() {
                 Manage and view details for all your properties.
               </p>
             </div>
-            <Button onClick={() => console.log("Add new property")}>
-              Add New Property
-            </Button>
+            <button
+              onClick={() => setIsAddPropertyModalOpen(true)}
+              className="group relative inline-flex items-center gap-2 px-6 py-3 bg-[#205A3E] hover:bg-[#1a4730] dark:bg-[#2F7E57] dark:hover:bg-[#205A3E] text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-100"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add New Property</span>
+              <div className="absolute inset-0 rounded-lg bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+            </button>
           </div>
 
           {/* Debug info */}
@@ -282,13 +289,22 @@ export default function MyPropertiesPage() {
                   : 'No properties yet. Add your first investment property to get started.'}
               </div>
               {properties && Array.isArray(properties) && properties.length === 0 && (
-                <Button onClick={() => console.log("Add first property")}>
-                  Add Your First Property
-                </Button>
+                <button
+                  onClick={() => setIsAddPropertyModalOpen(true)}
+                  className="group relative inline-flex items-center gap-2 px-6 py-3 bg-[#205A3E] hover:bg-[#1a4730] dark:bg-[#2F7E57] dark:hover:bg-[#205A3E] text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-100"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add Your First Property</span>
+                  <div className="absolute inset-0 rounded-lg bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                </button>
               )}
             </div>
           )}
         </div>
+        <AddPropertyModal 
+          isOpen={isAddPropertyModalOpen} 
+          onClose={() => setIsAddPropertyModalOpen(false)} 
+        />
       </Layout>
     </RequireAuth>
   );
