@@ -28,13 +28,13 @@ interface Property {
  * Helper function to verify property ownership
  */
 async function verifyPropertyOwnership(propertyId: string, userId: string): Promise<boolean> {
-  const result = await sql<Array<{ id: string }>>`
+  const result = await sql`
     SELECT p.id
     FROM properties p
     INNER JOIN accounts a ON p.account_id = a.id
     WHERE p.id = ${propertyId} AND a.user_id = ${userId}
     LIMIT 1
-  `;
+  ` as Array<{ id: string }>;
   return !!result[0];
 }
 
