@@ -10,7 +10,7 @@ export function SettingsProvider({ children }) {
     if (typeof window !== 'undefined') {
       return getSettings();
     }
-    return { currencyDecimals: false };
+    return { currencyDecimals: false, percentageDecimals: false, darkMode: null };
   });
 
   // Update settings when localStorage changes (e.g., from another tab)
@@ -36,6 +36,8 @@ export function SettingsProvider({ children }) {
     settings,
     updateSetting,
     currencyDecimals: settings.currencyDecimals,
+    percentageDecimals: settings.percentageDecimals,
+    darkMode: settings.darkMode,
   };
 
   return (

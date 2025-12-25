@@ -7,6 +7,8 @@ const SETTINGS_KEY = 'proplytics_settings';
 
 const DEFAULT_SETTINGS = {
   currencyDecimals: false, // false = no decimals, true = 2 decimals (0.00)
+  percentageDecimals: false, // false = no decimals, true = 2 decimals (0.00%)
+  darkMode: null, // null = system preference, true = dark, false = light
 };
 
 /**

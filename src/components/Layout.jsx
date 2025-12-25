@@ -5,34 +5,52 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { useSettings } from "@/context/SettingsContext";
 import AccountSwitcher from "@/components/AccountSwitcher";
 import Button from "@/components/Button";
 import MyAccountModal from "@/components/MyAccountModal";
+import SettingsModal from "@/components/SettingsModal";
 import { LogOut, UserCircle, Settings, User } from "lucide-react";
 
 export default function Layout({ children }) {
-  const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMyAccountModalOpen, setIsMyAccountModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const { user, logOut } = useAuth();
+  const { darkMode, updateSetting } = useSettings();
   const router = useRouter();
   const userMenuRef = useRef(null);
 
+  // Determine if dark mode should be active
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    return false;
+  });
+
+  const isDark = darkMode === null ? systemPrefersDark : darkMode;
+
+  // Listen for system preference changes
   useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    const shouldDark = saved ? saved === "dark" : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setIsDark(shouldDark);
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e) => {
+      setSystemPrefersDark(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
   useEffect(() => {
     const root = document.documentElement;
     if (isDark) {
       root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
     } else {
       root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
     }
   }, [isDark]);
 
@@ -64,9 +82,6 @@ export default function Layout({ children }) {
     }
   }, [isUserMenuOpen]);
 
-  const toggleDarkMode = () => {
-    setIsDark(!isDark);
-  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100">
@@ -137,34 +152,16 @@ export default function Layout({ children }) {
                           <User className="w-4 h-4" />
                           My Account
                         </button>
-                        <Link
-                          href="/settings"
-                          onClick={() => setIsUserMenuOpen(false)}
+                        <button
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            setIsSettingsModalOpen(true);
+                          }}
                           className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-3 transition-colors"
                         >
                           <Settings className="w-4 h-4" />
                           Settings
-                        </Link>
-                      </div>
-
-                      {/* Light/Dark Mode Toggle */}
-                      <div className="px-4 py-3 border-t border-black/10 dark:border-white/10">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Theme</span>
-                          <button
-                            onClick={toggleDarkMode}
-                            className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                            style={{
-                              backgroundColor: isDark ? '#3b82f6' : '#d1d5db'
-                            }}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                isDark ? 'translate-x-6' : 'translate-x-1'
-                              }`}
-                            />
-                          </button>
-                        </div>
+                        </button>
                       </div>
 
                       {/* Logout Button */}
@@ -199,6 +196,10 @@ export default function Layout({ children }) {
       <MyAccountModal 
         isOpen={isMyAccountModalOpen} 
         onClose={() => setIsMyAccountModalOpen(false)} 
+      />
+      <SettingsModal 
+        isOpen={isSettingsModalOpen} 
+        onClose={() => setIsSettingsModalOpen(false)} 
       />
     </div>
   );
