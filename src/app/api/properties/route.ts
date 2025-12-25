@@ -46,8 +46,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const offset = getOffset(page, limit);
 
     // Build query - get properties through accounts that belong to user
-    let countQuery;
-    let dataQuery;
+    let countResult: Array<{ count: bigint }>;
+    let properties: Property[];
 
     if (accountId) {
       // Verify account belongs to user
@@ -64,13 +64,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         );
       }
 
-      countQuery = sql`
+      countResult = await sql`
         SELECT COUNT(*) as count
         FROM properties
         WHERE account_id = ${accountId}
       ` as Array<{ count: bigint }>;
 
-      dataQuery = sql`
+      properties = await sql`
         SELECT id, account_id, nickname, address, purchase_price, purchase_date,
                closing_costs, renovation_costs, initial_renovations, current_market_value,
                year_built, property_type, size, unit_config, property_data,
@@ -83,14 +83,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ` as Property[];
     } else {
       // Get all properties for user's accounts
-      countQuery = sql`
+      countResult = await sql`
         SELECT COUNT(*) as count
         FROM properties p
         INNER JOIN accounts a ON p.account_id = a.id
         WHERE a.user_id = ${user.id}
       ` as Array<{ count: bigint }>;
 
-      dataQuery = sql`
+      properties = await sql`
         SELECT p.id, p.account_id, p.nickname, p.address, p.purchase_price, p.purchase_date,
                p.closing_costs, p.renovation_costs, p.initial_renovations, p.current_market_value,
                p.year_built, p.property_type, p.size, p.unit_config, p.property_data,
@@ -104,10 +104,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ` as Property[];
     }
 
-    const countResult = await countQuery;
     const total = Number(countResult[0]?.count || 0);
-
-    const properties = await dataQuery;
 
     const paginatedResponse = createPaginatedResponse(properties, total, page, limit);
 
