@@ -179,7 +179,7 @@ class ApiClient {
     });
   }
 
-  async deleteAccount() {
+  async deleteUserAccount() {
     return this.request<{ message: string }>('/auth/user', {
       method: 'DELETE',
     });
