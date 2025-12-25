@@ -200,7 +200,7 @@ export async function POST(
         RETURNING id, property_id, lender, original_amount, interest_rate, rate_type,
                    term_months, amortization_years, payment_frequency, start_date,
                    mortgage_data, created_at, updated_at
-      `;
+      ` as Mortgage[];
     }
 
     if (!result[0]) {
