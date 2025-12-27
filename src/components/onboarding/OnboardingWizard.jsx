@@ -38,9 +38,14 @@ export default function OnboardingWizard() {
       return;
     }
 
+    if (!accountEmail.trim()) {
+      addToast("Email is required", { type: "error" });
+      return;
+    }
+
     setLoading(true);
     try {
-      const account = await createNewAccount(accountName, accountEmail || null);
+      const account = await createNewAccount(accountName, accountEmail);
       setAccountId(account.id);
       await refreshAccounts();
       setCurrentStep(2);
@@ -173,7 +178,7 @@ export default function OnboardingWizard() {
 
                 <div>
                   <label htmlFor="accountEmail" className="block text-sm font-medium mb-1">
-                    Email (optional)
+                    Email *
                   </label>
                   <input
                     id="accountEmail"
@@ -182,6 +187,7 @@ export default function OnboardingWizard() {
                     onChange={(e) => setAccountEmail(e.target.value)}
                     className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
                     placeholder="account@example.com"
+                    required
                   />
                 </div>
               </div>
