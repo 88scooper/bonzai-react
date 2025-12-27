@@ -894,7 +894,12 @@ export default function PortfolioSummaryPage() {
                       <MetricCard
                         key={metric.id}
                         title="Average Rent Per Square Foot"
-                        value={formatCurrency(averageRentPerSqFt)}
+                        value={new Intl.NumberFormat('en-CA', {
+                          style: 'currency',
+                          currency: 'CAD',
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }).format(averageRentPerSqFt)}
                         showInfoIcon={true}
                         tooltipText="The average monthly rental income per square foot across all properties in your portfolio. This helps compare rental efficiency between properties of different sizes."
                       />
@@ -1387,11 +1392,11 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
         }`}
       >
         <div>
-          <p className="text-xl font-semibold">Net Cash Flow</p>
+          <p className="text-[1.375rem] font-semibold">Net Cash Flow</p>
           <p className="text-base opacity-80">After operating expenses and debt service</p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-bold">{formatCurrency(netCashFlow)}</p>
+          <p className="text-[1.375rem] font-bold">{formatCurrency(netCashFlow)}</p>
           {expenseShare !== null && Number.isFinite(expenseShare) && (
             <p className="text-base font-medium opacity-80">
               {percentFormatter.format(expenseShare)} of revenue consumed
