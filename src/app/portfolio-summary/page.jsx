@@ -159,7 +159,7 @@ export default function PortfolioSummaryPage() {
   // Default metrics configuration - Reordered according to new layout
   const defaultMetrics = [
     { id: 'portfolioValue', name: 'Total Estimated Portfolio Value', isVisible: true },
-    { id: 'equity', name: 'Forecasted Equity Earned This Year', isVisible: true },
+    { id: 'equity', name: 'Annual Forecasted Equity', isVisible: true },
     { id: 'mortgageDebt', name: 'Monthly Debt Service', isVisible: true },
     { id: 'netOperatingIncome', name: 'Annual Net Operating Income', isVisible: true },
     { id: 'overallCapRate', name: 'Overall Cap Rate', isVisible: true },
@@ -293,6 +293,7 @@ export default function PortfolioSummaryPage() {
   const appreciationPercentage = totalPurchasePrices > 0 && !isNaN(totalPortfolioValue) && !isNaN(totalPurchasePrices)
     ? Math.floor(((Number(totalPortfolioValue) - totalPurchasePrices) / totalPurchasePrices) * 100)
     : 0;
+  const totalAppreciation = totalPortfolioValue - totalPurchasePrices;
   
   // Calculate equity and debt as percentages of total portfolio value
   const equityPercentage = totalPortfolioValue > 0 && !isNaN(totalEquity) && !isNaN(totalPortfolioValue)
@@ -581,7 +582,7 @@ export default function PortfolioSummaryPage() {
               <div>
                 <h1 className="text-3xl font-bold">Portfolio Summary</h1>
                 <p className="mt-2 text-gray-600 dark:text-gray-300">
-                  Overview of your real estate investment performance and key metrics.
+                  Overview of your real estate investment performance and key metrics for {new Date().getFullYear()}.
                 </p>
               </div>
 
@@ -695,10 +696,7 @@ export default function PortfolioSummaryPage() {
                                 currency: 'CAD',
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 0,
-                              }).format(Math.floor(totalEquity))} equity ({equityPercentage}%)
-                            </div>
-                            <div>
-                              {new Intl.NumberFormat('en-CA', {
+                              }).format(Math.floor(totalEquity))} equity ({equityPercentage}%) • {new Intl.NumberFormat('en-CA', {
                                 style: 'currency',
                                 currency: 'CAD',
                                 minimumFractionDigits: 0,
@@ -707,6 +705,14 @@ export default function PortfolioSummaryPage() {
                             </div>
                             <div className="mt-1 text-xs opacity-90">
                               Portfolio LTV: {Math.floor(portfolioLTV)}%
+                            </div>
+                            <div className="mt-1 text-xs opacity-90">
+                              Estimated Appreciation: {new Intl.NumberFormat('en-CA', {
+                                style: 'currency',
+                                currency: 'CAD',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }).format(Math.floor(totalAppreciation))} ({appreciationPercentage}%)
                             </div>
                           </>
                         }
@@ -718,7 +724,7 @@ export default function PortfolioSummaryPage() {
                     return (
                       <TopMetricCard
                         key={metric.id}
-                        title="Forecasted Equity Earned This Year"
+                        title="Annual Forecasted Equity"
                         value={new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
@@ -855,7 +861,7 @@ export default function PortfolioSummaryPage() {
                     return (
                       <MetricCard
                         key={metric.id}
-                        title="Forecasted Equity Earned This Year"
+                        title="Annual Forecasted Equity"
                         value={formatCurrency(annualEquityBuilt)}
                         showInfoIcon={true}
                         tooltipText="The projected equity you will earn this calendar year through principal payments and estimated property appreciation. This forecast helps you understand how your portfolio equity is growing over time."
@@ -1392,7 +1398,7 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
         }`}
       >
         <div>
-          <p className="text-[1.375rem] font-semibold">Net Cash Flow</p>
+          <p className="text-[1.375rem] font-semibold">Annual Net Cash Flow</p>
           <p className="text-base opacity-80">After operating expenses and debt service</p>
         </div>
         <div className="text-right">

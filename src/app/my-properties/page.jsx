@@ -216,7 +216,7 @@ export default function MyPropertiesPage() {
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold">My Investment Properties</h1>
                 <p className="mt-2 text-gray-600 dark:text-gray-300">
-                  Manage and view details for all your properties.
+                  Overview of your real estate investment performance and key metrics for {new Date().getFullYear()}.
                 </p>
               </div>
             </div>
@@ -238,7 +238,7 @@ export default function MyPropertiesPage() {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">My Investment Properties</h1>
               <p className="mt-2 text-gray-600 dark:text-gray-300">
-                Manage and view details for all your properties.
+                Overview of your real estate investment performance and key metrics for {new Date().getFullYear()}.
               </p>
             </div>
             <button

@@ -1092,12 +1092,12 @@ export default function PropertyDetailPage() {
               </div>
             </div>
 
-            {/* Forecasted Equity Earned This Year */}
+            {/* Annual Forecasted Equity */}
             <div className="relative rounded-2xl border border-[#1A4A5A]/25 dark:border-[#123640]/40 bg-gradient-to-br from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    Forecasted Equity Earned This Year
+                    Annual Forecasted Equity
                   </h3>
                 </div>
                 <div className="relative rounded-full p-1.5 text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70 cursor-help flex-shrink-0 flex items-center justify-center">
