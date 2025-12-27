@@ -159,8 +159,8 @@ export default function PortfolioSummaryPage() {
   // Default metrics configuration - Reordered according to new layout
   const defaultMetrics = [
     { id: 'portfolioValue', name: 'Total Estimated Portfolio Value', isVisible: true },
-    { id: 'equity', name: 'Total Estimated Equity', isVisible: true },
-    { id: 'mortgageDebt', name: 'Total Mortgage Debt', isVisible: true },
+    { id: 'equity', name: 'Forecasted Equity Earned This Year', isVisible: true },
+    { id: 'mortgageDebt', name: 'Monthly Debt Service', isVisible: true },
     { id: 'netOperatingIncome', name: 'Annual Net Operating Income', isVisible: true },
     { id: 'overallCapRate', name: 'Overall Cap Rate', isVisible: true },
     { id: 'blendedCashOnCash', name: 'Blended Cash on Cash', isVisible: true },
@@ -465,6 +465,49 @@ export default function PortfolioSummaryPage() {
     return sum + propertyEquityBuilt;
   }, 0);
 
+  // Calculate previous year's equity built for YoY comparison
+  // Estimate based on same calculation but for previous year
+  const previousYearEquityBuilt = (properties || []).reduce((sum, property) => {
+    let propertyEquityBuilt = 0;
+    
+    // Estimate previous year's principal payments (slightly less as mortgage amortizes)
+    // Use 95% of current principal as estimate for previous year
+    if (property.mortgage && property.monthlyExpenses?.mortgagePrincipal) {
+      const monthlyPrincipal = property.monthlyExpenses.mortgagePrincipal;
+      const annualPrincipal = monthlyPrincipal * 12 * 0.95; // Slightly less last year
+      propertyEquityBuilt += annualPrincipal;
+    }
+    
+    // Previous year's appreciation (same annual rate, but one year less total appreciation)
+    const purchasePrice = property.purchasePrice || 0;
+    const currentValue = property.currentMarketValue || property.currentValue || purchasePrice;
+    if (currentValue > purchasePrice && purchasePrice > 0) {
+      const totalAppreciation = currentValue - purchasePrice;
+      
+      let yearsHeld = 1;
+      try {
+        if (property.purchaseDate) {
+          const currentYear = new Date().getFullYear();
+          const purchaseYear = new Date(property.purchaseDate).getFullYear();
+          yearsHeld = Math.max(1, currentYear - purchaseYear);
+        }
+      } catch (error) {
+        yearsHeld = 1;
+      }
+      
+      // Annual appreciation rate (same as current year)
+      const annualAppreciation = yearsHeld > 0 ? totalAppreciation / yearsHeld : 0;
+      propertyEquityBuilt += annualAppreciation;
+    }
+    
+    return sum + propertyEquityBuilt;
+  }, 0);
+
+  // Calculate YoY increase
+  const yoyEquityIncrease = previousYearEquityBuilt > 0 
+    ? ((annualEquityBuilt - previousYearEquityBuilt) / previousYearEquityBuilt) * 100 
+    : 0;
+
   const capRateTone = overallCapRate >= 5
     ? 'positive'
     : overallCapRate >= 3.5
@@ -644,46 +687,68 @@ export default function PortfolioSummaryPage() {
                         }).format(Math.floor(totalPortfolioValue || 0))}
                         icon={Building2}
                         accent="emerald"
-                        supporting={`${new Intl.NumberFormat('en-CA', {
-                          style: 'currency',
-                          currency: 'CAD',
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        }).format(Math.floor(totalEquity))} equity (${equityPercentage}%) • ${new Intl.NumberFormat('en-CA', {
-                          style: 'currency',
-                          currency: 'CAD',
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        }).format(Math.floor(totalMortgageDebt))} debt (${debtPercentage}%)`}
+                        supporting={
+                          <>
+                            <div>
+                              {new Intl.NumberFormat('en-CA', {
+                                style: 'currency',
+                                currency: 'CAD',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }).format(Math.floor(totalEquity))} equity ({equityPercentage}%)
+                            </div>
+                            <div>
+                              {new Intl.NumberFormat('en-CA', {
+                                style: 'currency',
+                                currency: 'CAD',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }).format(Math.floor(totalMortgageDebt))} debt ({debtPercentage}%)
+                            </div>
+                            <div className="mt-1 text-xs opacity-90">
+                              Portfolio LTV: {Math.floor(portfolioLTV)}%
+                            </div>
+                          </>
+                        }
                         supportingSize="dynamic"
-                        iconTooltip="The estimated current market value of all properties in your portfolio, based on current market valuations. Values are rounded down to the nearest dollar."
+                        iconTooltip="The estimated current market value of all properties in your portfolio, based on current market valuations. Values are rounded down to the nearest dollar. LTV (Loan-to-Value) shows the percentage of your portfolio that is financed."
                       />
                     );
                   case 'equity': {
-                    const earnedThisYearCopy = `Forecasted equity earned this year: ${new Intl.NumberFormat('en-CA', {
-                      style: 'currency',
-                      currency: 'CAD',
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
-                    }).format(Math.floor(annualEquityBuilt))}`;
-
                     return (
                       <TopMetricCard
                         key={metric.id}
-                        title="Total Estimated Equity"
+                        title="Forecasted Equity Earned This Year"
                         value={new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
-                        }).format(Math.floor(totalEquity))}
+                        }).format(Math.floor(annualEquityBuilt))}
                         icon={PiggyBank}
                         accent="teal"
                         iconBadge="$"
                         iconBadgePosition="top-center"
-                        supporting={earnedThisYearCopy}
+                        supporting={
+                          <>
+                            <div>
+                              Current total equity: {new Intl.NumberFormat('en-CA', {
+                                style: 'currency',
+                                currency: 'CAD',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }).format(Math.floor(totalEquity))}
+                            </div>
+                            <div className="mt-1">
+                              Year Over Year: {yoyEquityIncrease >= 0 ? '+' : ''}{yoyEquityIncrease.toFixed(1)}% increase
+                            </div>
+                            <div className="mt-1 text-xs opacity-90">
+                              Includes principal payments + estimated appreciation
+                            </div>
+                          </>
+                        }
                         supportingSize="dynamic"
-                        iconTooltip="The estimated market value of your properties minus the remaining mortgage balances. This represents your ownership stake in the portfolio. Values are rounded down to the nearest dollar."
+                        iconTooltip="The projected equity you will earn this calendar year through principal payments and estimated property appreciation. This forecast helps you understand how your portfolio equity is growing over time."
                       />
                     );
                   }
@@ -691,18 +756,32 @@ export default function PortfolioSummaryPage() {
                     return (
                       <TopMetricCard
                         key={metric.id}
-                        title="Total Mortgage Debt"
+                        title="Monthly Debt Service"
                         value={new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
-                        }).format(Math.floor(totalMortgageDebt))}
+                        }).format(Math.floor(totalMonthlyDebtService))}
                         icon={FileSpreadsheet}
                         accent="amber"
-                        supporting={`Portfolio LTV ${Math.floor(portfolioLTV)}%`}
+                        supporting={
+                          <>
+                            <div>
+                              Annual debt service: {new Intl.NumberFormat('en-CA', {
+                                style: 'currency',
+                                currency: 'CAD',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }).format(Math.floor(totalAnnualDebtService))}
+                            </div>
+                            <div className="mt-1 text-xs opacity-90">
+                              Principal + interest payments
+                            </div>
+                          </>
+                        }
                         supportingSize="dynamic"
-                        iconTooltip="The total remaining mortgage balance across all properties in your portfolio. This represents your outstanding debt obligations. Values are rounded down to the nearest dollar. Portfolio LTV percentage is rounded down to the nearest whole number."
+                        iconTooltip="Your total monthly mortgage payments (principal and interest) across all properties. This represents your monthly debt obligations and helps you understand cash flow requirements."
                       />
                     );
                   default:
@@ -768,21 +847,19 @@ export default function PortfolioSummaryPage() {
                         title="Total Estimated Portfolio Value"
                         value={formatCurrency(totalPortfolioValue || 0)}
                         showInfoIcon={true}
-                        tooltipText="The estimated current market value of all properties in your portfolio."
-                        subtitle={`${formatCurrency(totalEquity)} equity (${equityPercentage}%) • ${formatCurrency(totalMortgageDebt)} debt (${debtPercentage}%)`}
+                        tooltipText="The estimated current market value of all properties in your portfolio. LTV (Loan-to-Value) shows the percentage of your portfolio that is financed."
+                        subtitle={`${formatCurrency(totalEquity)} equity (${equityPercentage}%) • ${formatCurrency(totalMortgageDebt)} debt (${debtPercentage}%) • LTV: ${Math.floor(portfolioLTV)}%`}
                       />
                     );
                   case 'equity': {
-                    const projectedEquitySubtitle = `Projected equity added this calendar year: ${formatCurrency(annualEquityBuilt)}`;
-
                     return (
                       <MetricCard
                         key={metric.id}
-                        title="Total Estimated Equity"
-                        value={formatCurrency(totalEquity)}
+                        title="Forecasted Equity Earned This Year"
+                        value={formatCurrency(annualEquityBuilt)}
                         showInfoIcon={true}
-                        tooltipText="The estimated market value of your properties minus the remaining mortgage balances."
-                        subtitle={projectedEquitySubtitle}
+                        tooltipText="The projected equity you will earn this calendar year through principal payments and estimated property appreciation. This forecast helps you understand how your portfolio equity is growing over time."
+                        subtitle={`Current total equity: ${formatCurrency(totalEquity)} • YoY: ${yoyEquityIncrease >= 0 ? '+' : ''}${yoyEquityIncrease.toFixed(1)}% • Includes principal payments + estimated appreciation`}
                       />
                     );
                   }
@@ -842,13 +919,13 @@ export default function PortfolioSummaryPage() {
                     return (
                       <MetricCard
                         key={metric.id}
-                        title="Total Mortgage Debt"
-                        value={formatCurrency(totalMortgageDebt)}
+                        title="Monthly Debt Service"
+                        value={formatCurrency(totalMonthlyDebtService)}
                         isExpense={true}
                         showInfoIcon={true}
-                        tooltipText="The total remaining mortgage balance across all properties in your portfolio."
-                        statusMessage={`Current leverage: ${formatPercentage(portfolioLTV)}`}
-                        statusTone={ltvTone}
+                        tooltipText="Your total monthly mortgage payments (principal and interest) across all properties. This represents your monthly debt obligations and helps you understand cash flow requirements."
+                        statusMessage={`Annual: ${formatCurrency(totalAnnualDebtService)} • Principal + interest payments`}
+                        statusTone="neutral"
                       />
                     );
                   case 'netOperatingIncome':
@@ -1207,7 +1284,7 @@ function TopMetricCard({
           }`} />
           {supportingSize === 'dynamic' ? (
             <div className="mt-3 w-full">
-              <p 
+              <div 
                 className={`font-bold break-words ${
                   accent === 'emerald' 
                     ? 'text-[#205A3E] dark:text-[#66B894]' 
@@ -1223,7 +1300,7 @@ function TopMetricCard({
                 }}
               >
                 {supporting}
-              </p>
+              </div>
             </div>
           ) : (
             <p className={`mt-3 ${supportingSize === 'large' ? 'text-2xl font-bold' : 'text-sm'} ${
