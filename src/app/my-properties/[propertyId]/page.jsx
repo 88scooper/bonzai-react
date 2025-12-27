@@ -48,9 +48,7 @@ export default function PropertyDetailPage() {
     );
   }
   
-  // Modal state management
-  const [showEditPropertyModal, setShowEditPropertyModal] = useState(false);
-  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  // Edit functionality removed - users must use the Data page to modify property data
   
   // Get property data using propertyId from PropertyContext
   const property = useProperty(propertyId);
@@ -736,8 +734,13 @@ export default function PropertyDetailPage() {
               <p className="mt-1 text-gray-600 dark:text-gray-300">{property.address}</p>
             </div>
             <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setShowEditPropertyModal(true)}>Edit Property</Button>
-              <Button onClick={() => setShowAddExpenseModal(true)}>Add Expense</Button>
+              <Button 
+                variant="secondary" 
+                onClick={() => window.location.href = '/data'}
+                title="Edit property data on the Data page"
+              >
+                Edit Property Data
+              </Button>
             </div>
           </div>
 
@@ -2173,33 +2176,7 @@ export default function PropertyDetailPage() {
           </div>
         </div>
 
-        {/* Edit Property Modal */}
-        {showEditPropertyModal && (
-          <EditPropertyModal
-            property={property}
-            onClose={() => setShowEditPropertyModal(false)}
-            onSave={(updatedData) => {
-              // In a real app, this would save to the database
-              console.log('Property updated:', updatedData);
-              addToast('Property updated successfully!', { type: 'success' });
-              setShowEditPropertyModal(false);
-            }}
-          />
-        )}
-
-        {/* Add Expense Modal */}
-        {showAddExpenseModal && (
-          <AddExpenseModal
-            property={property}
-            onClose={() => setShowAddExpenseModal(false)}
-            onSave={(expenseData) => {
-              // In a real app, this would save to the database
-              console.log('Expense added:', expenseData);
-              addToast('Expense added successfully!', { type: 'success' });
-              setShowAddExpenseModal(false);
-            }}
-          />
-        )}
+        {/* Edit functionality removed - users must use the Data page to modify property data */}
 
         {/* Add Tab Modal */}
         {showAddTabModal && (

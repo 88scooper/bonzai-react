@@ -19,7 +19,7 @@ import { calculateAmortizationSchedule } from "@/utils/mortgageCalculator";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart } from "recharts";
 
 export default function MortgagesPage() {
-  const { data: apiMortgages = [], isLoading: apiLoading, error } = useMortgages();
+  const { data: apiMortgages = [], isLoading: apiLoading, error, refetch: refetchMortgages } = useMortgages();
   const { properties, calculationsComplete } = usePropertyContext();
   
   // All state hooks must be called before any conditional logic
@@ -35,21 +35,60 @@ export default function MortgagesPage() {
   const [selectedMortgagesForComparison, setSelectedMortgagesForComparison] = useState([]);
   const [expandedMortgages, setExpandedMortgages] = useState(new Set());
   
-  // Create mortgages array from properties data
-  const mortgages = properties.map(property => ({
-    id: `property-${property.id}`,
-    propertyId: property.id,
-    lenderName: property.mortgage.lender,
-    originalAmount: property.mortgage.originalAmount,
-    interestRate: property.mortgage.interestRate * 100, // Convert to percentage for display
-    rateType: property.mortgage.rateType,
-    amortizationPeriodYears: property.mortgage.amortizationYears,
-    termYears: property.mortgage.termMonths / 12,
-    startDate: property.mortgage.startDate,
-    paymentFrequency: property.mortgage.paymentFrequency,
-    mortgage: property.mortgage, // Include the full mortgage object
-    propertyName: property.nickname
-  }));
+  // Transform API mortgages to match the expected format
+  // Also include mortgages from properties as fallback for properties without API mortgages
+  const mortgages = useMemo(() => {
+    // Start with API mortgages
+    const apiMortgagesList = (apiMortgages || []).map(mortgage => ({
+      id: mortgage.id,
+      propertyId: mortgage.propertyId,
+      lenderName: mortgage.lenderName || mortgage.lender,
+      originalAmount: mortgage.originalAmount,
+      interestRate: typeof mortgage.interestRate === 'number' 
+        ? (mortgage.interestRate < 1 ? mortgage.interestRate * 100 : mortgage.interestRate) // Convert decimal to percentage if needed
+        : 0,
+      rateType: mortgage.rateType,
+      amortizationPeriodYears: mortgage.amortizationPeriodYears || mortgage.amortizationYears,
+      termYears: mortgage.termYears || (mortgage.termMonths ? mortgage.termMonths / 12 : 0),
+      startDate: mortgage.startDate || mortgage.start_date,
+      paymentFrequency: mortgage.paymentFrequency || mortgage.payment_frequency,
+      mortgage: {
+        lender: mortgage.lenderName || mortgage.lender,
+        originalAmount: mortgage.originalAmount,
+        interestRate: typeof mortgage.interestRate === 'number' 
+          ? (mortgage.interestRate > 1 ? mortgage.interestRate / 100 : mortgage.interestRate) // Convert percentage to decimal if needed
+          : 0,
+        rateType: mortgage.rateType,
+        amortizationYears: mortgage.amortizationPeriodYears || mortgage.amortizationYears,
+        termMonths: mortgage.termMonths || (mortgage.termYears ? mortgage.termYears * 12 : 0),
+        paymentFrequency: mortgage.paymentFrequency || mortgage.payment_frequency,
+        startDate: mortgage.startDate || mortgage.start_date,
+      },
+      propertyName: properties.find(p => p.id === mortgage.propertyId)?.nickname || 'Unknown Property'
+    }));
+
+    // Add property mortgages that don't have API mortgages (fallback)
+    const propertyMortgageIds = new Set(apiMortgagesList.map(m => m.propertyId));
+    const propertyMortgages = properties
+      .filter(property => !propertyMortgageIds.has(property.id) && property.mortgage?.lender)
+      .map(property => ({
+        id: `property-${property.id}`,
+        propertyId: property.id,
+        lenderName: property.mortgage.lender,
+        originalAmount: property.mortgage.originalAmount,
+        interestRate: property.mortgage.interestRate * 100, // Convert to percentage for display
+        rateType: property.mortgage.rateType,
+        amortizationPeriodYears: property.mortgage.amortizationYears,
+        termYears: property.mortgage.termMonths / 12,
+        startDate: property.mortgage.startDate,
+        paymentFrequency: property.mortgage.paymentFrequency,
+        mortgage: property.mortgage,
+        propertyName: property.nickname,
+        isFromProperty: true // Flag to indicate this needs to be migrated to API
+      }));
+
+    return [...apiMortgagesList, ...propertyMortgages];
+  }, [apiMortgages, properties]);
 
   // Set default mortgage selection when mortgages are loaded
   useEffect(() => {
@@ -394,7 +433,7 @@ export default function MortgagesPage() {
   };
 
   // Handle loading and error states after all hooks are called
-  if (!calculationsComplete || !properties || properties.length === 0) {
+  if (apiLoading) {
     return (
         <Layout>
         <div className="flex items-center justify-center min-h-screen">
@@ -520,7 +559,13 @@ export default function MortgagesPage() {
                   <div key={propertyId} className="space-y-4">
                     {propertyMortgages.map((mortgage) => (
                       <div key={mortgage.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <MortgageCardView mortgage={mortgage} />
+                        <MortgageCardView 
+                          mortgage={mortgage} 
+                          onEdit={(mortgage) => {
+                            setEditingMortgage(mortgage);
+                            setShowForm(true);
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
@@ -703,11 +748,10 @@ export default function MortgagesPage() {
             onClose={() => {
               setShowForm(false);
               setEditingMortgage(null);
-            }}
-            onSave={(mortgageData) => {
-              console.log('Saving mortgage:', mortgageData);
-              setShowForm(false);
-              setEditingMortgage(null);
+              // Refetch mortgages after closing form to get updated data
+              if (refetchMortgages) {
+                refetchMortgages();
+              }
             }}
           />
         )}

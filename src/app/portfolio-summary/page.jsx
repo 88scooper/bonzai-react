@@ -293,6 +293,14 @@ export default function PortfolioSummaryPage() {
   const appreciationPercentage = totalPurchasePrices > 0 && !isNaN(totalPortfolioValue) && !isNaN(totalPurchasePrices)
     ? Math.floor(((Number(totalPortfolioValue) - totalPurchasePrices) / totalPurchasePrices) * 100)
     : 0;
+  
+  // Calculate equity and debt as percentages of total portfolio value
+  const equityPercentage = totalPortfolioValue > 0 && !isNaN(totalEquity) && !isNaN(totalPortfolioValue)
+    ? Math.round((totalEquity / totalPortfolioValue) * 100)
+    : 0;
+  const debtPercentage = totalPortfolioValue > 0 && !isNaN(totalMortgageDebt) && !isNaN(totalPortfolioValue)
+    ? Math.round((totalMortgageDebt / totalPortfolioValue) * 100)
+    : 0;
   const totalProperties = portfolioMetrics.totalProperties || 0;
   const totalUnits = (properties || []).reduce((sum, property) => sum + (property.units || 0), 0);
   const totalSquareFeet = (properties || []).reduce((sum, property) => sum + (property.size || property.squareFootage || 0), 0);
@@ -641,12 +649,12 @@ export default function PortfolioSummaryPage() {
                           currency: 'CAD',
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
-                        }).format(Math.floor(totalEquity))} equity (${isNaN(appreciationPercentage) ? 0 : appreciationPercentage}%) • ${new Intl.NumberFormat('en-CA', {
+                        }).format(Math.floor(totalEquity))} equity (${equityPercentage}%) • ${new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
-                        }).format(Math.floor(totalMortgageDebt))} debt`}
+                        }).format(Math.floor(totalMortgageDebt))} debt (${debtPercentage}%)`}
                         supportingSize="dynamic"
                         iconTooltip="The estimated current market value of all properties in your portfolio, based on current market valuations. Values are rounded down to the nearest dollar."
                       />
@@ -761,7 +769,7 @@ export default function PortfolioSummaryPage() {
                         value={formatCurrency(totalPortfolioValue || 0)}
                         showInfoIcon={true}
                         tooltipText="The estimated current market value of all properties in your portfolio."
-                        subtitle={`${formatCurrency(totalEquity)} equity (${isNaN(appreciationPercentage) ? 0 : appreciationPercentage}%) • ${formatCurrency(totalMortgageDebt)} debt`}
+                        subtitle={`${formatCurrency(totalEquity)} equity (${equityPercentage}%) • ${formatCurrency(totalMortgageDebt)} debt (${debtPercentage}%)`}
                       />
                     );
                   case 'equity': {
@@ -1200,7 +1208,7 @@ function TopMetricCard({
           {supportingSize === 'dynamic' ? (
             <div className="mt-3 w-full">
               <p 
-                className={`font-bold whitespace-nowrap ${
+                className={`font-bold break-words ${
                   accent === 'emerald' 
                     ? 'text-[#205A3E] dark:text-[#66B894]' 
                     : accent === 'teal'
@@ -1211,7 +1219,7 @@ function TopMetricCard({
                 }`}
                 style={{ 
                   fontSize: 'clamp(0.625rem, 1.5vw, 1.25rem)',
-                  lineHeight: '1.2'
+                  lineHeight: '1.3'
                 }}
               >
                 {supporting}
@@ -1294,6 +1302,27 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
         </div>
       </div>
 
+      <div
+        className={`mt-6 flex items-start justify-between rounded-md border px-4 py-3 text-lg ${
+          netPositive
+            ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
+            : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
+        }`}
+      >
+        <div>
+          <p className="text-xl font-semibold">Net Cash Flow</p>
+          <p className="text-base opacity-80">After operating expenses and debt service</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xl font-bold">{formatCurrency(netCashFlow)}</p>
+          {expenseShare !== null && Number.isFinite(expenseShare) && (
+            <p className="text-base font-medium opacity-80">
+              {percentFormatter.format(expenseShare)} of revenue consumed
+            </p>
+          )}
+        </div>
+      </div>
+
       <div className="mt-6 space-y-4">
         {steps.map((step, index) => (
           <div key={step.label} className={`relative ${step.isSub ? 'pl-8' : 'pl-3'}`}>
@@ -1326,27 +1355,6 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
             </div>
           </div>
         ))}
-      </div>
-
-      <div
-        className={`mt-6 flex items-start justify-between rounded-md border px-4 py-3 text-sm ${
-          netPositive
-            ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
-            : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
-        }`}
-      >
-        <div>
-          <p className="font-semibold">Net Cash Flow</p>
-          <p className="text-xs opacity-80">After operating expenses and debt service</p>
-        </div>
-        <div className="text-right">
-          <p className="text-base font-bold">{formatCurrency(netCashFlow)}</p>
-          {expenseShare !== null && Number.isFinite(expenseShare) && (
-            <p className="text-xs font-medium opacity-80">
-              {percentFormatter.format(expenseShare)} of revenue consumed
-            </p>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -2169,7 +2177,7 @@ function MetricCard({
           )}
 
           {subtitle && (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 break-words">
               {subtitle}
             </p>
           )}

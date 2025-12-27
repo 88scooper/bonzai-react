@@ -7,14 +7,39 @@ import { useAuth } from "@/context/AuthContext";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useProperties, usePropertyContext } from "@/context/PropertyContext";
-import { Download, Upload, X, ChevronDown, ChevronUp, Edit2, Save, XCircle } from "lucide-react";
+import { useAccount } from "@/context/AccountContext";
+import { Download, X, ChevronDown, ChevronUp, Edit2, Save, XCircle, Plus, Trash2 } from "lucide-react";
 import * as XLSX from 'xlsx';
+import apiClient from "@/lib/api-client";
 
 // Helper functions for historical data calculations
 const getYearFromDateString = (value) => {
   if (!value) return NaN;
   const match = String(value).match(/^(\d{4})/);
   return match ? Number(match[1]) : NaN;
+};
+
+// Helper function to format date to YYYY-MM-DD (removes time component)
+const formatDateOnly = (dateValue) => {
+  if (!dateValue) return "N/A";
+  // If it's already in YYYY-MM-DD format, return as is
+  if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return dateValue;
+  }
+  // If it's an ISO string with time, extract just the date part
+  if (typeof dateValue === 'string' && dateValue.includes('T')) {
+    return dateValue.split('T')[0];
+  }
+  // Try to parse as Date and format
+  try {
+    const date = new Date(dateValue);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  } catch (e) {
+    // If parsing fails, return original value
+  }
+  return dateValue;
 };
 
 function getHistoricalIncome(property, year) {
@@ -374,7 +399,7 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
 }
 
 // PropertyCard component with collapsible sections
-function PropertyCard({ property, onUpdate }) {
+function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
   const [expandedSections, setExpandedSections] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState({});
@@ -634,13 +659,13 @@ function PropertyCard({ property, onUpdate }) {
           <EditableDataRow label="Square Footage" value={property.size || property.squareFootage} editable field="size" type="number" />
           <EditableDataRow label="Bedrooms" value={property.bedrooms?.[0] || property.bedrooms} editable field="bedrooms" type="number" />
           <EditableDataRow label="Bathrooms" value={property.bathrooms?.[0] || property.bathrooms} editable field="bathrooms" type="number" />
-          <EditableDataRow label="Unit Config" value={property.unitConfig} />
+          <EditableDataRow label="Dens" value={property.dens?.[0] || property.dens} editable field="dens" type="number" />
         </div>
       </Section>
 
       <Section title="Purchase Information" sectionKey="purchaseInfo">
         <div className="space-y-1">
-          <EditableDataRow label="Purchase Date" value={property.purchaseDate} editable field="purchaseDate" type="date" />
+          <EditableDataRow label="Purchase Date" value={formatDateOnly(property.purchaseDate)} editable field="purchaseDate" type="date" />
           <EditableDataRow 
             label="Purchase Price" 
             value={`$${(property.purchasePrice || 0).toLocaleString()}`} 
@@ -674,7 +699,7 @@ function PropertyCard({ property, onUpdate }) {
             type="number" 
           />
           <EditableDataRow 
-            label="Total Investment (Cash)" 
+            label="Total Purchase Cost" 
             value={`$${(((property.purchasePrice || 0) - (property.mortgage?.originalAmount || 0)) + (property.closingCosts || 0) + (property.initialRenovations || 0)).toLocaleString()}`} 
           />
           <EditableDataRow 
@@ -693,13 +718,22 @@ function PropertyCard({ property, onUpdate }) {
 
       <Section title="Mortgage Details" sectionKey="mortgageDetails">
         <div className="space-y-1">
-          <EditableDataRow label="Lender" value={property.mortgage?.lender} editable field="mortgage.lender" />
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              <strong>Note:</strong> Mortgage information can be edited on the{" "}
+              <a 
+                href="/mortgages" 
+                className="underline font-semibold hover:text-blue-900 dark:hover:text-blue-100"
+              >
+                Mortgages page
+              </a>
+              .
+            </p>
+          </div>
+          <EditableDataRow label="Lender" value={property.mortgage?.lender} />
           <EditableDataRow 
             label="Original Amount" 
             value={`$${(property.mortgage?.originalAmount || 0).toLocaleString()}`} 
-            editable 
-            field="mortgage.originalAmount" 
-            type="number" 
           />
           <EditableDataRow 
             label="Interest Rate" 
@@ -709,43 +743,56 @@ function PropertyCard({ property, onUpdate }) {
           <EditableDataRow 
             label="Amortization (Years)" 
             value={property.mortgage?.amortizationYears?.toFixed(1)} 
-            editable 
-            field="mortgage.amortizationYears" 
-            type="number" 
           />
           <EditableDataRow label="Term (Months)" value={property.mortgage?.termMonths} />
           <EditableDataRow label="Payment Frequency" value={property.mortgage?.paymentFrequency} />
-          <EditableDataRow label="Start Date" value={property.mortgage?.startDate} />
+          <EditableDataRow label="Start Date" value={formatDateOnly(property.mortgage?.startDate)} />
         </div>
       </Section>
 
       <Section title="Income & Expenses" sectionKey="incomeExpenses">
         <div className="space-y-1">
-          {/* View Toggle */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-              <button
-                onClick={() => setExpenseView('monthly')}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  expenseView === 'monthly'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setExpenseView('annual')}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  expenseView === 'annual'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Annual
-              </button>
+          {/* Note about annual expenses */}
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              <strong>Note:</strong> Expenses incurred annually are averaged out over the year.
+            </p>
+          </div>
+          {/* View Toggle and Add Expense Button */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
+              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                <button
+                  onClick={() => setExpenseView('monthly')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    expenseView === 'monthly'
+                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setExpenseView('annual')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    expenseView === 'annual'
+                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Annual
+                </button>
+              </div>
             </div>
+            <button
+              onClick={() => onAddExpense && onAddExpense(property)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-[#205A3E] text-white rounded-lg hover:bg-[#1a4a32] transition-colors"
+              title="Add expense"
+            >
+              <Plus className="w-4 h-4" />
+              Add Expense
+            </button>
           </div>
 
           {/* Historical Data Toggle */}
@@ -927,46 +974,94 @@ function PropertyCard({ property, onUpdate }) {
 
       <Section title="Tenant Information" sectionKey="tenantInfo">
         <div className="space-y-1">
-          {/* View Toggle */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-              <button
-                onClick={() => setTenantView('current')}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  tenantView === 'current'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Current
-              </button>
-              <button
-                onClick={() => setTenantView('all')}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  tenantView === 'all'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Tenant History
-              </button>
+          {/* View Toggle and Add Tenant Button */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
+              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                <button
+                  onClick={() => setTenantView('current')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    tenantView === 'current'
+                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Current
+                </button>
+                <button
+                  onClick={() => setTenantView('all')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    tenantView === 'all'
+                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Tenant History
+                </button>
+              </div>
             </div>
+            <button
+              onClick={() => onAddTenant && onAddTenant(property)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-[#205A3E] text-white rounded-lg hover:bg-[#1a4a32] transition-colors"
+              title="Add tenant"
+            >
+              <Plus className="w-4 h-4" />
+              Add Tenant
+            </button>
           </div>
 
           {tenantView === 'current' ? (
             /* Current Tenant */
             <>
-              <EditableDataRow label="Tenant Name" value={property.tenant?.name || property.tenants?.find(t => t.status === 'Active')?.name || 'N/A'} />
-              <EditableDataRow label="Unit" value={property.tenants?.find(t => t.status === 'Active')?.unit || 'N/A'} />
-              <EditableDataRow label="Lease Start Date" value={property.tenant?.leaseStartDate || property.tenants?.find(t => t.status === 'Active')?.leaseStart || 'N/A'} />
-              <EditableDataRow label="Lease End Date" value={property.tenant?.leaseEndDate || property.tenants?.find(t => t.status === 'Active')?.leaseEnd || 'N/A'} />
-              <EditableDataRow 
-                label="Monthly Rent" 
-                value={`$${(property.tenant?.rent || property.tenants?.find(t => t.status === 'Active')?.rent || 0).toLocaleString()}`} 
-              />
-              <EditableDataRow label="Key Deposit" value="" />
-              <EditableDataRow label="Status" value={property.tenant?.status || property.tenants?.find(t => t.status === 'Active')?.status || 'N/A'} />
+              {(() => {
+                const activeTenant = property.tenants?.find(t => t.status === 'Active') || property.tenant;
+                const tenantIndex = property.tenants?.findIndex(t => t.status === 'Active') ?? 0;
+                return (
+                  <>
+                    <EditableDataRow 
+                      label="Tenant Name" 
+                      value={activeTenant?.name || 'N/A'} 
+                      editable 
+                      field={`tenants.${tenantIndex}.name`}
+                    />
+                    <EditableDataRow 
+                      label="Unit" 
+                      value={activeTenant?.unit || 'N/A'} 
+                      editable 
+                      field={`tenants.${tenantIndex}.unit`}
+                    />
+                    <EditableDataRow 
+                      label="Lease Start Date" 
+                      value={activeTenant?.leaseStartDate || activeTenant?.leaseStart || 'N/A'} 
+                      editable 
+                      field={`tenants.${tenantIndex}.leaseStart`}
+                      type="date"
+                    />
+                    <EditableDataRow 
+                      label="Lease End Date" 
+                      value={activeTenant?.leaseEndDate || activeTenant?.leaseEnd || 'N/A'} 
+                      editable 
+                      field={`tenants.${tenantIndex}.leaseEnd`}
+                      type="date"
+                    />
+                    <EditableDataRow 
+                      label="Monthly Rent" 
+                      value={`$${(activeTenant?.rent || 0).toLocaleString()}`} 
+                      editable 
+                      field={`tenants.${tenantIndex}.rent`}
+                      type="number"
+                    />
+                    <EditableDataRow label="Key Deposit" value="" />
+                    <EditableDataRow 
+                      label="Status" 
+                      value={activeTenant?.status || 'N/A'} 
+                      editable 
+                      field={`tenants.${tenantIndex}.status`}
+                    />
+                  </>
+                );
+              })()}
             </>
           ) : (
             /* All Tenants */
@@ -985,15 +1080,59 @@ function PropertyCard({ property, onUpdate }) {
                           {tenant.status}
                         </span>
                       </div>
-                      <EditableDataRow label="Name" value={tenant.name} />
-                      <EditableDataRow label="Unit" value={tenant.unit} />
-                      <EditableDataRow label="Lease Start" value={tenant.leaseStart} />
-                      <EditableDataRow label="Lease End" value={tenant.leaseEnd} />
+                      <EditableDataRow 
+                        label="Name" 
+                        value={tenant.name} 
+                        editable 
+                        field={`tenants.${index}.name`}
+                      />
+                      <EditableDataRow 
+                        label="Unit" 
+                        value={tenant.unit} 
+                        editable 
+                        field={`tenants.${index}.unit`}
+                      />
+                      <EditableDataRow 
+                        label="Lease Start" 
+                        value={tenant.leaseStart} 
+                        editable 
+                        field={`tenants.${index}.leaseStart`}
+                        type="date"
+                      />
+                      <EditableDataRow 
+                        label="Lease End" 
+                        value={tenant.leaseEnd} 
+                        editable 
+                        field={`tenants.${index}.leaseEnd`}
+                        type="date"
+                      />
                       <EditableDataRow 
                         label="Monthly Rent" 
                         value={`$${(tenant.rent || 0).toLocaleString()}`} 
+                        editable 
+                        field={`tenants.${index}.rent`}
+                        type="number"
                       />
                       <EditableDataRow label="Key Deposit" value="" />
+                      <div className="flex justify-end mt-2">
+                        <button
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to remove ${tenant.name || 'this tenant'}?`)) {
+                              const updatedTenants = property.tenants.filter((_, idx) => idx !== index);
+                              const updatedProperty = {
+                                ...property,
+                                tenants: updatedTenants
+                              };
+                              onUpdate(property.id, updatedProperty);
+                            }
+                          }}
+                          className="px-3 py-1 text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors flex items-center gap-1"
+                          title="Remove tenant"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Remove</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1029,147 +1168,58 @@ export default function DataPage() {
   const { user } = useAuth();
   const properties = useProperties(); // Get properties from context
   const { updateProperty } = usePropertyContext();
+  const { currentAccountId, refreshAccounts } = useAccount();
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ processed: 0, total: 0 });
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [selectedPropertyForExpense, setSelectedPropertyForExpense] = useState(null);
+  const [showAddTenantModal, setShowAddTenantModal] = useState(false);
+  const [selectedPropertyForTenant, setSelectedPropertyForTenant] = useState(null);
 
-  const handlePropertyUpdate = (propertyId, updatedData) => {
+  const handlePropertyUpdate = async (propertyId, updatedData) => {
     try {
-      updateProperty(propertyId, updatedData);
-      addToast("Property updated successfully!", { type: "success" });
+      // Prepare the data for the API - map frontend structure to API schema
+      const apiData = {
+        nickname: updatedData.name || updatedData.nickname,
+        address: updatedData.address,
+        purchasePrice: updatedData.purchasePrice,
+        purchaseDate: updatedData.purchaseDate,
+        closingCosts: updatedData.closingCosts,
+        renovationCosts: updatedData.renovationCosts,
+        initialRenovations: updatedData.initialRenovations,
+        currentMarketValue: updatedData.currentMarketValue || updatedData.currentValue,
+        yearBuilt: updatedData.yearBuilt,
+        propertyType: updatedData.propertyType || updatedData.type,
+        size: updatedData.size || updatedData.squareFootage,
+        unitConfig: updatedData.unitConfig,
+        propertyData: {
+          rent: updatedData.rent,
+          mortgage: updatedData.mortgage,
+          monthlyExpenses: updatedData.monthlyExpenses,
+          tenants: updatedData.tenants,
+          expenseHistory: updatedData.expenseHistory,
+          bedrooms: updatedData.bedrooms,
+          bathrooms: updatedData.bathrooms,
+          // Include any other nested data
+          ...(updatedData.propertyData || {})
+        }
+      };
+
+      // Save to API
+      const response = await apiClient.updateProperty(propertyId, apiData);
+      
+      if (response.success) {
+        // Update local state after successful API call
+        updateProperty(propertyId, updatedData);
+        addToast("Property updated successfully!", { type: "success" });
+      } else {
+        throw new Error(response.error || "Failed to update property");
+      }
     } catch (error) {
       console.error("Failed to update property", error);
-      addToast("Failed to update property. Please try again.", { type: "error" });
+      addToast(`Failed to update property: ${error.message}`, { type: "error" });
     }
   };
 
-  // Excel Template Download
-  function downloadTemplate() {
-    const templateData = [
-      {
-        name: "Property Name",
-        address: "Street Address",
-        city: "City",
-        state: "State/Province",
-        zipCode: "ZIP/Postal Code",
-        propertyType: "Property Type",
-        units: "Number of Units",
-        squareFootage: "Square Footage",
-        yearBuilt: "Year Built",
-        bedrooms: "Bedrooms",
-        bathrooms: "Bathrooms",
-        purchaseDate: "Purchase Date",
-        closingDate: "Closing Date",
-        purchasePrice: "Purchase Price",
-        downPayment: "Down Payment",
-        closingCosts: "Closing Costs",
-        renovationCosts: "Renovation Costs",
-        otherCosts: "Other Costs",
-        lender: "Lender",
-        loanAmount: "Loan Amount",
-        interestRate: "Interest Rate (%)",
-        loanTerm: "Loan Term (years)",
-        monthlyPayment: "Monthly Payment",
-        remainingBalance: "Remaining Balance",
-        nextPaymentDate: "Next Payment Date",
-        monthlyRent: "Monthly Rent",
-        propertyTax: "Property Tax (monthly)",
-        insurance: "Insurance (monthly)",
-        utilities: "Utilities (monthly)",
-        maintenance: "Maintenance (monthly)",
-        propertyManagement: "Property Management (monthly)",
-        hoaFees: "HOA Fees (monthly)",
-        currentValue: "Current Market Value",
-        lastAppraisalDate: "Last Appraisal Date"
-      }
-    ];
-
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Property Template");
-    
-    XLSX.writeFile(wb, "property_data_template.xlsx");
-    addToast("Template downloaded successfully!", { type: "success" });
-  }
-
-  // Excel File Upload and Processing
-  async function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      addToast("Please upload an Excel file (.xlsx or .xls)", { type: "error" });
-      return;
-    }
-
-    setUploading(true);
-    setUploadProgress({ processed: 0, total: 0 });
-
-    try {
-      const data = await readExcelFile(file);
-      await processExcelData(data);
-    } catch (error) {
-      addToast("Failed to process Excel file: " + error.message, { type: "error" });
-    } finally {
-      setUploading(false);
-      setUploadProgress({ processed: 0, total: 0 });
-      event.target.value = ''; // Reset file input
-    }
-  }
-
-  function readExcelFile(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          
-          // Remove header row and convert to objects
-          const headers = jsonData[0];
-          const rows = jsonData.slice(1);
-          const properties = rows.map(row => {
-            const property = {};
-            headers.forEach((header, index) => {
-              if (header && row[index] !== undefined) {
-                property[header] = row[index];
-              }
-            });
-            return property;
-          });
-          
-          resolve(properties);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
-  }
-
-  async function processExcelData(properties) {
-    setUploadProgress({ processed: 0, total: properties.length });
-    
-    for (let i = 0; i < properties.length; i++) {
-      const property = properties[i];
-      
-      try {
-        // Mock Firestore save - replace with actual implementation
-        await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API call
-        
-        setUploadProgress({ processed: i + 1, total: properties.length });
-      } catch (error) {
-        addToast(`Failed to save property ${property.name || 'Unknown'}: ${error.message}`, { type: "error" });
-      }
-    }
-    
-    addToast(`Successfully processed ${properties.length} properties!`, { type: "success" });
-    setIsExcelModalOpen(false);
-  }
 
   return (
     <RequireAuth>
@@ -1188,8 +1238,8 @@ export default function DataPage() {
               onClick={() => setIsExcelModalOpen(true)}
               className="flex items-center gap-2"
             >
-              <Upload className="w-4 h-4" />
-              Import / Export via Excel
+              <Download className="w-4 h-4" />
+              Export to Excel
             </Button>
           </div>
 
@@ -1201,24 +1251,39 @@ export default function DataPage() {
                   key={property.id}
                   property={property}
                   onUpdate={handlePropertyUpdate}
+                  onAddExpense={(property) => {
+                    setSelectedPropertyForExpense(property);
+                    setShowAddExpenseModal(true);
+                  }}
+                  onAddTenant={(property) => {
+                    setSelectedPropertyForTenant(property);
+                    setShowAddTenantModal(true);
+                  }}
                 />
               ))}
             </div>
           ) : (
             <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-              <p className="text-gray-600 dark:text-gray-400">
-                No properties found. Import properties using Excel or add them manually.
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                No properties found. Add properties on the My Properties page.
               </p>
+              <Button
+                onClick={() => window.location.href = '/my-properties'}
+                className="flex items-center gap-2 mx-auto"
+              >
+                <Plus className="w-4 h-4" />
+                Go to My Properties
+              </Button>
             </div>
           )}
 
-          {/* Excel Workflow Modal */}
+          {/* Excel Export Modal */}
           {isExcelModalOpen && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white dark:bg-gray-900 rounded-lg p-6 w-full max-w-md mx-4">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                    Import / Export via Excel
+                    Export to Excel
                   </h2>
                   <button
                     onClick={() => setIsExcelModalOpen(false)}
@@ -1229,77 +1294,384 @@ export default function DataPage() {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Step 1: Download Template */}
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Step 1: Download Template</h3>
+                    <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Export Property Data</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      Download the Excel template with all required fields to ensure proper data formatting.
+                      Download your property data as an Excel file. To add new properties, please use the My Properties page.
                     </p>
                     <Button
                       type="button"
-                      onClick={downloadTemplate}
+                      onClick={() => {
+                        // Export current properties to Excel
+                        const exportData = properties.map(property => ({
+                          name: property.name || property.nickname,
+                          address: property.address,
+                          propertyType: property.propertyType || property.type,
+                          purchasePrice: property.purchasePrice,
+                          purchaseDate: property.purchaseDate,
+                          currentMarketValue: property.currentMarketValue || property.currentValue,
+                          yearBuilt: property.yearBuilt,
+                          size: property.size || property.squareFootage,
+                          unitConfig: property.unitConfig,
+                          monthlyRent: property.rent?.monthlyRent || 0,
+                          // Add other fields as needed
+                        }));
+
+                        const ws = XLSX.utils.json_to_sheet(exportData);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "Properties");
+                        XLSX.writeFile(wb, `property_data_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+                        addToast("Property data exported successfully!", { type: "success" });
+                        setIsExcelModalOpen(false);
+                      }}
                       className="flex items-center gap-2 w-full"
                     >
                       <Download className="w-4 h-4" />
-                      Download Template
+                      Export Properties
                     </Button>
                   </div>
 
-                  {/* Step 2: Upload File */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Step 2: Upload File</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      Upload your completed Excel file to import property data.
-                    </p>
-                    
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls"
-                      onChange={handleFileUpload}
-                      className="block w-full text-sm text-gray-500 dark:text-gray-400
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded-md file:border-0
-                        file:text-sm file:font-medium
-                        file:bg-[#205A3E] file:text-white
-                        hover:file:bg-[#1a4a33]
-                        file:cursor-pointer
-                        cursor-pointer"
-                      disabled={uploading}
-                    />
-
-                    {uploading && (
-                      <div className="mt-4">
-                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          <span>Processing...</span>
-                          <span>{uploadProgress.processed} / {uploadProgress.total}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div
-                            className="bg-[#205A3E] h-2 rounded-full transition-all duration-300"
-                            style={{
-                              width: uploadProgress.total > 0 
-                                ? `${(uploadProgress.processed / uploadProgress.total) * 100}%` 
-                                : '0%'
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    <p>• Supported formats: .xlsx, .xls</p>
-                    <p>• Maximum file size: 10MB</p>
-                    <p>• First row should contain column headers</p>
+                    <p>• Exports all current property data</p>
+                    <p>• File will be downloaded to your device</p>
+                    <p>• To add new properties, visit the My Properties page</p>
                   </div>
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Add Expense Modal */}
+          {showAddExpenseModal && selectedPropertyForExpense && (
+            <AddExpenseModal
+              property={selectedPropertyForExpense}
+              onClose={() => {
+                setShowAddExpenseModal(false);
+                setSelectedPropertyForExpense(null);
+              }}
+              onSave={async (expenseData) => {
+                try {
+                  const response = await apiClient.createExpense(selectedPropertyForExpense.id, expenseData);
+                  if (response.success) {
+                    addToast("Expense added successfully!", { type: "success" });
+                    // Refresh properties to show new expense
+                    await refreshAccounts();
+                    setShowAddExpenseModal(false);
+                    setSelectedPropertyForExpense(null);
+                  } else {
+                    throw new Error(response.error || "Failed to add expense");
+                  }
+                } catch (error) {
+                  console.error("Error adding expense:", error);
+                  addToast(error.message || "Failed to add expense", { type: "error" });
+                }
+              }}
+            />
+          )}
+
+          {/* Add Tenant Modal */}
+          {showAddTenantModal && selectedPropertyForTenant && (
+            <AddTenantModal
+              property={selectedPropertyForTenant}
+              onClose={() => {
+                setShowAddTenantModal(false);
+                setSelectedPropertyForTenant(null);
+              }}
+              onSave={async (tenantData) => {
+                try {
+                  // Add tenant to property's tenants array
+                  const updatedTenants = [
+                    ...(selectedPropertyForTenant.tenants || []),
+                    tenantData
+                  ];
+                  const updatedProperty = {
+                    ...selectedPropertyForTenant,
+                    tenants: updatedTenants
+                  };
+                  await handlePropertyUpdate(selectedPropertyForTenant.id, updatedProperty);
+                  setShowAddTenantModal(false);
+                  setSelectedPropertyForTenant(null);
+                } catch (error) {
+                  console.error("Error adding tenant:", error);
+                  addToast(error.message || "Failed to add tenant", { type: "error" });
+                }
+              }}
+            />
           )}
         </div>
       </Layout>
     </RequireAuth>
   );
 }
+
+// Add Expense Modal Component
+function AddExpenseModal({ property, onClose, onSave }) {
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    amount: '',
+    category: '',
+    description: ''
+  });
+
+  const expenseCategories = [
+    'Property Tax',
+    'Insurance',
+    'Maintenance',
+    'Repairs',
+    'Utilities',
+    'Professional Fees',
+    'Management',
+    'Advertising',
+    'Travel',
+    'Motor Vehicle',
+    'Condo Fees',
+    'Other'
+  ];
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      return;
+    }
+    onSave({
+      date: formData.date,
+      amount: parseFloat(formData.amount),
+      category: formData.category || null,
+      description: formData.description || null
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Add Expense - {property.name || property.nickname}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Date *
+            </label>
+            <input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              You can select any date, including past dates for historical expenses
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Amount *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.amount}
+              onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              placeholder="0.00"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Category
+            </label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            >
+              <option value="">Select category (optional)</option>
+              {expenseCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              placeholder="Optional description..."
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button variant="secondary" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              Add Expense
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Add Tenant Modal Component
+function AddTenantModal({ property, onClose, onSave }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    unit: '',
+    leaseStart: new Date().toISOString().split('T')[0],
+    leaseEnd: '',
+    rent: '',
+    status: 'Active'
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.rent) {
+      return;
+    }
+    onSave({
+      name: formData.name,
+      unit: formData.unit || null,
+      leaseStart: formData.leaseStart,
+      leaseEnd: formData.leaseEnd || 'Active',
+      rent: parseFloat(formData.rent) || 0,
+      status: formData.status
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Add Tenant - {property.name || property.nickname}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Tenant Name *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Unit
+            </label>
+            <input
+              type="text"
+              value={formData.unit}
+              onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              placeholder="Unit number or identifier"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Lease Start *
+              </label>
+              <input
+                type="date"
+                value={formData.leaseStart}
+                onChange={(e) => setFormData(prev => ({ ...prev, leaseStart: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Lease End
+              </label>
+              <input
+                type="date"
+                value={formData.leaseEnd}
+                onChange={(e) => setFormData(prev => ({ ...prev, leaseEnd: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="Leave empty for active"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Monthly Rent *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.rent}
+              onChange={(e) => setFormData(prev => ({ ...prev, rent: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              placeholder="0.00"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Past">Past</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button variant="secondary" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              Add Tenant
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 
 

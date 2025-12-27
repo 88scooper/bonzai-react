@@ -2,11 +2,11 @@
 
 import React, { useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronUp, Calendar, Edit2 } from 'lucide-react';
 import { formatCurrency, formatPercentage } from '@/utils/formatting';
 import { calculateAmortizationSchedule } from '@/utils/mortgageCalculator';
 
-const MortgageCardView = ({ mortgage }) => {
+const MortgageCardView = ({ mortgage, onEdit }) => {
   const [showAmortizationSchedule, setShowAmortizationSchedule] = useState(false);
   const [showMortgageDetails, setShowMortgageDetails] = useState(false);
   // Calculate mortgage data
@@ -133,11 +133,21 @@ const MortgageCardView = ({ mortgage }) => {
 
   return (
     <div className="space-y-6">
-      {/* Property Address */}
-      <div className="text-left">
+      {/* Property Address with Edit Button */}
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
           {mortgage.property?.address || mortgage.propertyName || 'Property Address'}
         </h2>
+        {onEdit && (
+          <button
+            onClick={() => onEdit(mortgage)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#205A3E] text-white rounded-lg hover:bg-[#1a4a32] transition-colors"
+            title="Edit mortgage"
+          >
+            <Edit2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Edit</span>
+          </button>
+        )}
       </div>
 
       {/* Top Summary Banner - Green Background */}
