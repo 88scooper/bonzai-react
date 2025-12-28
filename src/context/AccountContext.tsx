@@ -18,7 +18,7 @@ interface AccountContextType {
   properties: any[];
   loading: boolean;
   error: string | null;
-  switchAccount: (accountId: string) => Promise<void>;
+  switchAccount: (accountId: string, account?: Account) => Promise<void>;
   createNewAccount: (name?: string, email?: string) => Promise<Account>;
   deleteAccount: (accountId: string) => Promise<void>;
   updateAccountName: (accountId: string, name: string) => Promise<void>;
@@ -386,18 +386,18 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   }, [loadAccounts]);
 
   // Switch to a different account
-  const switchAccount = useCallback(async (accountId: string) => {
+  const switchAccount = useCallback(async (accountId: string, account?: Account) => {
     try {
       setError(null);
       
-      // Verify account exists
-      const account = accounts.find(a => a.id === accountId);
-      if (!account) {
+      // Use provided account or find it in the accounts array
+      const accountToSwitch = account || accounts.find(a => a.id === accountId);
+      if (!accountToSwitch) {
         throw new Error('Account not found');
       }
 
       setCurrentAccountId(accountId);
-      setCurrentAccount(account);
+      setCurrentAccount(accountToSwitch);
       
       // Save to localStorage for persistence
       if (typeof window !== 'undefined') {
@@ -431,11 +431,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data) {
         const newAccount = mapApiAccountToContext(response.data);
         
-        // Refresh accounts list
+        // Refresh accounts list to sync with server (includes the new account)
         await loadAccounts();
         
-        // Switch to new account
-        await switchAccount(newAccount.id);
+        // Switch to new account - pass the account object directly to avoid lookup timing issues
+        await switchAccount(newAccount.id, newAccount);
         
         return newAccount;
       } else {

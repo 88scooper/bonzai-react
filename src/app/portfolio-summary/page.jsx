@@ -4,6 +4,7 @@
 import Layout from "@/components/Layout.jsx";
 import { RequireAuth } from "@/context/AuthContext";
 import { useState, useRef, useEffect, useCallback } from "react";
+import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import { Settings, GripVertical, Building2, PiggyBank, FileSpreadsheet, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import {
   DndContext,
@@ -156,10 +157,13 @@ export default function PortfolioSummaryPage() {
 
   const [activePreset, setActivePreset] = useState(null);
 
+  // Check if onboarding step 5 should be shown as modal
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+
   // Default metrics configuration - Reordered according to new layout
   const defaultMetrics = [
     { id: 'portfolioValue', name: 'Total Estimated Portfolio Value', isVisible: true },
-    { id: 'equity', name: 'Annual Forecasted Equity', isVisible: true },
+    { id: 'equity', name: 'Forecasted Annual Equity', isVisible: true },
     { id: 'mortgageDebt', name: 'Monthly Debt Service', isVisible: true },
     { id: 'netOperatingIncome', name: 'Annual Net Operating Income', isVisible: true },
     { id: 'overallCapRate', name: 'Overall Cap Rate', isVisible: true },
@@ -196,6 +200,19 @@ export default function PortfolioSummaryPage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isSettingsOpen]);
+
+  // Check for onboarding step 5 on mount
+  useEffect(() => {
+    // Check if onboarding is in progress and we should show step 5
+    const onboardingInProgress = typeof window !== 'undefined' && 
+      sessionStorage.getItem('onboarding_in_progress') === 'true';
+    const shouldShowStep5 = typeof window !== 'undefined' && 
+      sessionStorage.getItem('onboarding_step_5') === 'true';
+    
+    if (onboardingInProgress && shouldShowStep5) {
+      setShowOnboardingModal(true);
+    }
+  }, []);
 
   // Initialize metrics from localStorage or use default
   useEffect(() => {
@@ -576,6 +593,18 @@ export default function PortfolioSummaryPage() {
   return (
     <RequireAuth>
       <Layout>
+        {/* Onboarding Wizard Modal for Step 5 */}
+        {showOnboardingModal && (
+          <OnboardingWizard 
+            onComplete={() => {
+              setShowOnboardingModal(false);
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('onboarding_in_progress');
+              }
+            }} 
+          />
+        )}
+        
         <div className="portfolio-summary-scale">
           <div className="space-y-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -724,7 +753,7 @@ export default function PortfolioSummaryPage() {
                     return (
                       <TopMetricCard
                         key={metric.id}
-                        title="Annual Forecasted Equity"
+                        title="Forecasted Annual Equity"
                         value={new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
@@ -861,7 +890,7 @@ export default function PortfolioSummaryPage() {
                     return (
                       <MetricCard
                         key={metric.id}
-                        title="Annual Forecasted Equity"
+                        title="Forecasted Annual Equity"
                         value={formatCurrency(annualEquityBuilt)}
                         showInfoIcon={true}
                         tooltipText="The projected equity you will earn this calendar year through principal payments and estimated property appreciation. This forecast helps you understand how your portfolio equity is growing over time."
