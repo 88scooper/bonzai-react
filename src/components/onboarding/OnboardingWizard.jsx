@@ -20,10 +20,20 @@ export default function OnboardingWizard({ onComplete }) {
   const { createNewAccount } = useAccount();
   const { addToast } = useToast();
 
+  const totalSteps = 5;
+
   // Mark onboarding as in progress when wizard mounts
   useEffect(() => {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('onboarding_in_progress', 'true');
+      // Check if we should restore a previous step (to prevent reset on remount)
+      const savedStep = sessionStorage.getItem('onboarding_current_step');
+      if (savedStep) {
+        const step = parseInt(savedStep, 10);
+        if (step > 1 && step <= totalSteps) {
+          setCurrentStep(step);
+        }
+      }
       // Check if we should show step 5 (when coming from portfolio page)
       const shouldShowStep5 = sessionStorage.getItem('onboarding_step_5') === 'true';
       if (shouldShowStep5) {
@@ -31,9 +41,28 @@ export default function OnboardingWizard({ onComplete }) {
         sessionStorage.removeItem('onboarding_step_5');
       }
     }
-  }, []);
+  }, [totalSteps]);
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() => {
+    // Initialize from sessionStorage if available (to persist across remounts)
+    if (typeof window !== 'undefined') {
+      const savedStep = sessionStorage.getItem('onboarding_current_step');
+      if (savedStep) {
+        const step = parseInt(savedStep, 10);
+        if (step > 1 && step <= 5) {
+          return step;
+        }
+      }
+    }
+    return 1;
+  });
+  
+  // Save current step to sessionStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && currentStep > 1) {
+      sessionStorage.setItem('onboarding_current_step', currentStep.toString());
+    }
+  }, [currentStep]);
   const [loading, setLoading] = useState(false);
   const [accountId, setAccountId] = useState(null);
   const [accountName, setAccountName] = useState(user?.email?.split('@')[0] || 'My Account');
@@ -47,8 +76,6 @@ export default function OnboardingWizard({ onComplete }) {
   const [mortgageAdded, setMortgageAdded] = useState(false);
   const [tenantAdded, setTenantAdded] = useState(false);
   const [expenseAdded, setExpenseAdded] = useState(false);
-
-  const totalSteps = 5;
 
   // Step 1: Create Account
   const handleCreateAccount = async () => {
@@ -65,13 +92,27 @@ export default function OnboardingWizard({ onComplete }) {
     setLoading(true);
     try {
       const account = await createNewAccount(accountName, accountEmail);
-      setAccountId(account.id);
-      // Note: createNewAccount already calls loadAccounts() internally, so we don't need refreshAccounts()
-      setCurrentStep(2);
-      addToast("Account created successfully!", { type: "success" });
+      if (account && account.id) {
+        setAccountId(account.id);
+        // Save step to sessionStorage immediately to prevent reset on remount
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('onboarding_current_step', '2');
+        }
+        // Use setTimeout to ensure state updates complete before changing step
+        // This prevents race conditions with the onboarding page re-rendering
+        setTimeout(() => {
+          setCurrentStep(2);
+          console.log('Advanced to step 2');
+        }, 0);
+        addToast("Account created successfully!", { type: "success" });
+      } else {
+        throw new Error("Account creation succeeded but no account ID was returned");
+      }
     } catch (error) {
       console.error("Error creating account:", error);
-      addToast(error.message || "Failed to create account", { type: "error" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to create account";
+      addToast(errorMessage, { type: "error" });
+      // Don't advance to step 2 if there's an error
     } finally {
       setLoading(false);
     }
@@ -166,6 +207,11 @@ export default function OnboardingWizard({ onComplete }) {
 
   // Step 4: Complete onboarding (skip financial data)
   const handleComplete = () => {
+    // Clear saved step when completing
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('onboarding_current_step');
+      sessionStorage.removeItem('onboarding_in_progress');
+    }
     if (onComplete) {
       onComplete();
     }

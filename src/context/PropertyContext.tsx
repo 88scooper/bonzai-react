@@ -399,8 +399,9 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const { properties: accountProperties, saveProperties } = useAccount();
   
   const [propertiesState, setPropertiesState] = useState<Property[]>(() => {
-    // Use account properties if available, otherwise fall back to default properties
-    const initialProperties = (accountProperties && accountProperties.length > 0) 
+    // Use account properties if defined (even if empty array for new accounts)
+    // Only fall back to default properties if accountProperties is undefined/null (not loaded yet)
+    const initialProperties = (accountProperties !== undefined && accountProperties !== null)
       ? accountProperties 
       : (getAllProperties() as unknown as Property[]);
     return initialProperties.map((property) => preparePropertyData(property));
@@ -409,8 +410,9 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
   
   // Update properties when account properties change
   useEffect(() => {
-    // Use account properties if available, otherwise fall back to default properties
-    const initialProperties = (accountProperties && accountProperties.length > 0) 
+    // Use account properties if defined (even if empty array for new accounts)
+    // Only fall back to default properties if accountProperties is undefined/null (not loaded yet)
+    const initialProperties = (accountProperties !== undefined && accountProperties !== null)
       ? accountProperties 
       : (getAllProperties() as unknown as Property[]);
     

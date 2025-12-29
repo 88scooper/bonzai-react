@@ -29,39 +29,11 @@ export const MortgageProvider = ({ children }) => {
     }
 
     if (!db) {
-      // Provide mock data when Firebase is not available - Updated with real data from CSV
-      setMortgages([
-        {
-          id: 'mock-mortgage-1',
-          lenderName: 'Lender 1',
-          propertyId: 'first-st-1',
-          originalAmount: 400000,
-          interestRate: 2.5,
-          rateType: 'FIXED',
-          amortizationPeriodYears: 30,
-          termYears: 5,
-          startDate: new Date('2021-01-01'),
-          paymentFrequency: 'MONTHLY',
-          createdAt: new Date('2021-01-01'),
-          updatedAt: new Date('2021-01-01')
-        },
-        {
-          id: 'mock-mortgage-2',
-          lenderName: 'Lender 2',
-          propertyId: 'second-dr-1',
-          originalAmount: 400000,
-          interestRate: 2.5,
-          rateType: 'FIXED',
-          amortizationPeriodYears: 30,
-          termYears: 5,
-          startDate: new Date('2021-01-01'),
-          paymentFrequency: 'MONTHLY',
-          createdAt: new Date('2021-01-01'),
-          updatedAt: new Date('2021-01-01')
-        }
-      ]);
+      // Don't load mock data - new accounts should start empty
+      // Mortgages are now loaded through AccountContext via API
+      setMortgages([]);
       setLoading(false);
-      setError(null); // Clear error to prevent display issues
+      setError(null);
       return;
     }
 
