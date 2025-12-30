@@ -100,7 +100,18 @@ class ApiClient {
 
       return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      // Handle network errors (fetch fails before getting a response)
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        // Don't log during build time (SSR)
+        if (typeof window !== 'undefined') {
+          console.warn('API request failed - network error:', url);
+        }
+        throw new Error('Network error: Unable to reach server. Please check your connection.');
+      }
+      // Re-throw other errors as-is
+      if (typeof window !== 'undefined') {
+        console.error('API request failed:', error);
+      }
       throw error;
     }
   }
@@ -275,7 +286,43 @@ class ApiClient {
 
   // Mortgage methods
   async getMortgage(propertyId: string) {
-    return this.request<any>(`/properties/${propertyId}/mortgage`);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/properties/${propertyId}/mortgage`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(this.getToken() ? { Authorization: `Bearer ${this.getToken()}` } : {}),
+          },
+        }
+      );
+
+      // Handle 404 gracefully - it's normal for properties to not have mortgages
+      if (response.status === 404) {
+        return {
+          success: false,
+          error: 'Mortgage not found',
+          data: null,
+        };
+      }
+
+      // For other responses, use the standard request method
+      return await this.request<any>(`/properties/${propertyId}/mortgage`);
+    } catch (error) {
+      // Handle "Mortgage not found" gracefully - it's normal for properties to not have mortgages
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Mortgage not found') || errorMessage.includes('404')) {
+        // Return a response indicating no mortgage found, rather than throwing
+        return {
+          success: false,
+          error: 'Mortgage not found',
+          data: null,
+        };
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async saveMortgage(propertyId: string, data: any) {

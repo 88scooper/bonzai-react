@@ -17,7 +17,7 @@ import { downloadPropertyTemplate } from "@/lib/excel-template";
 export default function OnboardingWizard({ onComplete }) {
   const router = useRouter();
   const { user } = useAuth();
-  const { createNewAccount } = useAccount();
+  const { createNewAccount, currentAccountId, accounts } = useAccount();
   const { addToast } = useToast();
 
   const totalSteps = 5;
@@ -63,8 +63,16 @@ export default function OnboardingWizard({ onComplete }) {
       sessionStorage.setItem('onboarding_current_step', currentStep.toString());
     }
   }, [currentStep]);
+
   const [loading, setLoading] = useState(false);
   const [accountId, setAccountId] = useState(null);
+
+  // Load account ID when resuming onboarding (if we're past step 1 and have a current account)
+  useEffect(() => {
+    if (currentStep > 1 && currentAccountId && !accountId) {
+      setAccountId(currentAccountId);
+    }
+  }, [currentStep, currentAccountId, accountId]);
   const [accountName, setAccountName] = useState(user?.email?.split('@')[0] || 'My Account');
   const [accountEmail, setAccountEmail] = useState(user?.email || '');
   const [uploadMethod, setUploadMethod] = useState(null); // 'file' | 'manual' | null

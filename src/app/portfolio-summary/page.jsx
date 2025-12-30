@@ -5,7 +5,7 @@ import Layout from "@/components/Layout.jsx";
 import { RequireAuth } from "@/context/AuthContext";
 import { useState, useRef, useEffect, useCallback } from "react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
-import { Settings, GripVertical, Building2, PiggyBank, FileSpreadsheet, BarChart3, PieChart as PieChartIcon } from "lucide-react";
+import { Settings, GripVertical, Building2, PiggyBank, FileSpreadsheet, BarChart3, PieChart as PieChartIcon, X } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -159,6 +159,10 @@ export default function PortfolioSummaryPage() {
 
   // Check if onboarding step 5 should be shown as modal
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  
+  // Check if onboarding is incomplete
+  const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
+  const [incompleteOnboardingStep, setIncompleteOnboardingStep] = useState(null);
 
   // Default metrics configuration - Reordered according to new layout
   const defaultMetrics = [
@@ -213,6 +217,65 @@ export default function PortfolioSummaryPage() {
       setShowOnboardingModal(true);
     }
   }, []);
+
+  // Check if onboarding is incomplete and show prompt
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Check if there's a saved onboarding step (user partially completed onboarding)
+    const savedStep = sessionStorage.getItem('onboarding_current_step');
+    const onboardingInProgress = sessionStorage.getItem('onboarding_in_progress') === 'true';
+    
+    // Check if all properties have complete financial data
+    const hasIncompleteProperties = properties && properties.length > 0 && properties.some(property => {
+      // Check if property is missing mortgage, tenant, or expenses
+      const hasMortgage = property.mortgage && property.mortgage.lender && property.mortgage.originalAmount > 0;
+      const hasTenant = property.tenant && property.tenant.name && property.tenant.rent > 0;
+      const hasExpenses = property.monthlyExpenses && (
+        property.monthlyExpenses.propertyTax > 0 ||
+        property.monthlyExpenses.condoFees > 0 ||
+        property.monthlyExpenses.insurance > 0 ||
+        property.monthlyExpenses.maintenance > 0 ||
+        property.monthlyExpenses.professionalFees > 0 ||
+        property.monthlyExpenses.utilities > 0 ||
+        property.monthlyExpenses.other > 0
+      );
+      
+      // Property is incomplete if it's missing any of these
+      return !hasMortgage || !hasTenant || !hasExpenses;
+    });
+    
+    // Show prompt if:
+    // 1. There's a saved step (user was in the middle of onboarding), OR
+    // 2. There are properties but they don't have complete financial data
+    if (!showOnboardingModal) {
+      if (savedStep) {
+        const step = parseInt(savedStep, 10);
+        // Show prompt if step is between 1 and 5 (incomplete onboarding)
+        if (step >= 1 && step < 5) {
+          setIncompleteOnboardingStep(step);
+          setShowOnboardingPrompt(true);
+        } else if (step === 5 && (onboardingInProgress || hasIncompleteProperties)) {
+          // Step 5 is the last step, show if still in progress or properties incomplete
+          setIncompleteOnboardingStep(step);
+          setShowOnboardingPrompt(true);
+        } else if (hasIncompleteProperties) {
+          // Even if step 5 is saved but onboarding not in progress, show if properties incomplete
+          setIncompleteOnboardingStep(5);
+          setShowOnboardingPrompt(true);
+        } else {
+          setShowOnboardingPrompt(false);
+        }
+      } else if (hasIncompleteProperties) {
+        // No saved step but properties are incomplete - show prompt to complete financial data
+        setIncompleteOnboardingStep(5);
+        setShowOnboardingPrompt(true);
+      } else {
+        // No saved step and all properties complete - hide prompt
+        setShowOnboardingPrompt(false);
+      }
+    }
+  }, [showOnboardingModal, properties]);
 
   // Initialize metrics from localStorage or use default
   useEffect(() => {
@@ -598,11 +661,66 @@ export default function PortfolioSummaryPage() {
           <OnboardingWizard 
             onComplete={() => {
               setShowOnboardingModal(false);
+              setShowOnboardingPrompt(false);
               if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('onboarding_in_progress');
+                sessionStorage.removeItem('onboarding_current_step');
               }
             }} 
           />
+        )}
+        
+        {/* Onboarding Incomplete Prompt */}
+        {showOnboardingPrompt && !showOnboardingModal && (
+          <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                  Complete Your Onboarding
+                </h3>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
+                  You've partially completed the onboarding process. Would you like to continue where you left off?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowOnboardingModal(true);
+                      setShowOnboardingPrompt(false);
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+                  >
+                    Resume Onboarding
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowOnboardingPrompt(false);
+                      // Clear onboarding flags if user dismisses
+                      if (typeof window !== 'undefined') {
+                        sessionStorage.removeItem('onboarding_in_progress');
+                        sessionStorage.removeItem('onboarding_current_step');
+                      }
+                    }}
+                    className="px-4 py-2 bg-transparent hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-md border border-blue-300 dark:border-blue-700 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowOnboardingPrompt(false);
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('onboarding_in_progress');
+                    sessionStorage.removeItem('onboarding_current_step');
+                  }
+                }}
+                className="ml-4 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
         )}
         
         <div className="portfolio-summary-scale">

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import apiClient from '@/lib/api-client';
+import { useAuth } from '@/context/AuthContext';
 
 export interface Account {
   id: string;
@@ -46,22 +47,30 @@ function mapApiAccountToContext(apiAccount: any): Account {
 }
 
 export function AccountProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
   const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start as false, will be set to true when needed
   const [error, setError] = useState<string | null>(null);
 
   // Load accounts from API
   const loadAccounts = useCallback(async () => {
+    // Don't make API calls during SSR/build
+    if (typeof window === 'undefined') {
+      setLoading(false);
+      return;
+    }
+    
     if (!isAuthenticated()) {
       setLoading(false);
-      setError('Not authenticated. Please log in.');
+      setError(null); // Don't set error for unauthenticated users on initial load
       return;
     }
 
     try {
+      setLoading(true);
       setError(null);
       const response = await apiClient.getAccounts(1, 100); // Get first 100 accounts
       
@@ -79,18 +88,56 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             ? localStorage.getItem('current_account_id') 
             : null;
           
-          const accountToUse = mappedAccounts.find(a => a.id === savedId) || mappedAccounts[0];
+          let accountToUse: Account | undefined;
+          
+          // For cooper.stuartc@gmail.com, always prefer "SC Properties" as default
+          if (user?.email === 'cooper.stuartc@gmail.com') {
+            const scPropertiesAccount = mappedAccounts.find(a => 
+              a.name === 'SC Properties' || a.name?.toLowerCase().includes('sc properties')
+            );
+            if (scPropertiesAccount) {
+              accountToUse = scPropertiesAccount;
+            }
+          }
+          
+          // Fallback to saved account or first account
+          if (!accountToUse) {
+            accountToUse = mappedAccounts.find(a => a.id === savedId) || mappedAccounts[0];
+          }
+          
           setCurrentAccountId(accountToUse.id);
           setCurrentAccount(accountToUse);
           
           if (typeof window !== 'undefined') {
             localStorage.setItem('current_account_id', accountToUse.id);
           }
+        } else if (currentAccountId && user?.email === 'cooper.stuartc@gmail.com') {
+          // If account is already set but user is cooper.stuartc@gmail.com,
+          // check if we should switch to SC Properties
+          const scPropertiesAccount = mappedAccounts.find(a => 
+            (a.name === 'SC Properties' || a.name?.toLowerCase().includes('sc properties')) &&
+            a.id !== currentAccountId
+          );
+          if (scPropertiesAccount) {
+            // Switch to SC Properties if it exists and is different from current
+            setCurrentAccountId(scPropertiesAccount.id);
+            setCurrentAccount(scPropertiesAccount);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('current_account_id', scPropertiesAccount.id);
+            }
+          }
         }
       }
     } catch (err) {
-      console.error('Error loading accounts:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load accounts');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load accounts';
+      // Only log network errors, don't set error state (to avoid breaking UI)
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
+        console.warn('Network error loading accounts (API may be unavailable):', err);
+        // Keep existing accounts if available, don't clear them
+      } else {
+        console.error('Error loading accounts:', err);
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -155,6 +202,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Load properties for current account
   const loadProperties = useCallback(async (accountId: string) => {
+    // Don't make API calls during SSR/build
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     if (!isAuthenticated() || !accountId) {
       setProperties([]);
       return;
@@ -175,6 +227,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             // Load mortgage for this property
             try {
               const mortgageResponse = await apiClient.getMortgage(apiProperty.id);
+              // Check if mortgage exists (success: true with data) or was not found (success: false with "Mortgage not found")
               if (mortgageResponse.success && mortgageResponse.data) {
                 const mortgage = mortgageResponse.data;
                 const mortgageData = mortgage.mortgage_data || {};
@@ -195,8 +248,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
                   remainingAmortization: mortgageData.remainingAmortization || mortgageData.remaining_amortization || null,
                 };
               }
+              // If success is false and error is "Mortgage not found", that's expected - property just doesn't have a mortgage
             } catch (err) {
-              console.warn(`Could not load mortgage for property ${apiProperty.id}:`, err);
+              // Silently handle "Mortgage not found" - it's normal for properties to not have mortgages
+              const errorMessage = err instanceof Error ? err.message : String(err);
+              if (errorMessage.includes('Mortgage not found') || errorMessage.includes('404')) {
+                // Property doesn't have a mortgage - this is expected and not an error
+                // No need to log or throw
+              } else {
+                // Log other errors (network issues, etc.) but don't throw
+                console.warn(`Could not load mortgage for property ${apiProperty.id}:`, err);
+              }
             }
             
             // Load expenses for this property and convert to monthly expenses
@@ -360,14 +422,24 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setProperties([]);
       }
     } catch (err) {
-      console.error('Error loading properties:', err);
-      setProperties([]);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load properties';
+      // Only log network errors, don't clear properties (to avoid breaking UI)
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
+        console.warn('Network error loading properties (API may be unavailable):', err);
+        // Keep existing properties if available, don't clear them
+      } else {
+        console.error('Error loading properties:', err);
+        setProperties([]);
+      }
     }
   }, []);
 
   // Initialize accounts and load current account
   useEffect(() => {
-    loadAccounts();
+    // Only load accounts on client side
+    if (typeof window !== 'undefined') {
+      loadAccounts();
+    }
   }, [loadAccounts]);
 
   // Load properties when current account changes
@@ -407,9 +479,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // Load properties for new account
       await loadProperties(accountId);
     } catch (err) {
-      console.error('Error switching account:', err);
-      setError(err instanceof Error ? err.message : 'Failed to switch account');
-      throw err;
+      const errorMessage = err instanceof Error ? err.message : 'Failed to switch account';
+      // Handle network errors gracefully
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
+        console.warn('Network error switching account (API may be unavailable):', err);
+        // Still update the UI state even if API call fails
+        // The account switch will work locally, properties just won't load
+      } else {
+        console.error('Error switching account:', err);
+        setError(errorMessage);
+      }
+      // Don't throw - allow the account switch to complete even if properties can't load
     }
   }, [accounts, loadProperties]);
 
@@ -431,11 +511,38 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data) {
         const newAccount = mapApiAccountToContext(response.data);
         
-        // Refresh accounts list to sync with server (includes the new account)
-        await loadAccounts();
+        // Add the new account to the state immediately
+        setAccounts(prev => {
+          // Check if account already exists to avoid duplicates
+          if (prev.find(a => a.id === newAccount.id)) {
+            return prev;
+          }
+          return [...prev, newAccount];
+        });
         
-        // Switch to new account - pass the account object directly to avoid lookup timing issues
-        await switchAccount(newAccount.id, newAccount);
+        // Set as current account immediately
+        setCurrentAccountId(newAccount.id);
+        setCurrentAccount(newAccount);
+        
+        // Save to localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('current_account_id', newAccount.id);
+        }
+        
+        // Refresh accounts list and load properties in the background (non-blocking)
+        // Use setTimeout to ensure this doesn't block the return
+        setTimeout(() => {
+          Promise.all([
+            loadAccounts().catch(err => {
+              console.warn('Failed to refresh accounts list after creation:', err);
+            }),
+            loadProperties(newAccount.id).catch(err => {
+              console.warn('Failed to load properties after account creation:', err);
+            })
+          ]).catch(() => {
+            // Ignore errors - account is already created and set
+          });
+        }, 100);
         
         return newAccount;
       } else {
@@ -447,7 +554,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setError(errorMessage);
       throw err;
     }
-  }, [loadAccounts, switchAccount]);
+  }, [loadAccounts, loadProperties]);
 
   // Delete an account
   const deleteAccount = useCallback(async (accountId: string) => {
