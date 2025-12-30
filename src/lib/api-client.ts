@@ -86,14 +86,22 @@ class ApiClient {
       // Handle authentication errors
       if (response.status === 401) {
         this.removeToken();
-        // Optionally redirect to login
+        // Redirect to login - don't throw error as redirect will handle it
         if (typeof window !== 'undefined') {
+          // Redirect immediately
           window.location.href = '/login';
+          // Return a response that won't trigger further error handling
+          // This prevents the error overlay from showing during redirect
+          return {
+            success: false,
+            error: 'Authentication required',
+            data: null,
+          } as ApiResponse<T>;
         }
         throw new Error('Authentication required');
       }
 
-      // Throw error if request failed
+      // Throw error if request failed (but not for 401s which are handled above)
       if (!response.ok || !data.success) {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }

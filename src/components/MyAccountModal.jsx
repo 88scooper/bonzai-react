@@ -48,7 +48,23 @@ export default function MyAccountModal({ isOpen, onClose }) {
       }
     } catch (error) {
       console.error("Error loading profile:", error);
-      addToast("Failed to load profile", { type: "error" });
+      // Use authUser as fallback if API call fails
+      if (authUser) {
+        setProfile({
+          id: authUser.id || '',
+          email: authUser.email || '',
+          name: authUser.name || null,
+          created_at: authUser.createdAt || new Date().toISOString(),
+        });
+        setProfileForm({
+          name: authUser.name || "",
+          email: authUser.email || "",
+        });
+      }
+      // Only show error toast if it's not a network error (user might be offline)
+      if (error instanceof Error && !error.message.includes('Failed to fetch')) {
+        addToast("Failed to load profile", { type: "error" });
+      }
     } finally {
       setLoadingProfile(false);
     }
@@ -170,7 +186,24 @@ export default function MyAccountModal({ isOpen, onClose }) {
   // Load user profile when modal opens
   useEffect(() => {
     if (isOpen) {
-      loadProfile();
+      // Only load profile if we have an auth token
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      if (token) {
+        loadProfile();
+      } else if (authUser) {
+        // Use authUser as fallback if no token but user is available
+        setProfile({
+          id: authUser.id || '',
+          email: authUser.email || '',
+          name: authUser.name || null,
+          created_at: authUser.createdAt || new Date().toISOString(),
+        });
+        setProfileForm({
+          name: authUser.name || "",
+          email: authUser.email || "",
+        });
+        setLoadingProfile(false);
+      }
     } else {
       // Reset state when modal closes
       setEditingProfile(false);
@@ -180,7 +213,7 @@ export default function MyAccountModal({ isOpen, onClose }) {
       setPasswordError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, authUser]);
 
   // Handle Escape key
   useEffect(() => {

@@ -15,7 +15,13 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     // Mark that onboarding has started once the wizard is shown
-    if (user && !authLoading && accountsLoading === false && Array.isArray(accounts) && accounts.length === 0) {
+    // Also mark it if onboarding is already in progress (to prevent resets)
+    const onboardingInProgress = typeof window !== 'undefined' && 
+      sessionStorage.getItem('onboarding_in_progress') === 'true';
+    
+    if (onboardingInProgress) {
+      onboardingStartedRef.current = true;
+    } else if (user && !authLoading && accountsLoading === false && Array.isArray(accounts) && accounts.length === 0) {
       onboardingStartedRef.current = true;
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('onboarding_in_progress', 'true');
@@ -78,16 +84,21 @@ export default function OnboardingPage() {
   // 3. Either accounts array is empty (new user) OR onboarding is in progress
   if (user && !authLoading && accountsLoading === false) {
     // Show wizard if accounts is empty OR if onboarding is actively in progress
+    // IMPORTANT: Always show wizard if onboarding is in progress, even if accounts exist
+    // This prevents the wizard from being unmounted when an account is created
     if (Array.isArray(accounts) && (accounts.length === 0 || onboardingInProgress)) {
       return (
         <RequireAuth>
-          <OnboardingWizard onComplete={() => {
-            // Clear onboarding flag when wizard completes
-            onboardingStartedRef.current = false;
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('onboarding_in_progress');
-            }
-          }} />
+          <OnboardingWizard 
+            key="onboarding-wizard" 
+            onComplete={() => {
+              // Clear onboarding flag when wizard completes
+              onboardingStartedRef.current = false;
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('onboarding_in_progress');
+              }
+            }} 
+          />
         </RequireAuth>
       );
     }

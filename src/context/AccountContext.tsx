@@ -74,6 +74,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setError(null);
       const response = await apiClient.getAccounts(1, 100); // Get first 100 accounts
       
+      // Handle authentication errors gracefully - redirect is happening
+      if (!response.success && response.error === 'Authentication required') {
+        setLoading(false);
+        return; // Don't process further, redirect will handle it
+      }
+      
       if (response.success && response.data) {
         const accountsData = response.data.data || response.data;
         const mappedAccounts = Array.isArray(accountsData)
@@ -130,6 +136,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load accounts';
+      // Handle authentication errors gracefully - redirect will happen
+      if (errorMessage.includes('Authentication required')) {
+        // Don't set error or log - redirect to login is happening
+        setLoading(false);
+        return;
+      }
       // Only log network errors, don't set error state (to avoid breaking UI)
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
         console.warn('Network error loading accounts (API may be unavailable):', err);
@@ -179,6 +191,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       name: apiProperty.nickname || '',
       type: apiProperty.property_type || '',
       units: propertyData.units || 1,
+      isPrincipalResidence: propertyData.isPrincipalResidence || false,
       currentValue: parseFloat(apiProperty.current_market_value || 0),
       // Initialize empty structures that will be populated
       expenses: {},

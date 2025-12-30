@@ -794,6 +794,10 @@ export default function PropertyDetailPage() {
                   <span className="font-medium text-gray-900 dark:text-white">{property.units || 1}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Principal Residence</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{property.isPrincipalResidence ? "Yes" : "No"}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Unit Size</span>
                   <span className="font-medium text-gray-900 dark:text-white text-right">
                     {property.units > 1 && property.squareFootage ? (

@@ -168,7 +168,7 @@ export default function PortfolioSummaryPage() {
   const defaultMetrics = [
     { id: 'portfolioValue', name: 'Total Estimated Portfolio Value', isVisible: true },
     { id: 'equity', name: 'Forecasted Annual Equity', isVisible: true },
-    { id: 'mortgageDebt', name: 'Monthly Debt Service', isVisible: true },
+    { id: 'mortgageDebt', name: 'Annual Debt Service', isVisible: true },
     { id: 'netOperatingIncome', name: 'Annual Net Operating Income', isVisible: true },
     { id: 'overallCapRate', name: 'Overall Cap Rate', isVisible: true },
     { id: 'blendedCashOnCash', name: 'Blended Cash on Cash', isVisible: true },
@@ -909,24 +909,24 @@ export default function PortfolioSummaryPage() {
                     return (
                       <TopMetricCard
                         key={metric.id}
-                        title="Monthly Debt Service"
+                        title="Annual Debt Service"
                         value={new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
-                        }).format(Math.floor(totalMonthlyDebtService))}
+                        }).format(Math.floor(totalAnnualDebtService))}
                         icon={FileSpreadsheet}
                         accent="amber"
                         supporting={
                           <>
                             <div>
-                              Annual debt service: {new Intl.NumberFormat('en-CA', {
+                              Monthly debt service: {new Intl.NumberFormat('en-CA', {
                                 style: 'currency',
                                 currency: 'CAD',
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 0,
-                              }).format(Math.floor(totalAnnualDebtService))}
+                              }).format(Math.floor(totalMonthlyDebtService))}
                             </div>
                             <div className="mt-1 text-xs opacity-90">
                               Principal + interest payments
@@ -1077,12 +1077,12 @@ export default function PortfolioSummaryPage() {
                     return (
                       <MetricCard
                         key={metric.id}
-                        title="Monthly Debt Service"
-                        value={formatCurrency(totalMonthlyDebtService)}
+                        title="Annual Debt Service"
+                        value={formatCurrency(totalAnnualDebtService)}
                         isExpense={true}
                         showInfoIcon={true}
                         tooltipText="Your total monthly mortgage payments (principal and interest) across all properties. This represents your monthly debt obligations and helps you understand cash flow requirements."
-                        statusMessage={`Annual: ${formatCurrency(totalAnnualDebtService)} • Principal + interest payments`}
+                        statusMessage={`Monthly: ${formatCurrency(totalMonthlyDebtService)} • Principal + interest payments`}
                         statusTone="neutral"
                       />
                     );

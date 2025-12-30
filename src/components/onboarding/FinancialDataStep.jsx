@@ -5,7 +5,7 @@ import { useAccount } from "@/context/AccountContext";
 import { useToast } from "@/context/ToastContext";
 import apiClient from "@/lib/api-client";
 import Button from "@/components/Button";
-import { Home, DollarSign, Receipt, CheckCircle2, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Home, DollarSign, Receipt, CheckCircle2, ChevronDown, ChevronUp, X, Loader2 } from "lucide-react";
 
 export default function FinancialDataStep({
   propertyId,
@@ -20,7 +20,7 @@ export default function FinancialDataStep({
   onComplete,
   onBack
 }) {
-  const { accounts, currentAccountId } = useAccount();
+  const { accounts, currentAccountId, properties: accountProperties } = useAccount();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null); // 'mortgage' | 'tenant' | 'expense' | null
@@ -28,39 +28,58 @@ export default function FinancialDataStep({
 
   // Get the property details
   useEffect(() => {
-    const fetchProperty = async () => {
-      if (propertyId) {
+    // First, try to use properties passed as prop
+    if (properties && properties.length > 0) {
+      setProperty(properties[0]);
+      return;
+    }
+    
+    // Second, try to use properties from AccountContext
+    if (accountProperties && accountProperties.length > 0) {
+      // If propertyId is specified, find that property, otherwise use first
+      const targetProperty = propertyId 
+        ? accountProperties.find(p => p.id === propertyId)
+        : accountProperties[0];
+      if (targetProperty) {
+        setProperty(targetProperty);
+        return;
+      }
+    }
+    
+    // If propertyId is provided and not found in context, fetch that specific property
+    if (propertyId) {
+      const fetchProperty = async () => {
         try {
           const response = await apiClient.getProperty(propertyId);
-          if (response.success) {
+          if (response.success && response.data) {
             setProperty(response.data);
           }
         } catch (error) {
           console.error("Error fetching property:", error);
+          // Don't show error to user, just log it
         }
-      } else if (properties && properties.length > 0) {
-        // Use the first property from the list
-        setProperty(properties[0]);
-      } else {
-        // If no property ID or properties list, try to fetch from account
-        const fetchFirstProperty = async () => {
-          try {
-            const accountIdToUse = accountId || currentAccountId;
-            if (accountIdToUse) {
-              const response = await apiClient.getProperties(accountIdToUse, 1, 1);
-              if (response.success && response.data?.data?.length > 0) {
-                setProperty(response.data.data[0]);
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching properties:", error);
+      };
+      fetchProperty();
+      return;
+    }
+    
+    // Last resort: try to fetch from account (only if we have accountId and no properties available)
+    const accountIdToUse = accountId || currentAccountId;
+    if (accountIdToUse && (!accountProperties || accountProperties.length === 0)) {
+      const fetchFirstProperty = async () => {
+        try {
+          const response = await apiClient.getProperties(accountIdToUse, 1, 1);
+          if (response.success && response.data?.data?.length > 0) {
+            setProperty(response.data.data[0]);
           }
-        };
-        fetchFirstProperty();
-      }
-    };
-    fetchProperty();
-  }, [propertyId, properties, accountId, currentAccountId]);
+        } catch (error) {
+          console.error("Error fetching properties:", error);
+          // Don't show error to user, just log it
+        }
+      };
+      fetchFirstProperty();
+    }
+  }, [propertyId, properties, accountProperties, accountId, currentAccountId]);
 
   // Mortgage form state
   const [mortgageData, setMortgageData] = useState({
@@ -95,6 +114,11 @@ export default function FinancialDataStep({
       return;
     }
 
+    if (!mortgageData.lender || !mortgageData.originalAmount || !mortgageData.interestRate) {
+      addToast("Please fill in all required mortgage fields", { type: "error" });
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await apiClient.saveMortgage(property.id, {
@@ -112,12 +136,22 @@ export default function FinancialDataStep({
         addToast("Mortgage added successfully!", { type: "success" });
         onMortgageAdded();
         setExpandedSection(null);
+        // Reset form
+        setMortgageData({
+          lender: '',
+          originalAmount: '',
+          interestRate: '',
+          termMonths: '60',
+          amortizationYears: '25',
+          startDate: new Date().toISOString().split('T')[0],
+        });
       } else {
         throw new Error(response.error || "Failed to add mortgage");
       }
     } catch (error) {
       console.error("Error adding mortgage:", error);
-      addToast(error.message || "Failed to add mortgage", { type: "error" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to add mortgage";
+      addToast(errorMessage, { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -127,6 +161,11 @@ export default function FinancialDataStep({
     e.preventDefault();
     if (!property?.id) {
       addToast("Property not found", { type: "error" });
+      return;
+    }
+
+    if (!tenantData.name || !tenantData.rent) {
+      addToast("Please fill in tenant name and rent amount", { type: "error" });
       return;
     }
 
@@ -158,12 +197,20 @@ export default function FinancialDataStep({
         onTenantAdded();
         setProperty(updatedProperty);
         setExpandedSection(null);
+        // Reset form
+        setTenantData({
+          name: '',
+          rent: '',
+          leaseStart: new Date().toISOString().split('T')[0],
+          leaseEnd: '',
+        });
       } else {
         throw new Error(response.error || "Failed to add tenant");
       }
     } catch (error) {
       console.error("Error adding tenant:", error);
-      addToast(error.message || "Failed to add tenant", { type: "error" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to add tenant";
+      addToast(errorMessage, { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -173,6 +220,11 @@ export default function FinancialDataStep({
     e.preventDefault();
     if (!property?.id) {
       addToast("Property not found", { type: "error" });
+      return;
+    }
+
+    if (!expenseData.amount || parseFloat(expenseData.amount) <= 0) {
+      addToast("Please enter a valid expense amount", { type: "error" });
       return;
     }
 
@@ -200,13 +252,42 @@ export default function FinancialDataStep({
       }
     } catch (error) {
       console.error("Error adding expense:", error);
-      addToast(error.message || "Failed to add expense", { type: "error" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to add expense";
+      addToast(errorMessage, { type: "error" });
     } finally {
       setLoading(false);
     }
   };
 
   const propertyName = property?.nickname || property?.name || property?.address || "Your Property";
+
+  // Show loading state if property is being fetched
+  if (!property && (propertyId || accountId || currentAccountId)) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-400" />
+          <p className="text-sm text-gray-600 dark:text-gray-400">Loading property data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If no property available, show message
+  if (!property) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            No property found. Please add a property first.
+          </p>
+          <Button onClick={onComplete}>
+            Complete Setup
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

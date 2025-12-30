@@ -556,8 +556,14 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
     setEditedData(prev => {
       const base =
         prev && Object.keys(prev).length > 0 ? prev : clonePropertyData(property);
-      const parsedValue =
-        type === "number" ? (value === "" ? "" : Number(value)) : value;
+      let parsedValue;
+      if (type === "number") {
+        parsedValue = value === "" ? "" : Number(value);
+      } else if (type === "checkbox") {
+        parsedValue = Boolean(value);
+      } else {
+        parsedValue = value;
+      }
       return setValueAtPath(base, path, parsedValue);
     });
   };
@@ -589,21 +595,34 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
   // Editable DataRow component for PropertyCard (with editing capabilities)
   const EditableDataRow = ({ label, value, editable = false, field = "", type = "text", isBold = false }) => {
     const rawInputValue = field ? getValueAtPath(editedData, field) : undefined;
-    const inputValue = rawInputValue === undefined || rawInputValue === null ? "" : rawInputValue;
+    const inputValue = rawInputValue === undefined || rawInputValue === null 
+      ? (type === "checkbox" ? false : "") 
+      : rawInputValue;
     const inputString = inputValue === "" ? "" : String(inputValue);
 
     return (
     <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
       <span className={`text-sm font-medium text-gray-600 dark:text-gray-400 ${isBold ? 'font-bold' : ''}`}>{label}</span>
       {isEditing && editable ? (
-        <input
-          type={type}
+        type === "checkbox" ? (
+          <input
+            type="checkbox"
+            checked={inputValue === true || inputValue === "true" || inputValue === 1}
+            onChange={(e) => updateField(field, e.target.checked, type)}
+            className="w-4 h-4 text-[#205A3E] border-gray-300 rounded focus:ring-[#205A3E]"
+          />
+        ) : (
+          <input
+            type={type}
             value={type === "number" ? inputString : inputString}
             onChange={(e) => updateField(field, e.target.value, type)}
-          className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
-        />
+            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
+          />
+        )
       ) : (
-        <span className={`text-sm text-gray-900 dark:text-gray-100 ${isBold ? 'font-bold' : ''}`}>{value || "N/A"}</span>
+        <span className={`text-sm text-gray-900 dark:text-gray-100 ${isBold ? 'font-bold' : ''}`}>
+          {type === "checkbox" ? (value ? "Yes" : "No") : (value || "N/A")}
+        </span>
       )}
     </div>
   );
@@ -660,6 +679,8 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
           <EditableDataRow label="Bedrooms" value={property.bedrooms?.[0] || property.bedrooms} editable field="bedrooms" type="number" />
           <EditableDataRow label="Bathrooms" value={property.bathrooms?.[0] || property.bathrooms} editable field="bathrooms" type="number" />
           <EditableDataRow label="Dens" value={property.dens?.[0] || property.dens} editable field="dens" type="number" />
+          <EditableDataRow label="Units" value={property.units || 1} editable field="units" type="number" />
+          <EditableDataRow label="Principal Residence" value={property.isPrincipalResidence || false} editable field="isPrincipalResidence" type="checkbox" />
         </div>
       </Section>
 
@@ -1199,6 +1220,8 @@ export default function DataPage() {
           expenseHistory: updatedData.expenseHistory,
           bedrooms: updatedData.bedrooms,
           bathrooms: updatedData.bathrooms,
+          units: updatedData.units,
+          isPrincipalResidence: updatedData.isPrincipalResidence || false,
           // Include any other nested data
           ...(updatedData.propertyData || {})
         }

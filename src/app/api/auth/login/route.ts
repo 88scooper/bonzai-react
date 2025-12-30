@@ -80,9 +80,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error('Error logging in user:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    // Provide helpful error message for database connection issues
+    let userFriendlyMessage = errorMessage;
+    if (errorMessage.includes('POSTGRES_URL') || errorMessage.includes('database') || errorMessage.includes('connection')) {
+      userFriendlyMessage = 'Database connection error. Please check your database configuration and ensure the server is running.';
+    }
 
     return NextResponse.json(
-      createErrorResponse(errorMessage, 500),
+      createErrorResponse(userFriendlyMessage, 500),
       { status: 500 }
     );
   }
