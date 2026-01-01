@@ -405,11 +405,11 @@ export default function PropertyForm({ onSubmit, onCancel, accountId, initialDat
         </h3>
         <div>
           {formData.imagePreview ? (
-            <div className="relative border border-black/10 dark:border-white/10 rounded-lg overflow-hidden">
+            <div className="relative border border-black/10 dark:border-white/10 rounded-lg overflow-hidden aspect-square w-full max-w-md mx-auto">
               <img
                 src={formData.imagePreview}
                 alt="Property preview"
-                className="w-full h-64 object-cover"
+                className="w-full h-full object-cover"
               />
               <button
                 type="button"
@@ -422,9 +422,9 @@ export default function PropertyForm({ onSubmit, onCancel, accountId, initialDat
           ) : (
             <div
               onClick={() => imageInputRef.current?.click()}
-              className="border-2 border-dashed border-black/15 dark:border-white/15 rounded-lg p-8 text-center cursor-pointer hover:border-black/30 dark:hover:border-white/30 transition-colors"
+              className="border-2 border-dashed border-black/15 dark:border-white/15 rounded-lg p-8 text-center cursor-pointer hover:border-black/30 dark:hover:border-white/30 transition-colors aspect-square w-full max-w-md mx-auto flex flex-col items-center justify-center"
             >
-              <ImageIcon className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
+              <ImageIcon className="w-12 h-12 mb-4 text-gray-400 dark:text-gray-500" />
               <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
                 Click to upload property image
               </p>

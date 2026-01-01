@@ -7,15 +7,13 @@ import { useAccount } from "@/context/AccountContext";
 import { useToast } from "@/context/ToastContext";
 import apiClient from "@/lib/api-client";
 import StepIndicator from "./StepIndicator";
-import FileUploadZone from "./FileUploadZone";
 import PropertyForm from "./PropertyForm";
 import FinancialDataStep from "./FinancialDataStep";
 import Button from "@/components/Button";
-import { CheckCircle2, Loader2, Download, X } from "lucide-react";
-import { downloadPropertyTemplate } from "@/lib/excel-template";
+import { CheckCircle2, Loader2, X } from "lucide-react";
 import { clearAllOnboardingDrafts } from "@/lib/onboarding-draft-storage";
 
-export default function OnboardingWizard({ onComplete }) {
+export default function OnboardingWizard({ onComplete, modal = false }) {
   const router = useRouter();
   const { user } = useAuth();
   const { createNewAccount, currentAccountId, accounts } = useAccount();
@@ -76,10 +74,7 @@ export default function OnboardingWizard({ onComplete }) {
   }, [currentStep, currentAccountId, accountId]);
   const [accountName, setAccountName] = useState(user?.email?.split('@')[0] || 'My Account');
   const [accountEmail, setAccountEmail] = useState(user?.email || '');
-  const [uploadMethod, setUploadMethod] = useState(null); // 'file' | 'manual' | null
-  const [selectedFile, setSelectedFile] = useState(null);
   const [properties, setProperties] = useState([]);
-  const [uploadProgress, setUploadProgress] = useState({ processed: 0, total: 0 });
   const [propertyFormKey, setPropertyFormKey] = useState(0); // Key to force form reset
   const [selectedPropertyId, setSelectedPropertyId] = useState(null); // Property to add data to
   const [mortgageAdded, setMortgageAdded] = useState(false);
@@ -127,50 +122,8 @@ export default function OnboardingWizard({ onComplete }) {
     }
   };
 
-  // Step 2: Select upload method
-  const handleMethodSelect = (method) => {
-    setUploadMethod(method);
-    setCurrentStep(3);
-  };
+  // Step 2: Directly shows property form (no method selection needed)
 
-  // Step 3a: Handle file upload
-  const handleFileUpload = async () => {
-    if (!selectedFile || !accountId) {
-      addToast("Please select a file", { type: "error" });
-      return;
-    }
-
-    setLoading(true);
-    setUploadProgress({ processed: 0, total: 1 });
-
-    try {
-      const response = await apiClient.bulkUploadProperties(accountId, selectedFile);
-      
-      if (response.success && response.data) {
-        const { created, failed, total, errors } = response.data;
-        
-        if (created > 0) {
-          addToast(`Successfully uploaded ${created} property${created > 1 ? 'ies' : ''}!`, { type: "success" });
-          if (errors && errors.length > 0) {
-            console.warn("Upload errors:", errors);
-          }
-          // After bulk upload, refresh accounts to get property IDs
-          // The FinancialDataStep will fetch the first property
-          setCurrentStep(4);
-        } else {
-          addToast("No properties were uploaded. Please check your file format.", { type: "error" });
-        }
-      } else {
-        throw new Error(response.error || "Upload failed");
-      }
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      addToast(error.message || "Failed to upload file", { type: "error" });
-    } finally {
-      setLoading(false);
-      setUploadProgress({ processed: 0, total: 0 });
-    }
-  };
 
   // Step 3b: Handle manual property submission
   const handleAddProperty = async (propertyData) => {
@@ -237,7 +190,7 @@ export default function OnboardingWizard({ onComplete }) {
   };
 
   // If step 5, show as modal overlay
-  const isModalMode = currentStep === 5;
+  const isModalMode = modal || currentStep === 5;
   
   const wizardContent = (
     <>
@@ -250,7 +203,10 @@ export default function OnboardingWizard({ onComplete }) {
         </div>
       )}
 
-      {!isModalMode && <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />}
+      {/* Always show step indicator at the top */}
+      <div className={isModalMode ? 'mb-6' : 'mb-8'}>
+        <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
+      </div>
 
       <div className={`bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10 rounded-xl p-8 ${isModalMode ? 'max-h-[90vh] overflow-y-auto' : ''}`}>
           {/* Step 1: Create Account */}
@@ -295,7 +251,17 @@ export default function OnboardingWizard({ onComplete }) {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-between">
+                {modal && (
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => {
+                      if (onComplete) onComplete();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                )}
                 <Button onClick={handleCreateAccount} loading={loading}>
                   Continue
                 </Button>
@@ -303,110 +269,11 @@ export default function OnboardingWizard({ onComplete }) {
             </div>
           )}
 
-          {/* Step 2: Select Upload Method */}
+          {/* Step 2: Add Another Property (Manual Entry Only) */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold mb-2">Add Your Properties</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Choose how you'd like to add your properties
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={() => handleMethodSelect('file')}
-                  className="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition text-left"
-                >
-                  <div className="text-2xl mb-2">📁</div>
-                  <h3 className="font-semibold mb-1">Upload File</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Upload Excel or CSV file with your property data
-                  </p>
-                </button>
-
-                <button
-                  onClick={() => handleMethodSelect('manual')}
-                  className="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition text-left"
-                >
-                  <div className="text-2xl mb-2">✏️</div>
-                  <h3 className="font-semibold mb-1">Manual Entry</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Add properties one at a time using a form
-                  </p>
-                </button>
-              </div>
-
-              <div className="flex justify-between">
-                <Button variant="secondary" onClick={() => setCurrentStep(1)}>
-                  Back
-                </Button>
-                <Button variant="secondary" onClick={handleSkip}>
-                  Skip for now
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3a: File Upload */}
-          {currentStep === 3 && uploadMethod === 'file' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold mb-2">Upload Property File</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Upload an Excel (.xlsx, .xls) or CSV file containing your property data
-                </p>
-              </div>
-
-              {/* Download Template Button */}
-              <div className="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                    Need a template?
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Download our Excel template with example data to get started
-                  </p>
-                </div>
-                <button
-                  onClick={downloadPropertyTemplate}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Template
-                </button>
-              </div>
-
-              <FileUploadZone onFileSelect={setSelectedFile} />
-
-              {selectedFile && (
-                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-lg">
-                  <p className="text-sm text-emerald-800 dark:text-emerald-200">
-                    File ready: {selectedFile.name}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex justify-between">
-                <Button variant="secondary" onClick={() => setCurrentStep(2)}>
-                  Back
-                </Button>
-                <Button
-                  onClick={handleFileUpload}
-                  loading={loading}
-                  disabled={!selectedFile || loading}
-                >
-                  Upload Properties
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3b: Manual Entry */}
-          {currentStep === 3 && uploadMethod === 'manual' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold mb-2">Add Property</h2>
+                <h2 className="text-xl font-semibold mb-2">Add Another Property</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Enter your property details below
                 </p>
@@ -416,7 +283,7 @@ export default function OnboardingWizard({ onComplete }) {
                 key={propertyFormKey}
                 accountId={accountId}
                 onSubmit={handleAddProperty}
-                onCancel={properties.length > 0 ? undefined : () => setCurrentStep(2)}
+                onCancel={properties.length > 0 ? undefined : () => setCurrentStep(1)}
               />
 
               {properties.length > 0 && (
@@ -435,7 +302,7 @@ export default function OnboardingWizard({ onComplete }) {
               )}
 
               <div className="flex justify-between">
-                <Button variant="secondary" onClick={() => setCurrentStep(2)}>
+                <Button variant="secondary" onClick={() => setCurrentStep(1)}>
                   Back
                 </Button>
                 <div className="flex gap-3">
@@ -449,19 +316,23 @@ export default function OnboardingWizard({ onComplete }) {
                       Add Another
                     </Button>
                   )}
-                  <Button onClick={() => {
-                    // If we have properties, set the first one as selected
-                    if (properties.length > 0 && !selectedPropertyId) {
-                      setSelectedPropertyId(properties[0].id);
-                    }
-                    setCurrentStep(4);
-                  }} disabled={loading}>
+                  <Button
+                    onClick={() => {
+                      if (properties.length > 0) {
+                        setCurrentStep(4);
+                      } else {
+                        handleSkip();
+                      }
+                    }}
+                    disabled={properties.length === 0}
+                  >
                     Continue
                   </Button>
                 </div>
               </div>
             </div>
           )}
+
 
           {/* Step 4: Properties Added */}
           {currentStep === 4 && (
@@ -478,6 +349,9 @@ export default function OnboardingWizard({ onComplete }) {
               </div>
 
               <div className="flex justify-center gap-3">
+                <Button variant="secondary" onClick={() => setCurrentStep(2)}>
+                  Back
+                </Button>
                 <Button variant="secondary" onClick={handleComplete}>
                   Skip for now
                 </Button>
@@ -510,6 +384,33 @@ export default function OnboardingWizard({ onComplete }) {
 
   // Render as modal for step 5
   if (isModalMode) {
+    // If modal prop is true, render without the fixed overlay (parent handles it)
+    if (modal) {
+      return (
+        <div className="relative w-full h-full flex flex-col min-h-0">
+          {/* Modal Header with Close Button */}
+          <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10 flex-shrink-0">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Complete Your Onboarding
+            </h2>
+            <button
+              onClick={handleComplete}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Modal Content with Step Indicator */}
+          <div className="flex-1 overflow-y-auto p-6 min-h-0">
+            {wizardContent}
+          </div>
+        </div>
+      );
+    }
+    
+    // Original modal mode for step 5 when not called from portfolio page
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div 

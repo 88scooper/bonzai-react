@@ -656,18 +656,23 @@ export default function PortfolioSummaryPage() {
   return (
     <RequireAuth>
       <Layout>
-        {/* Onboarding Wizard Modal for Step 5 */}
+        {/* Onboarding Wizard Modal Overlay */}
         {showOnboardingModal && (
-          <OnboardingWizard 
-            onComplete={() => {
-              setShowOnboardingModal(false);
-              setShowOnboardingPrompt(false);
-              if (typeof window !== 'undefined') {
-                sessionStorage.removeItem('onboarding_in_progress');
-                sessionStorage.removeItem('onboarding_current_step');
-              }
-            }} 
-          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="relative w-full max-w-4xl h-[90vh] bg-white dark:bg-neutral-900 rounded-xl shadow-2xl flex flex-col overflow-hidden">
+              <OnboardingWizard 
+                modal={true}
+                onComplete={() => {
+                  setShowOnboardingModal(false);
+                  setShowOnboardingPrompt(false);
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('onboarding_in_progress');
+                    sessionStorage.removeItem('onboarding_current_step');
+                  }
+                }} 
+              />
+            </div>
+          </div>
         )}
         
         {/* Onboarding Incomplete Prompt */}
