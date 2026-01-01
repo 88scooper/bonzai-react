@@ -226,11 +226,18 @@ export default function PortfolioSummaryPage() {
     const savedStep = sessionStorage.getItem('onboarding_current_step');
     const onboardingInProgress = sessionStorage.getItem('onboarding_in_progress') === 'true';
     
+    // Check if user has no properties at all
+    const hasNoProperties = !properties || properties.length === 0;
+    
     // Check if all properties have complete financial data
     const hasIncompleteProperties = properties && properties.length > 0 && properties.some(property => {
       // Check if property is missing mortgage, tenant, or expenses
       const hasMortgage = property.mortgage && property.mortgage.lender && property.mortgage.originalAmount > 0;
-      const hasTenant = property.tenant && property.tenant.name && property.tenant.rent > 0;
+      // Check for tenant - support both old format (tenant.name) and new format (tenantNames array)
+      const hasTenant = property.tenant && (
+        (property.tenant.name && property.tenant.rent > 0) ||
+        (property.tenant.tenantNames && Array.isArray(property.tenant.tenantNames) && property.tenant.tenantNames.length > 0 && property.tenant.rent > 0)
+      );
       const hasExpenses = property.monthlyExpenses && (
         property.monthlyExpenses.propertyTax > 0 ||
         property.monthlyExpenses.condoFees > 0 ||
@@ -247,25 +254,27 @@ export default function PortfolioSummaryPage() {
     
     // Show prompt if:
     // 1. There's a saved step (user was in the middle of onboarding), OR
-    // 2. There are properties but they don't have complete financial data
+    // 2. User has no properties at all, OR
+    // 3. There are properties but they don't have complete financial data
     if (!showOnboardingModal) {
       if (savedStep) {
         const step = parseInt(savedStep, 10);
         // Show prompt if step is between 1 and 5 (incomplete onboarding)
-        if (step >= 1 && step < 5) {
+        if (step >= 1 && step <= 5) {
+          // Always show if there's a saved step (user was in onboarding)
           setIncompleteOnboardingStep(step);
           setShowOnboardingPrompt(true);
-        } else if (step === 5 && (onboardingInProgress || hasIncompleteProperties)) {
-          // Step 5 is the last step, show if still in progress or properties incomplete
-          setIncompleteOnboardingStep(step);
-          setShowOnboardingPrompt(true);
-        } else if (hasIncompleteProperties) {
-          // Even if step 5 is saved but onboarding not in progress, show if properties incomplete
-          setIncompleteOnboardingStep(5);
+        } else if (hasNoProperties || hasIncompleteProperties) {
+          // Even if step is invalid, show if properties are missing or incomplete
+          setIncompleteOnboardingStep(hasNoProperties ? 2 : 5);
           setShowOnboardingPrompt(true);
         } else {
           setShowOnboardingPrompt(false);
         }
+      } else if (hasNoProperties) {
+        // No saved step and no properties - show prompt to start onboarding
+        setIncompleteOnboardingStep(2);
+        setShowOnboardingPrompt(true);
       } else if (hasIncompleteProperties) {
         // No saved step but properties are incomplete - show prompt to complete financial data
         setIncompleteOnboardingStep(5);

@@ -10,7 +10,7 @@ import StepIndicator from "./StepIndicator";
 import PropertyForm from "./PropertyForm";
 import FinancialDataStep from "./FinancialDataStep";
 import Button from "@/components/Button";
-import { CheckCircle2, Loader2, X } from "lucide-react";
+import { CheckCircle2, Loader2, X, Edit, Trash2 } from "lucide-react";
 import { clearAllOnboardingDrafts } from "@/lib/onboarding-draft-storage";
 
 export default function OnboardingWizard({ onComplete, modal = false }) {
@@ -77,6 +77,9 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   const [properties, setProperties] = useState([]);
   const [propertyFormKey, setPropertyFormKey] = useState(0); // Key to force form reset
   const [selectedPropertyId, setSelectedPropertyId] = useState(null); // Property to add data to
+  const [editingPropertyId, setEditingPropertyId] = useState(null); // Property being edited
+  const [deletingPropertyId, setDeletingPropertyId] = useState(null); // Property to be deleted (for confirmation)
+  const [pendingPropertyData, setPendingPropertyData] = useState(null); // Property data pending confirmation
   const [mortgageAdded, setMortgageAdded] = useState(false);
   const [tenantAdded, setTenantAdded] = useState(false);
   const [expenseAdded, setExpenseAdded] = useState(false);
@@ -125,7 +128,18 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   // Step 2: Directly shows property form (no method selection needed)
 
 
-  // Step 3b: Handle manual property submission
+  // Handle property form submission - show confirmation first
+  const handlePropertyFormSubmit = (propertyData) => {
+    if (editingPropertyId) {
+      // For editing, save directly without confirmation
+      handleAddProperty(propertyData);
+    } else {
+      // For new properties, show confirmation
+      setPendingPropertyData(propertyData);
+    }
+  };
+
+  // Step 3b: Handle manual property submission (create or update)
   const handleAddProperty = async (propertyData) => {
     if (!accountId) {
       addToast("Account ID is missing", { type: "error" });
@@ -134,27 +148,100 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
 
     setLoading(true);
     try {
-      const response = await apiClient.createProperty(propertyData);
-      
-      if (response.success) {
-        const newProperty = response.data;
-        setProperties(prev => [...prev, newProperty]);
-        // Set the first property as selected for step 5
-        if (!selectedPropertyId) {
-          setSelectedPropertyId(newProperty.id);
+      if (editingPropertyId) {
+        // Update existing property
+        const response = await apiClient.updateProperty(editingPropertyId, propertyData);
+        
+        if (response.success) {
+          const updatedProperty = response.data;
+          setProperties(prev => prev.map(p => p.id === editingPropertyId ? updatedProperty : p));
+          setEditingPropertyId(null);
+          addToast("Property updated successfully!", { type: "success" });
+          // Reset form
+          setPropertyFormKey(prev => prev + 1);
+        } else {
+          throw new Error(response.error || "Failed to update property");
         }
-        addToast("Property added successfully!", { type: "success" });
-        // Reset form for next entry
-        setPropertyFormKey(prev => prev + 1);
       } else {
-        throw new Error(response.error || "Failed to add property");
+        // Create new property
+        const response = await apiClient.createProperty(propertyData);
+        
+        if (response.success) {
+          const newProperty = response.data;
+          setProperties(prev => [...prev, newProperty]);
+          // Set the first property as selected for step 5
+          if (!selectedPropertyId) {
+            setSelectedPropertyId(newProperty.id);
+          }
+          addToast("Property added successfully!", { type: "success" });
+          // Reset form for next entry
+          setPropertyFormKey(prev => prev + 1);
+          setPendingPropertyData(null); // Clear pending data
+        } else {
+          throw new Error(response.error || "Failed to add property");
+        }
       }
     } catch (error) {
-      console.error("Error adding property:", error);
-      addToast(error.message || "Failed to add property", { type: "error" });
+      console.error("Error saving property:", error);
+      addToast(error.message || "Failed to save property", { type: "error" });
     } finally {
       setLoading(false);
     }
+  };
+
+  // Cancel property confirmation
+  const handleCancelPropertyConfirm = () => {
+    setPendingPropertyData(null);
+  };
+
+  // Handle edit property
+  const handleEditProperty = (property) => {
+    setEditingPropertyId(property.id);
+    setPropertyFormKey(prev => prev + 1); // Reset form with new data
+  };
+
+  // Handle delete property confirmation
+  const handleDeleteClick = (propertyId) => {
+    setDeletingPropertyId(propertyId);
+  };
+
+  // Handle delete property
+  const handleDeleteProperty = async (propertyId) => {
+    setLoading(true);
+    try {
+      const response = await apiClient.deleteProperty(propertyId);
+      
+      if (response.success) {
+        setProperties(prev => prev.filter(p => p.id !== propertyId));
+        if (selectedPropertyId === propertyId) {
+          setSelectedPropertyId(properties.length > 1 ? properties.find(p => p.id !== propertyId)?.id || null : null);
+        }
+        if (editingPropertyId === propertyId) {
+          setEditingPropertyId(null);
+          setPropertyFormKey(prev => prev + 1);
+        }
+        setDeletingPropertyId(null);
+        addToast("Property deleted successfully!", { type: "success" });
+      } else {
+        throw new Error(response.error || "Failed to delete property");
+      }
+    } catch (error) {
+      console.error("Error deleting property:", error);
+      addToast(error.message || "Failed to delete property", { type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cancel delete confirmation
+  const handleCancelDelete = () => {
+    setDeletingPropertyId(null);
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingPropertyId(null);
+    setPropertyFormKey(prev => prev + 1);
   };
 
   // Step 4: Advance to step 5 (financial data)
@@ -279,57 +366,161 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                 </p>
               </div>
 
-              <PropertyForm
-                key={propertyFormKey}
-                accountId={accountId}
-                onSubmit={handleAddProperty}
-                onCancel={properties.length > 0 ? undefined : () => setCurrentStep(1)}
-              />
-
-              {properties.length > 0 && (
-                <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-lg">
-                  <p className="text-sm text-emerald-800 dark:text-emerald-200 mb-2">
-                    Added {properties.length} property{properties.length > 1 ? 'ies' : ''}:
-                  </p>
-                  <ul className="list-disc list-inside text-sm text-emerald-700 dark:text-emerald-300">
-                    {properties.map((prop, idx) => (
-                      <li key={prop.id || idx}>
-                        {prop.nickname || prop.address || `Property ${idx + 1}`}
-                      </li>
-                    ))}
-                  </ul>
+              {/* Delete Confirmation Dialog - Show prominently at top */}
+              {deletingPropertyId && (
+                <div className="mb-6 p-5 bg-red-50 dark:bg-red-900/20 border-2 border-red-400 dark:border-red-600 rounded-lg shadow-xl">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-base font-bold text-red-900 dark:text-red-100 mb-1">
+                        Delete Property?
+                      </h4>
+                      <p className="text-sm text-red-800 dark:text-red-200">
+                        Are you sure you want to delete this property? This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 justify-end">
+                    <Button
+                      variant="secondary"
+                      onClick={handleCancelDelete}
+                      disabled={loading}
+                      className="min-w-[100px]"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => handleDeleteProperty(deletingPropertyId)}
+                      loading={loading}
+                      disabled={loading}
+                      className="bg-red-600 hover:bg-red-700 text-white border-red-600 min-w-[140px] font-semibold"
+                    >
+                      {loading ? 'Deleting...' : 'Confirm Delete'}
+                    </Button>
+                  </div>
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <Button variant="secondary" onClick={() => setCurrentStep(1)}>
-                  Back
-                </Button>
-                <div className="flex gap-3">
-                  {properties.length > 0 && (
+              {/* Show property list first if not editing */}
+              {properties.length > 0 && !editingPropertyId && (
+                <div className="mb-6 space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Added Properties ({properties.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {properties.map((prop, idx) => (
+                      <div 
+                        key={prop.id || idx} 
+                        className="p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-between"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {prop.nickname || prop.address || `Property ${idx + 1}`}
+                          </p>
+                          {prop.address && prop.nickname && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {prop.address}
+                            </p>
+                          )}
+                          <div className="flex gap-4 mt-2 text-xs text-gray-600 dark:text-gray-400">
+                            {(prop.propertyType || prop.property_type) && (
+                              <span>Type: {prop.propertyType || prop.property_type}</span>
+                            )}
+                            {(prop.purchasePrice || prop.purchase_price) && (
+                              <span>Price: ${parseFloat(prop.purchasePrice || prop.purchase_price || 0).toLocaleString()}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditProperty(prop)}
+                            className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors group"
+                            title="Edit property"
+                          >
+                            <Edit className="w-4 h-4 text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(prop.id)}
+                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors group"
+                            title="Delete property"
+                            disabled={loading || deletingPropertyId}
+                          >
+                            <Trash2 className="w-4 h-4 text-gray-500 group-hover:text-red-600 dark:group-hover:text-red-400" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Property Confirmation Dialog */}
+              {pendingPropertyData && (
+                <div className="mb-6 p-5 bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-300 dark:border-emerald-600 rounded-lg shadow-xl">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-base font-bold text-emerald-900 dark:text-emerald-100 mb-2">
+                        Confirm Property Details
+                      </h4>
+                      <div className="text-sm text-emerald-800 dark:text-emerald-200 space-y-1">
+                        {pendingPropertyData.nickname && (
+                          <p><strong>Name:</strong> {pendingPropertyData.nickname}</p>
+                        )}
+                        {pendingPropertyData.address && (
+                          <p><strong>Address:</strong> {pendingPropertyData.address}</p>
+                        )}
+                        {pendingPropertyData.propertyType && (
+                          <p><strong>Type:</strong> {pendingPropertyData.propertyType}</p>
+                        )}
+                        {pendingPropertyData.purchasePrice && (
+                          <p><strong>Purchase Price:</strong> ${parseFloat(pendingPropertyData.purchasePrice).toLocaleString()}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 justify-end">
                     <Button
                       variant="secondary"
-                      onClick={() => {
-                        setPropertyFormKey(prev => prev + 1); // Reset form by changing key
-                      }}
+                      onClick={handleCancelPropertyConfirm}
+                      disabled={loading}
+                      className="min-w-[100px]"
                     >
-                      Add Another
+                      Cancel
                     </Button>
-                  )}
-                  <Button
-                    onClick={() => {
-                      if (properties.length > 0) {
-                        setCurrentStep(4);
-                      } else {
-                        handleSkip();
-                      }
-                    }}
-                    disabled={properties.length === 0}
-                  >
-                    Continue
-                  </Button>
+                    <Button
+                      onClick={() => handleAddProperty(pendingPropertyData)}
+                      loading={loading}
+                      disabled={loading}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 min-w-[140px] font-semibold"
+                    >
+                      {loading ? 'Adding...' : 'Confirm & Add Property'}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Property Form - show when adding new or editing */}
+              {(!properties.length || editingPropertyId) && !pendingPropertyData && (
+                <PropertyForm
+                  key={propertyFormKey}
+                  accountId={accountId}
+                  initialData={editingPropertyId ? properties.find(p => p.id === editingPropertyId) : {}}
+                  onSubmit={handlePropertyFormSubmit}
+                  onCancel={editingPropertyId ? handleCancelEdit : (properties.length > 0 ? undefined : () => setCurrentStep(1))}
+                  onContinue={() => {
+                    if (properties.length > 0) {
+                      setCurrentStep(4);
+                    } else {
+                      handleSkip();
+                    }
+                  }}
+                />
+              )}
             </div>
           )}
 

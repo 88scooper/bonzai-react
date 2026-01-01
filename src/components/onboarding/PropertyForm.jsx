@@ -1,27 +1,51 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Upload, X, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function PropertyForm({ onSubmit, onCancel, accountId, initialData = {} }) {
-  const [formData, setFormData] = useState({
+export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId, initialData = {} }) {
+  // Normalize API data (snake_case) to form data (camelCase)
+  const normalizedData = {
     nickname: initialData.nickname || '',
     address: initialData.address || '',
-    purchasePrice: initialData.purchasePrice || '',
-    purchaseDate: initialData.purchaseDate || '',
-    closingCosts: initialData.closingCosts || '0',
-    renovationCosts: initialData.renovationCosts || '0',
-    currentMarketValue: initialData.currentMarketValue || '',
-    yearBuilt: initialData.yearBuilt || '',
-    propertyType: initialData.propertyType || '',
-    numberOfUnits: initialData.numberOfUnits || '1',
-    units: initialData.units || [{ size: '', beds: '', bathrooms: '', dens: '' }],
+    purchasePrice: initialData.purchasePrice || initialData.purchase_price || '',
+    purchaseDate: initialData.purchaseDate || initialData.purchase_date || '',
+    closingCosts: initialData.closingCosts ?? initialData.closing_costs ?? '0',
+    renovationCosts: initialData.renovationCosts ?? initialData.renovation_costs ?? '0',
+    currentMarketValue: initialData.currentMarketValue || initialData.current_market_value || '',
+    yearBuilt: initialData.yearBuilt || initialData.year_built || '',
+    propertyType: initialData.propertyType || initialData.property_type || '',
+    numberOfUnits: initialData.numberOfUnits || initialData.number_of_units || '1',
+    units: initialData.units || (initialData.propertyData?.units) || [{ size: '', beds: '', bathrooms: '', dens: '' }],
     image: initialData.image || null,
-    imagePreview: initialData.imageUrl || null,
-    ...initialData,
-  });
+    imagePreview: initialData.imageUrl || initialData.image_url || null,
+  };
+
+  const [formData, setFormData] = useState(normalizedData);
 
   const imageInputRef = useRef(null);
+
+  // Update form data when initialData changes (for editing)
+  useEffect(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      const normalized = {
+        nickname: initialData.nickname || '',
+        address: initialData.address || '',
+        purchasePrice: initialData.purchasePrice || initialData.purchase_price || '',
+        purchaseDate: initialData.purchaseDate || initialData.purchase_date || '',
+        closingCosts: initialData.closingCosts ?? initialData.closing_costs ?? '0',
+        renovationCosts: initialData.renovationCosts ?? initialData.renovation_costs ?? '0',
+        currentMarketValue: initialData.currentMarketValue || initialData.current_market_value || '',
+        yearBuilt: initialData.yearBuilt || initialData.year_built || '',
+        propertyType: initialData.propertyType || initialData.property_type || '',
+        numberOfUnits: initialData.numberOfUnits || initialData.number_of_units || '1',
+        units: initialData.units || (initialData.propertyData?.units) || [{ size: '', beds: '', bathrooms: '', dens: '' }],
+        image: initialData.image || null,
+        imagePreview: initialData.imageUrl || initialData.image_url || null,
+      };
+      setFormData(normalized);
+    }
+  }, [initialData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -324,141 +348,181 @@ export default function PropertyForm({ onSubmit, onCancel, accountId, initialDat
         </div>
       </div>
 
-      {/* Units Configuration Section */}
-      {parseInt(formData.numberOfUnits) > 0 && (
-        <div className="mt-6 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-            Unit Details
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {formData.units.map((unit, index) => (
-              <div key={index} className="p-4 border border-black/10 dark:border-white/10 rounded-lg space-y-3">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {formData.units.length > 1 ? `Unit ${index + 1}` : 'Unit'}
-                </h4>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Size (sq ft)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={unit.size || ''}
-                    onChange={(e) => handleUnitChange(index, 'size', e.target.value)}
-                    className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Bedrooms
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={unit.beds || ''}
-                    onChange={(e) => handleUnitChange(index, 'beds', e.target.value)}
-                    className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Bathrooms
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={unit.bathrooms || ''}
-                    onChange={(e) => handleUnitChange(index, 'bathrooms', e.target.value)}
-                    className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Dens
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={unit.dens || ''}
-                    onChange={(e) => handleUnitChange(index, 'dens', e.target.value)}
-                    className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Image Upload Section */}
+      {/* Units Configuration Section with Property Image */}
       <div className="mt-6 space-y-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-          Property Image
+          Unit Details
         </h3>
-        <div>
-          {formData.imagePreview ? (
-            <div className="relative border border-black/10 dark:border-white/10 rounded-lg overflow-hidden aspect-square w-full max-w-md mx-auto">
-              <img
-                src={formData.imagePreview}
-                alt="Property preview"
-                className="w-full h-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={handleRemoveImage}
-                className="absolute top-2 right-2 p-2 bg-black/70 hover:bg-black/90 text-white rounded-full transition-colors"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Unit Details - First unit takes 50% */}
+          {parseInt(formData.numberOfUnits) > 0 && formData.units.map((unit, index) => (
+            <div key={index} className={`p-4 border border-black/10 dark:border-white/10 rounded-lg space-y-3 ${index === 0 ? 'md:col-span-1' : 'md:col-span-2'}`}>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {formData.units.length > 1 ? `Unit ${index + 1}` : 'Unit'}
+              </h4>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Size (sq ft)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={unit.size || ''}
+                  onChange={(e) => handleUnitChange(index, 'size', e.target.value)}
+                  className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Bedrooms
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={unit.beds || ''}
+                  onChange={(e) => handleUnitChange(index, 'beds', e.target.value)}
+                  className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Bathrooms
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={unit.bathrooms || ''}
+                  onChange={(e) => handleUnitChange(index, 'bathrooms', e.target.value)}
+                  className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Dens
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={unit.dens || ''}
+                  onChange={(e) => handleUnitChange(index, 'dens', e.target.value)}
+                  className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          ))}
+          
+          {/* Property Image - 50% width in same row as first unit */}
+          <div className="p-4 border border-black/10 dark:border-white/10 rounded-lg md:col-span-1">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Property Image
+            </h4>
+            {formData.imagePreview ? (
+              <div className="relative border border-black/10 dark:border-white/10 rounded-lg overflow-hidden aspect-square w-full">
+                <img
+                  src={formData.imagePreview}
+                  alt="Property preview"
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => imageInputRef.current?.click()}
+                className="border-2 border-dashed border-black/15 dark:border-white/15 rounded-lg p-4 text-center cursor-pointer hover:border-black/30 dark:hover:border-white/30 transition-colors aspect-square w-full flex flex-col items-center justify-center"
               >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div
-              onClick={() => imageInputRef.current?.click()}
-              className="border-2 border-dashed border-black/15 dark:border-white/15 rounded-lg p-8 text-center cursor-pointer hover:border-black/30 dark:hover:border-white/30 transition-colors aspect-square w-full max-w-md mx-auto flex flex-col items-center justify-center"
-            >
-              <ImageIcon className="w-12 h-12 mb-4 text-gray-400 dark:text-gray-500" />
-              <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                Click to upload property image
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                PNG, JPG, or WEBP (max 10MB)
-              </p>
-            </div>
-          )}
-          <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="hidden"
-          />
+                <ImageIcon className="w-8 h-8 mb-2 text-gray-400 dark:text-gray-500" />
+                <p className="text-xs font-medium text-gray-900 dark:text-white mb-1">
+                  Click to upload
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  PNG, JPG, WEBP (max 10MB)
+                </p>
+              </div>
+            )}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-3 justify-end pt-4">
-        {onCancel && (
+      {/* Buttons Row - Separate row underneath */}
+      <div className="pt-6 mt-6 border-t border-black/10 dark:border-white/10 space-y-4">
+        {/* Top row: Confirm Details and Add Another Property */}
+        <div className="flex gap-3 justify-center">
           <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 rounded-md border border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 transition"
+            type="submit"
+            className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white transition"
           >
-            Cancel
+            Confirm Details
           </button>
-        )}
-        <button
-          type="submit"
-          className="px-4 py-2 rounded-md bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition"
-        >
-          {initialData.id ? 'Update Property' : 'Add Another Property'}
-        </button>
+          {!initialData.id && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                // Submit the form to add property, then reset form
+                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                const form = e.target.closest('form');
+                if (form) {
+                  form.dispatchEvent(submitEvent);
+                  // Reset form after submission
+                  setTimeout(() => {
+                    setFormData(normalizedData);
+                    if (imageInputRef.current) {
+                      imageInputRef.current.value = '';
+                    }
+                  }, 100);
+                }
+              }}
+              className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white transition"
+            >
+              Add Another Property
+            </button>
+          )}
+        </div>
+        
+        {/* Bottom row: Back and Continue */}
+        <div className="flex justify-between">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 rounded-md border border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 transition flex items-center gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Back
+            </button>
+          )}
+          {onContinue && (
+            <button
+              type="button"
+              onClick={onContinue}
+              className="px-4 py-2 rounded-md bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition flex items-center gap-1 ml-auto"
+            >
+              Continue
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
     </form>
   );
