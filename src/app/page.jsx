@@ -166,12 +166,13 @@ function LoginModal({ onClose, onSwitchToSignup }) {
       const form = new FormData(e.currentTarget);
       const email = String(form.get("email") || "");
       const password = String(form.get("password") || "");
-      await logIn(email, password);
+      const userData = await logIn(email, password);
       addToast("Logged in!", { type: "success" });
       onClose();
-      // Redirect based on user state
+      // Redirect based on user role - admins go to admin page, others to portfolio summary
       setTimeout(() => {
-        window.location.href = "/portfolio-summary";
+        const redirectPath = userData?.isAdmin ? "/admin" : "/portfolio-summary";
+        window.location.href = redirectPath;
       }, 100);
     } catch (e) {
       let errorMessage = "Login failed.";

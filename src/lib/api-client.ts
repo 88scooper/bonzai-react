@@ -176,6 +176,7 @@ class ApiClient {
       email: string;
       name: string | null;
       created_at: string;
+      is_admin: boolean;
     }>('/auth/user');
   }
 
@@ -200,6 +201,55 @@ class ApiClient {
 
   async deleteUserAccount() {
     return this.request<{ message: string }>('/auth/user', {
+      method: 'DELETE',
+    });
+  }
+
+  // Admin methods
+  async getAdminDashboard() {
+    return this.request<{
+      totalUsers: number;
+      totalAccounts: number;
+      totalProperties: number;
+      totalMortgages: number;
+      newUsers7d: number;
+      newUsers30d: number;
+      newAccounts30d: number;
+      newProperties30d: number;
+      recentUsers: Array<{
+        id: string;
+        email: string;
+        name: string | null;
+        created_at: string;
+        is_admin: boolean;
+      }>;
+    }>('/admin/dashboard');
+  }
+
+  async getAdminUsers(page = 1, limit = 10, search = '') {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+    if (search) {
+      params.append('search', search);
+    }
+    return this.request<{
+      data: Array<{
+        id: string;
+        email: string;
+        name: string | null;
+        created_at: string;
+        is_admin: boolean;
+        account_count: number;
+        property_count: number;
+      }>;
+      pagination: any;
+    }>(`/admin/users?${params.toString()}`);
+  }
+
+  async deleteAdminUser(userId: string) {
+    return this.request<{ message: string }>(`/admin/users/${userId}`, {
       method: 'DELETE',
     });
   }

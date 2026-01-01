@@ -10,6 +10,7 @@ export interface User {
   email: string;
   name: string | null;
   created_at: Date;
+  is_admin: boolean;
 }
 
 export interface JWTPayload {
@@ -60,7 +61,7 @@ export function verifyToken(token: string): JWTPayload {
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
     const result = await sql`
-      SELECT id, email, name, created_at
+      SELECT id, email, name, created_at, is_admin
       FROM users
       WHERE email = ${email}
       LIMIT 1
@@ -78,7 +79,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 export async function getUserById(id: string): Promise<User | null> {
   try {
     const result = await sql`
-      SELECT id, email, name, created_at
+      SELECT id, email, name, created_at, is_admin
       FROM users
       WHERE id = ${id}
       LIMIT 1
@@ -102,7 +103,7 @@ export async function createUser(
     const result = await sql`
       INSERT INTO users (email, password_hash, name)
       VALUES (${email}, ${passwordHash}, ${name || null})
-      RETURNING id, email, name, created_at
+      RETURNING id, email, name, created_at, is_admin
     ` as User[];
     
     if (!result[0]) {
@@ -215,7 +216,7 @@ export async function updateUser(
         UPDATE users
         SET name = ${data.name || null}, email = ${data.email}
         WHERE id = ${userId}
-        RETURNING id, email, name, created_at
+        RETURNING id, email, name, created_at, is_admin
       ` as User[];
     } else if (data.name !== undefined) {
       // Update name only
@@ -223,7 +224,7 @@ export async function updateUser(
         UPDATE users
         SET name = ${data.name || null}
         WHERE id = ${userId}
-        RETURNING id, email, name, created_at
+        RETURNING id, email, name, created_at, is_admin
       ` as User[];
     } else if (data.email !== undefined) {
       // Update email only
@@ -231,7 +232,7 @@ export async function updateUser(
         UPDATE users
         SET email = ${data.email}
         WHERE id = ${userId}
-        RETURNING id, email, name, created_at
+        RETURNING id, email, name, created_at, is_admin
       ` as User[];
     } else {
       // No updates to make, return current user

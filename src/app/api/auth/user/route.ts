@@ -35,6 +35,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         email: fullUser.email,
         name: fullUser.name,
         created_at: fullUser.created_at,
+        is_admin: fullUser.is_admin,
       }),
       { status: 200 }
     );
@@ -94,6 +95,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
         email: updatedUser.email,
         name: updatedUser.name,
         created_at: updatedUser.created_at,
+        is_admin: updatedUser.is_admin,
       }),
       { status: 200 }
     );

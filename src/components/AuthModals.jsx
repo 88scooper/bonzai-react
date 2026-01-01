@@ -34,11 +34,12 @@ export function LoginModal({ onClose, onSwitchToSignup }) {
       const email = String(form.get("email") || "");
       const password = String(form.get("password") || "");
       
-      await logIn(email, password);
+      const userData = await logIn(email, password);
       addToast("Logged in successfully!", { type: "success" });
       onClose();
-      // Redirect to portfolio summary after successful login
-      router.push("/portfolio-summary");
+      // Redirect based on user role - admins go to admin page, others to portfolio summary
+      const redirectPath = userData?.isAdmin ? "/admin" : "/portfolio-summary";
+      router.push(redirectPath);
     } catch (error) {
       console.error("Login error:", error);
       let errorMessage = "Login failed. Please try again.";

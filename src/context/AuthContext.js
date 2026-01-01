@@ -11,6 +11,7 @@ const AuthContext = createContext({
   logOut: async () => {},
   isNewUser: false,
   checkIsNewUser: async () => {},
+  isAdmin: false,
 });
 
 export function useAuth() {
@@ -56,26 +57,50 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        // Decode token to get user info (JWT tokens are base64 encoded)
+        // Try to fetch full user data from API (including is_admin)
         try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const userData = {
-            id: payload.userId,
-            email: payload.email,
-            displayName: null,
-          };
-          
-          setUser(userData);
-          
-          // Check if new user after setting user state
-          // Use setTimeout to ensure user state is set
-          setTimeout(async () => {
-            await checkIsNewUser();
-          }, 100);
-        } catch (e) {
-          console.error('Error decoding token:', e);
-          localStorage.removeItem('auth_token');
-          setUser(null);
+          const response = await apiClient.getUserProfile();
+          if (response.success && response.data) {
+            const userData = {
+              id: response.data.id,
+              email: response.data.email,
+              displayName: response.data.name || null,
+              isAdmin: response.data.is_admin || false,
+            };
+            
+            setUser(userData);
+            
+            // Check if new user after setting user state
+            setTimeout(async () => {
+              await checkIsNewUser();
+            }, 100);
+          } else {
+            // Fallback to JWT decode if API call fails
+            throw new Error('API call failed, falling back to JWT decode');
+          }
+        } catch (apiError) {
+          // Fallback to JWT decode if API call fails
+          console.warn('Failed to fetch user from API, using JWT decode:', apiError);
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userData = {
+              id: payload.userId,
+              email: payload.email,
+              displayName: null,
+              isAdmin: false, // Default to false if we can't fetch from API
+            };
+            
+            setUser(userData);
+            
+            // Check if new user after setting user state
+            setTimeout(async () => {
+              await checkIsNewUser();
+            }, 100);
+          } catch (e) {
+            console.error('Error decoding token:', e);
+            localStorage.removeItem('auth_token');
+            setUser(null);
+          }
         }
       } catch (error) {
         console.error('Error loading user:', error);
@@ -94,10 +119,31 @@ export function AuthProvider({ children }) {
       const response = await apiClient.register(email, password, name);
       
       if (response.success && response.data) {
+        // Fetch full user data including is_admin
+        try {
+          const userResponse = await apiClient.getUserProfile();
+          if (userResponse.success && userResponse.data) {
+            const userData = {
+              id: userResponse.data.id,
+              email: userResponse.data.email,
+              displayName: userResponse.data.name || null,
+              isAdmin: userResponse.data.is_admin || false,
+            };
+            
+            setUser(userData);
+            setIsNewUser(true); // New signup is always a new user
+            
+            return userData;
+          }
+        } catch (e) {
+          // Fallback to response data if getUserProfile fails
+        }
+        
         const userData = {
           id: response.data.user.id,
           email: response.data.user.email,
           displayName: response.data.user.name || null,
+          isAdmin: false, // Default to false for new users
         };
         
         setUser(userData);
@@ -118,10 +164,35 @@ export function AuthProvider({ children }) {
       const response = await apiClient.login(email, password);
       
       if (response.success && response.data) {
+        // Fetch full user data including is_admin
+        try {
+          const userResponse = await apiClient.getUserProfile();
+          if (userResponse.success && userResponse.data) {
+            const userData = {
+              id: userResponse.data.id,
+              email: userResponse.data.email,
+              displayName: userResponse.data.name || null,
+              isAdmin: userResponse.data.is_admin || false,
+            };
+            
+            setUser(userData);
+            
+            // Check if new user
+            setTimeout(async () => {
+              await checkIsNewUser();
+            }, 100);
+            
+            return userData;
+          }
+        } catch (e) {
+          // Fallback to response data if getUserProfile fails
+        }
+        
         const userData = {
           id: response.data.user.id,
           email: response.data.user.email,
           displayName: response.data.user.name || null,
+          isAdmin: false, // Default to false if we can't fetch from API
         };
         
         setUser(userData);
@@ -160,6 +231,8 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const isAdmin = user?.isAdmin || false;
+
   const value = useMemo(() => ({ 
     user, 
     loading, 
@@ -167,8 +240,9 @@ export function AuthProvider({ children }) {
     logIn, 
     logOut, 
     isNewUser, 
-    checkIsNewUser 
-  }), [user, loading, signUp, logIn, logOut, isNewUser, checkIsNewUser]);
+    checkIsNewUser,
+    isAdmin
+  }), [user, loading, signUp, logIn, logOut, isNewUser, checkIsNewUser, isAdmin]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
