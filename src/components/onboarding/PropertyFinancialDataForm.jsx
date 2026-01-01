@@ -99,7 +99,28 @@ export default function PropertyFinancialDataForm({
     expenses: {},
   });
 
-  // Restore draft on mount
+  // Get default year from property closing date
+  const getDefaultYear = () => {
+    if (property?.purchaseDate) {
+      const purchaseDate = new Date(property.purchaseDate);
+      return purchaseDate.getFullYear().toString();
+    }
+    return new Date().getFullYear().toString();
+  };
+
+  // Initialize year data structure
+  const initializeYearData = (year) => {
+    const expenses = {};
+    EXPENSE_CATEGORIES.forEach(category => {
+      expenses[category] = '';
+    });
+    return {
+      revenue: '',
+      expenses: expenses
+    };
+  };
+
+  // Restore draft on mount and initialize current year if needed
   useEffect(() => {
     if (propertyId) {
       const draft = getPropertyDraft(propertyId);
@@ -119,13 +140,6 @@ export default function PropertyFinancialDataForm({
         // Migrate old expenses array to expensesByYear if needed
         if (draft.expenses && Array.isArray(draft.expenses) && draft.expenses.length > 0 && !draft.expensesByYear) {
           const migrated = { expensesByYear: {} };
-          const getDefaultYear = () => {
-            if (property?.purchaseDate) {
-              const purchaseDate = new Date(property.purchaseDate);
-              return purchaseDate.getFullYear().toString();
-            }
-            return new Date().getFullYear().toString();
-          };
           draft.expenses.forEach(expense => {
             const year = expense.year || getDefaultYear();
             if (!migrated.expensesByYear[year]) {
@@ -145,11 +159,38 @@ export default function PropertyFinancialDataForm({
           draft.expensesByYear = migrated.expensesByYear;
           delete draft.expenses;
         }
+        
+        // If no years exist in expensesByYear, initialize with current year
+        if (!draft.expensesByYear || Object.keys(draft.expensesByYear).length === 0) {
+          const defaultYear = getDefaultYear();
+          draft.expensesByYear = {
+            [defaultYear]: initializeYearData(defaultYear)
+          };
+        }
+        
         setFormData(draft);
         addToast("Draft restored", { type: "success", duration: 2000 });
+      } else {
+        // No draft exists - initialize with current year
+        const defaultYear = getDefaultYear();
+        setFormData(prev => ({
+          ...prev,
+          expensesByYear: {
+            [defaultYear]: initializeYearData(defaultYear)
+          }
+        }));
       }
+    } else {
+      // No propertyId yet - initialize with current year
+      const defaultYear = getDefaultYear();
+      setFormData(prev => ({
+        ...prev,
+        expensesByYear: {
+          [defaultYear]: initializeYearData(defaultYear)
+        }
+      }));
     }
-  }, [propertyId, addToast]);
+  }, [propertyId, property]);
 
   // Auto-save with debounce
   const saveDraft = useCallback(() => {
@@ -230,27 +271,6 @@ export default function PropertyFinancialDataForm({
         tenantNames: prev.income.tenantNames.map((name, i) => i === index ? value : name)
       }
     }));
-  };
-
-  // Get default year from property closing date
-  const getDefaultYear = () => {
-    if (property?.purchaseDate) {
-      const purchaseDate = new Date(property.purchaseDate);
-      return purchaseDate.getFullYear().toString();
-    }
-    return new Date().getFullYear().toString();
-  };
-
-  // Initialize year data structure
-  const initializeYearData = (year) => {
-    const expenses = {};
-    EXPENSE_CATEGORIES.forEach(category => {
-      expenses[category] = '';
-    });
-    return {
-      revenue: '',
-      expenses: expenses
-    };
   };
 
   // Add year column

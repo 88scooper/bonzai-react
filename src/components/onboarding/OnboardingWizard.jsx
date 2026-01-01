@@ -80,6 +80,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   const [editingPropertyId, setEditingPropertyId] = useState(null); // Property being edited
   const [deletingPropertyId, setDeletingPropertyId] = useState(null); // Property to be deleted (for confirmation)
   const [pendingPropertyData, setPendingPropertyData] = useState(null); // Property data pending confirmation
+  const [showAddPropertyForm, setShowAddPropertyForm] = useState(false); // Show form to add another property
   const [mortgageAdded, setMortgageAdded] = useState(false);
   const [tenantAdded, setTenantAdded] = useState(false);
   const [expenseAdded, setExpenseAdded] = useState(false);
@@ -177,6 +178,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
           // Reset form for next entry
           setPropertyFormKey(prev => prev + 1);
           setPendingPropertyData(null); // Clear pending data
+          setShowAddPropertyForm(false); // Hide form after adding
         } else {
           throw new Error(response.error || "Failed to add property");
         }
@@ -242,6 +244,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   const handleCancelEdit = () => {
     setEditingPropertyId(null);
     setPropertyFormKey(prev => prev + 1);
+    setShowAddPropertyForm(false);
   };
 
   // Step 4: Advance to step 5 (financial data)
@@ -453,6 +456,29 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                       </div>
                     ))}
                   </div>
+                  {/* Add Another Property Button */}
+                  {!pendingPropertyData && !showAddPropertyForm && (
+                    <div className="pt-3 space-y-3">
+                      <Button
+                        onClick={() => {
+                          setPropertyFormKey(prev => prev + 1);
+                          setShowAddPropertyForm(true);
+                        }}
+                        variant="secondary"
+                        className="w-full"
+                      >
+                        Add Another Property
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setCurrentStep(4);
+                        }}
+                        className="w-full"
+                      >
+                        Continue to Review
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -505,13 +531,13 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
               )}
 
               {/* Property Form - show when adding new or editing */}
-              {(!properties.length || editingPropertyId) && !pendingPropertyData && (
+              {(!properties.length || editingPropertyId || showAddPropertyForm) && !pendingPropertyData && (
                 <PropertyForm
                   key={propertyFormKey}
                   accountId={accountId}
                   initialData={editingPropertyId ? properties.find(p => p.id === editingPropertyId) : {}}
                   onSubmit={handlePropertyFormSubmit}
-                  onCancel={editingPropertyId ? handleCancelEdit : (properties.length > 0 ? undefined : () => setCurrentStep(1))}
+                  onCancel={editingPropertyId ? handleCancelEdit : (properties.length > 0 ? () => setShowAddPropertyForm(false) : () => setCurrentStep(1))}
                   onContinue={() => {
                     if (properties.length > 0) {
                       setCurrentStep(4);
