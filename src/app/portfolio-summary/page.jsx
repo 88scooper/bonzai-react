@@ -675,9 +675,26 @@ export default function PortfolioSummaryPage() {
           <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                  Complete Your Onboarding
-                </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                    Complete Your Onboarding
+                  </h3>
+                  {incompleteOnboardingStep && (
+                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                      {(() => {
+                        // Weight Step 5 more heavily
+                        // Steps 1-4: 10% each (40% total)
+                        // Step 5: 60% (weighted heavier, shows 70% when on step 5)
+                        if (incompleteOnboardingStep <= 4) {
+                          return Math.round((incompleteOnboardingStep - 1) * 10);
+                        } else {
+                          // Step 5 is weighted heavier - show 70% when on step 5
+                          return 70;
+                        }
+                      })()}% Complete
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
                   You've partially completed the onboarding process. Would you like to continue where you left off?
                 </p>
@@ -691,34 +708,8 @@ export default function PortfolioSummaryPage() {
                   >
                     Resume Onboarding
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowOnboardingPrompt(false);
-                      // Clear onboarding flags if user dismisses
-                      if (typeof window !== 'undefined') {
-                        sessionStorage.removeItem('onboarding_in_progress');
-                        sessionStorage.removeItem('onboarding_current_step');
-                      }
-                    }}
-                    className="px-4 py-2 bg-transparent hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-md border border-blue-300 dark:border-blue-700 transition-colors"
-                  >
-                    Dismiss
-                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setShowOnboardingPrompt(false);
-                  if (typeof window !== 'undefined') {
-                    sessionStorage.removeItem('onboarding_in_progress');
-                    sessionStorage.removeItem('onboarding_current_step');
-                  }
-                }}
-                className="ml-4 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
           </div>
         )}

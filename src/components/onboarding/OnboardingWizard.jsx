@@ -13,6 +13,7 @@ import FinancialDataStep from "./FinancialDataStep";
 import Button from "@/components/Button";
 import { CheckCircle2, Loader2, Download, X } from "lucide-react";
 import { downloadPropertyTemplate } from "@/lib/excel-template";
+import { clearAllOnboardingDrafts } from "@/lib/onboarding-draft-storage";
 
 export default function OnboardingWizard({ onComplete }) {
   const router = useRouter();
@@ -203,14 +204,14 @@ export default function OnboardingWizard({ onComplete }) {
     }
   };
 
-  // Step 4: Navigate to portfolio and show step 5 as modal
+  // Step 4: Advance to step 5 (financial data)
   const handleContinueToStep5 = () => {
-    // Set flag to show step 5 when on portfolio page
+    // Save step to sessionStorage
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('onboarding_step_5', 'true');
+      sessionStorage.setItem('onboarding_current_step', '5');
     }
-    // Navigate to portfolio summary
-    router.push("/portfolio-summary");
+    // Advance to step 5 directly
+    setCurrentStep(5);
   };
 
   // Step 4: Complete onboarding (skip financial data)
@@ -219,6 +220,8 @@ export default function OnboardingWizard({ onComplete }) {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('onboarding_current_step');
       sessionStorage.removeItem('onboarding_in_progress');
+      // Clear all onboarding drafts when completing
+      clearAllOnboardingDrafts();
     }
     if (onComplete) {
       onComplete();
