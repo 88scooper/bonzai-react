@@ -457,7 +457,7 @@ export default function PropertyForm({ onSubmit, onCancel, accountId, initialDat
           type="submit"
           className="px-4 py-2 rounded-md bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition"
         >
-          {initialData.id ? 'Update Property' : 'Add Property'}
+          {initialData.id ? 'Update Property' : 'Add Another Property'}
         </button>
       </div>
     </form>
