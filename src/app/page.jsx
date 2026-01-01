@@ -75,9 +75,9 @@ function HeroSection({ onGetStarted }) {
     <section className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Real estate investment management, reimagined.</h1>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Transparency and optimization for your real estate portfolio.</h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-            Track performance, analyze deals, and stay organized — all in one place.
+            Gain complete visibility into your small-scale investment portfolio. Track performance, forecast cash flow, analyze scenarios, and optimize returns — all in one powerful platform designed for real estate investors.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button onClick={onGetStarted}>Get started</Button>
@@ -93,13 +93,25 @@ function HeroSection({ onGetStarted }) {
 function FeaturesSection() {
   return (
     <section id="features" className="mx-auto max-w-7xl px-4 py-12">
+      <div className="text-center mb-12">
+        <h2 className="text-3xl font-bold tracking-tight mb-4">Everything you need to understand and optimize your investments</h2>
+        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          Proplytics provides complete transparency into your portfolio with powerful analytics, forecasting, and scenario planning tools.
+        </p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <FeatureCard title="Portfolio summary" description="See cash flow, occupancy, and KPIs at a glance." />
-        <FeatureCard title="Property records" description="Store income, expenses, and uploads for each property." />
-        <FeatureCard title="Calculators" description="Run mortgage, refinance, and penalty calculations quickly." />
-        <FeatureCard title="Analytics" description="Understand trends with clean, simple visuals (coming soon)." />
-        <FeatureCard title="Calendar" description="Track rent dates, maintenance, and tasks across properties." />
-        <FeatureCard title="Secure sync" description="Your data is stored in the cloud and follows you everywhere." />
+        <FeatureCard title="Portfolio transparency" description="Get a complete view of your portfolio with cash flow, occupancy rates, cap rates, and key performance indicators across all properties." />
+        <FeatureCard title="10-year forecasting" description="Project cash flow and equity growth over 10 years with adjustable assumptions for rent growth, expenses, appreciation, and vacancy rates." />
+        <FeatureCard title="Sensitivity analysis" description="Model different market scenarios by adjusting assumptions and instantly see the impact on IRR, cash flow, and total profit." />
+        <FeatureCard title="Scenario planning" description="Save and compare multiple investment scenarios to model optimistic, realistic, and conservative market conditions side-by-side." />
+        <FeatureCard title="Year-over-year tracking" description="Compare actual performance against forecasts and track revenue, expense, and cash flow growth trends over time." />
+        <FeatureCard title="Equity analysis" description="Project your property's equity growth by modeling appreciation, interest rates, and principal paydown over time." />
+        <FeatureCard title="Mortgage management" description="Track all mortgages, view detailed amortization schedules, calculate refinancing opportunities, and analyze break penalties." />
+        <FeatureCard title="Advanced calculators" description="Mortgage payment calculators, refinance analysis, break penalty calculations, and comprehensive payment schedules." />
+        <FeatureCard title="Property records" description="Centralized property management with income tracking, expense records, document storage, and historical data." />
+        <FeatureCard title="Calendar & tasks" description="Track rent collection dates, maintenance schedules, and important tasks across all your properties." />
+        <FeatureCard title="Portfolio insights" description="Get actionable intelligence on top-performing properties, diversification opportunities, and risk assessment." />
+        <FeatureCard title="Secure cloud sync" description="Your data is stored securely in the cloud and automatically syncs across all your devices." />
       </div>
     </section>
   );
@@ -118,8 +130,8 @@ function CtaSection({ onGetStarted }) {
   return (
     <section id="cta" className="mx-auto max-w-7xl px-4 py-16">
       <div className="rounded-2xl border border-black/10 dark:border-white/10 p-8 text-center bg-emerald-50/60 dark:bg-emerald-900/10">
-        <h2 className="text-2xl font-semibold">Ready to organize your portfolio?</h2>
-        <p className="mt-2 text-gray-700 dark:text-gray-300">Create your account in seconds.</p>
+        <h2 className="text-2xl font-semibold">Ready to optimize your real estate investments?</h2>
+        <p className="mt-2 text-gray-700 dark:text-gray-300">Start gaining transparency into your portfolio and make data-driven investment decisions.</p>
         <div className="mt-6 flex items-center justify-center gap-3">
           <Button onClick={onGetStarted}>Get started free</Button>
           <Link className="text-sm underline" href="/signup">Or create from the signup page →</Link>
