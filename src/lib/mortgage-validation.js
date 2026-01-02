@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-// Mortgage form validation schema
-export const mortgageSchema = z.object({
+// Base mortgage schema without refinements (needed for creating partial schema)
+const baseMortgageSchema = z.object({
   lenderName: z.string()
     .min(1, 'Lender name is required')
     .max(255, 'Lender name must be less than 255 characters')
@@ -68,7 +68,13 @@ export const mortgageSchema = z.object({
   }).optional(),
   
   hasFixedPayments: z.boolean().optional(),
-}).refine((data) => {
+});
+
+// Partial mortgage schema for updates (must be created before refinements)
+export const partialMortgageSchema = baseMortgageSchema.partial();
+
+// Mortgage form validation schema with refinements
+export const mortgageSchema = baseMortgageSchema.refine((data) => {
   // Validate amortization period based on unit
   if (data.amortizationValue && data.amortizationUnit) {
     if (data.amortizationUnit === 'years' && data.amortizationValue > 50) {
@@ -97,9 +103,6 @@ export const mortgageSchema = z.object({
   message: 'Term exceeds maximum allowed',
   path: ['termValue']
 });
-
-// Partial mortgage schema for updates
-export const partialMortgageSchema = mortgageSchema.partial();
 
 // Prepayment analysis validation schema
 export const prepaymentAnalysisSchema = z.object({
