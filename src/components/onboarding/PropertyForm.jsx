@@ -125,6 +125,121 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
     }
   };
 
+  // Helper function to check if a field is filled (has meaningful user input)
+  const isFieldFilled = (fieldName, value) => {
+    // Empty or null/undefined values are not filled
+    if (value === '' || value === null || value === undefined) {
+      return false;
+    }
+
+    // For purchase price and market value, 0 is not meaningful
+    if (fieldName === 'purchasePrice' || fieldName === 'currentMarketValue') {
+      const numValue = parseFloat(value);
+      return !isNaN(numValue) && numValue > 0;
+    }
+
+    // Closing costs and renovation costs can be 0, which is valid
+    // But for color logic, treat "0" as not filled (user hasn't entered anything meaningful)
+    if (fieldName === 'closingCosts' || fieldName === 'renovationCosts') {
+      const numValue = parseFloat(value);
+      // Consider it filled only if it's been explicitly set to something other than default 0
+      // Since we can't track if user changed it, we'll treat 0 as not filled for color purposes
+      return !isNaN(numValue) && numValue !== 0;
+    }
+
+    if (fieldName === 'yearBuilt') {
+      // Year built should be a valid year
+      const year = parseInt(value);
+      return !isNaN(year) && year >= 1800 && year <= 2100;
+    }
+
+    if (fieldName === 'numberOfUnits') {
+      // numberOfUnits defaults to '1', which is valid - consider it filled
+      return value !== '' && value !== null && value !== undefined;
+    }
+
+    // For unit fields (size, beds, bathrooms, dens), 0 is not meaningful
+    if (fieldName === 'size' || fieldName === 'beds' || fieldName === 'bathrooms' || fieldName === 'dens') {
+      const numValue = parseFloat(value);
+      return !isNaN(numValue) && numValue > 0;
+    }
+
+    // For text fields, any non-empty value is filled
+    return value !== '';
+  };
+
+  // Helper function to find the next empty field
+  const getNextEmptyField = () => {
+    const fieldOrder = [
+      'nickname',
+      'address',
+      'purchasePrice',
+      'purchaseDate',
+      'closingCosts',
+      'renovationCosts',
+      'currentMarketValue',
+      'yearBuilt',
+      'propertyType',
+      'numberOfUnits'
+    ];
+
+    for (const field of fieldOrder) {
+      if (!isFieldFilled(field, formData[field])) {
+        return field;
+      }
+    }
+
+    // Check units if numberOfUnits is filled
+    if (isFieldFilled('numberOfUnits', formData.numberOfUnits)) {
+      for (let i = 0; i < formData.units.length; i++) {
+        const unit = formData.units[i];
+        if (!isFieldFilled('size', unit.size)) return `unit-${i}-size`;
+        if (!isFieldFilled('beds', unit.beds)) return `unit-${i}-beds`;
+        if (!isFieldFilled('bathrooms', unit.bathrooms)) return `unit-${i}-bathrooms`;
+        if (!isFieldFilled('dens', unit.dens)) return `unit-${i}-dens`;
+      }
+    }
+
+    return null; // All fields filled
+  };
+
+  // Get className based on field state
+  const getFieldClassName = (fieldName, value) => {
+    const filled = isFieldFilled(fieldName, value);
+    const nextEmpty = getNextEmptyField();
+    const isNextField = nextEmpty === fieldName;
+
+    if (filled) {
+      // Filled field - white background (completed)
+      return "w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 outline-none focus:ring-2 focus:ring-gray-500/20 dark:focus:ring-gray-400/20 focus:border-gray-400 dark:focus:border-gray-500";
+    } else if (isNextField) {
+      // Next empty field - green background (current field to fill)
+      return "w-full rounded-md border-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/30 dark:focus:ring-emerald-400/30 focus:border-emerald-500 dark:focus:border-emerald-400 shadow-sm";
+    } else {
+      // Other empty fields - blue background (waiting)
+      return "w-full rounded-md border border-black/15 dark:border-white/15 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-500";
+    }
+  };
+
+  // Get className for unit fields
+  const getUnitFieldClassName = (unitIndex, fieldName, value) => {
+    const fieldId = `unit-${unitIndex}-${fieldName}`;
+    const filled = isFieldFilled(fieldName, value);
+    const nextEmpty = getNextEmptyField();
+    const isNextField = nextEmpty === fieldId;
+
+    if (filled) {
+      // Filled field - white background (completed)
+      return "w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 outline-none focus:ring-2 focus:ring-gray-500/20 dark:focus:ring-gray-400/20 focus:border-gray-400 dark:focus:border-gray-500";
+    } else if (isNextField) {
+      // Next empty field - green background (current field to fill)
+      return "w-full rounded-md border-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/30 dark:focus:ring-emerald-400/30 focus:border-emerald-500 dark:focus:border-emerald-400 shadow-sm";
+    } else {
+      // Other empty fields - blue background (waiting)
+      return "w-full rounded-md border border-black/15 dark:border-white/15 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-500";
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -191,7 +306,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             type="text"
             value={formData.nickname}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('nickname', formData.nickname)}
             placeholder="e.g., Main Street Property"
           />
         </div>
@@ -206,7 +321,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             type="text"
             value={formData.address}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('address', formData.address)}
             placeholder="123 Main St, City, State ZIP"
           />
         </div>
@@ -223,7 +338,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             min="0"
             value={formData.purchasePrice}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('purchasePrice', formData.purchasePrice)}
             placeholder="0.00"
           />
         </div>
@@ -238,7 +353,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             type="date"
             value={formData.purchaseDate}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('purchaseDate', formData.purchaseDate)}
           />
         </div>
 
@@ -254,7 +369,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             min="0"
             value={formData.closingCosts}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('closingCosts', formData.closingCosts)}
             placeholder="0.00"
           />
         </div>
@@ -271,7 +386,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             min="0"
             value={formData.renovationCosts}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('renovationCosts', formData.renovationCosts)}
             placeholder="0.00"
           />
         </div>
@@ -288,7 +403,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             min="0"
             value={formData.currentMarketValue}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('currentMarketValue', formData.currentMarketValue)}
             placeholder="0.00"
           />
         </div>
@@ -305,7 +420,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             max="2100"
             value={formData.yearBuilt}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('yearBuilt', formData.yearBuilt)}
             placeholder="2020"
           />
         </div>
@@ -319,7 +434,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             name="propertyType"
             value={formData.propertyType}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('propertyType', formData.propertyType)}
           >
             <option value="">Select type</option>
             <option value="Condo">Condo</option>
@@ -339,7 +454,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             name="numberOfUnits"
             value={formData.numberOfUnits}
             onChange={handleChange}
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+            className={getFieldClassName('numberOfUnits', formData.numberOfUnits)}
           >
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
               <option key={num} value={num}>{num}</option>
@@ -370,7 +485,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
                   min="0"
                   value={unit.size || ''}
                   onChange={(e) => handleUnitChange(index, 'size', e.target.value)}
-                  className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                  className={getUnitFieldClassName(index, 'size', unit.size)}
                   placeholder="0"
                 />
               </div>
@@ -384,7 +499,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
                   step="1"
                   value={unit.beds || ''}
                   onChange={(e) => handleUnitChange(index, 'beds', e.target.value)}
-                  className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                  className={getUnitFieldClassName(index, 'beds', unit.beds)}
                   placeholder="0"
                 />
               </div>
@@ -398,7 +513,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
                   step="0.5"
                   value={unit.bathrooms || ''}
                   onChange={(e) => handleUnitChange(index, 'bathrooms', e.target.value)}
-                  className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                  className={getUnitFieldClassName(index, 'bathrooms', unit.bathrooms)}
                   placeholder="0"
                 />
               </div>
@@ -412,7 +527,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
                   step="1"
                   value={unit.dens || ''}
                   onChange={(e) => handleUnitChange(index, 'dens', e.target.value)}
-                  className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                  className={getUnitFieldClassName(index, 'dens', unit.dens)}
                   placeholder="0"
                 />
               </div>
