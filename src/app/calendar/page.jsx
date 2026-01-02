@@ -44,7 +44,11 @@ export default function CalendarPage() {
     time: '',
     description: '',
     property: '',
-    notify: false
+    notify: false,
+    isRecurring: false,
+    recurrenceType: 'weekly',
+    recurrenceInterval: 1,
+    recurrenceEndDate: ''
   });
 
   // Get property names from context
@@ -77,17 +81,82 @@ export default function CalendarPage() {
     return days;
   }, [currentYear, currentMonth, firstDayWeekday, daysInMonth]);
 
-  // Filter events for selected date
+  // Helper function to normalize date to start of day for comparison
+  const normalizeDate = (date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  // Helper function to check if a date matches a recurring event pattern
+  const matchesRecurrencePattern = (date, event) => {
+    if (!event.recurrence || !event.recurrence.startDate) return false;
+    
+    const eventDate = normalizeDate(event.recurrence.startDate);
+    const checkDate = normalizeDate(date);
+    const endDate = event.recurrence.endDate ? normalizeDate(event.recurrence.endDate) : null;
+    
+    // Check if date is before start date
+    if (checkDate < eventDate) return false;
+    
+    // Check if date is after end date
+    if (endDate && checkDate > endDate) return false;
+    
+    const { type, interval } = event.recurrence;
+    const diffTime = checkDate - eventDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    switch (type) {
+      case 'daily':
+        return diffDays % interval === 0;
+      case 'weekly':
+        return diffDays % (7 * interval) === 0;
+      case 'monthly':
+        // Check if it's the same day of month, accounting for months with different lengths
+        const eventDay = eventDate.getDate();
+        const checkDay = checkDate.getDate();
+        if (checkDay !== eventDay) return false;
+        
+        const monthsDiff = (checkDate.getFullYear() - eventDate.getFullYear()) * 12 + 
+                          (checkDate.getMonth() - eventDate.getMonth());
+        return monthsDiff >= 0 && monthsDiff % interval === 0;
+      case 'yearly':
+        // Check if it's the same month and day
+        if (checkDate.getMonth() !== eventDate.getMonth() || 
+            checkDate.getDate() !== eventDate.getDate()) return false;
+        
+        const yearsDiff = checkDate.getFullYear() - eventDate.getFullYear();
+        return yearsDiff >= 0 && yearsDiff % interval === 0;
+      default:
+        return false;
+    }
+  };
+
+  // Filter events for selected date (including recurring events)
   const selectedDateEvents = useMemo(() => {
     const selectedDateString = selectedDate.toISOString().split('T')[0];
-    return events.filter(event => event.date === selectedDateString);
+    return events.filter(event => {
+      // Regular event
+      if (!event.recurrence) {
+        return event.date === selectedDateString;
+      }
+      // Recurring event
+      return matchesRecurrencePattern(selectedDate, event);
+    });
   }, [events, selectedDate]);
 
-  // Check if a date has events
+  // Check if a date has events (including recurring events)
   const hasEvents = (date) => {
     if (!date) return false;
     const dateString = date.toISOString().split('T')[0];
-    return events.some(event => event.date === dateString);
+    return events.some(event => {
+      // Regular event
+      if (!event.recurrence) {
+        return event.date === dateString;
+      }
+      // Recurring event
+      return matchesRecurrencePattern(date, event);
+    });
   };
 
   // Navigate to previous month
@@ -129,7 +198,12 @@ export default function CalendarPage() {
       return;
     }
 
-    const newEvent = {
+    if (formData.isRecurring && !formData.recurrenceEndDate) {
+      addToast("Please specify an end date for recurring events.", { type: "error" });
+      return;
+    }
+
+    const baseEventData = {
       id: Date.now(),
       date: formData.date,
       time: formData.time,
@@ -138,7 +212,25 @@ export default function CalendarPage() {
       notify: formData.notify
     };
 
-    setEvents(prev => [...prev, newEvent]);
+    if (formData.isRecurring) {
+      // Create recurring event with pattern
+      const newEvent = {
+        ...baseEventData,
+        recurrence: {
+          startDate: formData.date,
+          type: formData.recurrenceType,
+          interval: parseInt(formData.recurrenceInterval) || 1,
+          endDate: formData.recurrenceEndDate
+        }
+      };
+      
+      setEvents(prev => [...prev, newEvent]);
+      addToast("Recurring event added successfully!", { type: "success" });
+    } else {
+      // Create single event
+      setEvents(prev => [...prev, baseEventData]);
+      addToast("Event added successfully!", { type: "success" });
+    }
     
     // Reset form
     setFormData({
@@ -146,10 +238,12 @@ export default function CalendarPage() {
       time: '',
       description: '',
       property: '',
-      notify: false
+      notify: false,
+      isRecurring: false,
+      recurrenceType: 'weekly',
+      recurrenceInterval: 1,
+      recurrenceEndDate: ''
     });
-
-    addToast("Event added successfully!", { type: "success" });
   };
 
   // Delete event
@@ -237,7 +331,14 @@ export default function CalendarPage() {
                         >
                           {date.getDate()}
                           {hasEvents(date) && (
-                            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full"></div>
+                            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex items-center gap-0.5">
+                              <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                              {events.some(event => event.recurrence && matchesRecurrencePattern(date, event)) && (
+                                <svg className="w-2 h-2 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
                           )}
                         </button>
                       ) : (
@@ -332,6 +433,83 @@ export default function CalendarPage() {
                     </label>
                   </div>
 
+                  <div className="border-t border-black/10 dark:border-white/10 pt-4">
+                    <div className="flex items-center mb-4">
+                      <input
+                        type="checkbox"
+                        id="isRecurring"
+                        name="isRecurring"
+                        checked={formData.isRecurring}
+                        onChange={handleFormChange}
+                        className="rounded border-black/15 dark:border-white/15"
+                      />
+                      <label htmlFor="isRecurring" className="ml-2 text-sm font-medium">
+                        Make this event recurring
+                      </label>
+                    </div>
+
+                    {formData.isRecurring && (
+                      <div className="space-y-4 pl-6 border-l-2 border-black/10 dark:border-white/10">
+                        <div>
+                          <label htmlFor="recurrenceType" className="block text-sm font-medium mb-1">
+                            Repeats
+                          </label>
+                          <select
+                            id="recurrenceType"
+                            name="recurrenceType"
+                            value={formData.recurrenceType}
+                            onChange={handleFormChange}
+                            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label htmlFor="recurrenceInterval" className="block text-sm font-medium mb-1">
+                            Every
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              id="recurrenceInterval"
+                              name="recurrenceInterval"
+                              value={formData.recurrenceInterval}
+                              onChange={handleFormChange}
+                              min="1"
+                              className="w-20 rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                            />
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              {formData.recurrenceType === 'daily' && (formData.recurrenceInterval === 1 ? 'day' : 'days')}
+                              {formData.recurrenceType === 'weekly' && (formData.recurrenceInterval === 1 ? 'week' : 'weeks')}
+                              {formData.recurrenceType === 'monthly' && (formData.recurrenceInterval === 1 ? 'month' : 'months')}
+                              {formData.recurrenceType === 'yearly' && (formData.recurrenceInterval === 1 ? 'year' : 'years')}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label htmlFor="recurrenceEndDate" className="block text-sm font-medium mb-1">
+                            End Date *
+                          </label>
+                          <input
+                            type="date"
+                            id="recurrenceEndDate"
+                            name="recurrenceEndDate"
+                            value={formData.recurrenceEndDate}
+                            onChange={handleFormChange}
+                            min={formData.date}
+                            required={formData.isRecurring}
+                            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <Button type="submit" className="w-full">
                     Add Event
                   </Button>
@@ -350,32 +528,50 @@ export default function CalendarPage() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {selectedDateEvents.map(event => (
-                      <div key={event.id} className="flex items-start justify-between p-3 rounded-md bg-gray-50 dark:bg-gray-800">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{event.description}</div>
-                          {event.time && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              {event.time}
+                    {selectedDateEvents.map((event, index) => {
+                      const isRecurring = !!event.recurrence;
+                      const recurrenceLabel = isRecurring ? 
+                        `${event.recurrence.interval === 1 ? '' : `Every ${event.recurrence.interval} `}${event.recurrence.type.charAt(0).toUpperCase() + event.recurrence.type.slice(1)}` : '';
+                      
+                      return (
+                        <div key={`${event.id}-${index}`} className="flex items-start justify-between p-3 rounded-md bg-gray-50 dark:bg-gray-800">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-sm">{event.description}</div>
+                              {isRecurring && (
+                                <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20" title="Recurring event">
+                                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                </svg>
+                              )}
                             </div>
-                          )}
-                          {event.property && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {event.property}
-                            </div>
-                          )}
+                            {isRecurring && (
+                              <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                {recurrenceLabel}
+                              </div>
+                            )}
+                            {event.time && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {event.time}
+                              </div>
+                            )}
+                            {event.property && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {event.property}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => deleteEvent(event.id)}
+                            className="ml-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            aria-label="Delete event"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         </div>
-                        <button
-                          onClick={() => deleteEvent(event.id)}
-                          className="ml-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
-                          aria-label="Delete event"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

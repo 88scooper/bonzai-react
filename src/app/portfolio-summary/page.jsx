@@ -5,6 +5,7 @@ import Layout from "@/components/Layout.jsx";
 import { RequireAuth } from "@/context/AuthContext";
 import { useState, useRef, useEffect, useCallback } from "react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
+import AnnualAssumptionsModal from "@/components/AnnualAssumptionsModal";
 import { Settings, GripVertical, Building2, PiggyBank, FileSpreadsheet, BarChart3, PieChart as PieChartIcon, X } from "lucide-react";
 import {
   DndContext,
@@ -145,6 +146,110 @@ const formatDateDisplay = (value, options, fallback) => {
   return new Date(value).toLocaleDateString("en-CA", options);
 };
 
+/**
+ * Calculate actual-to-date values for current year + forecast for remainder
+ * @param {Object} property - Property object with expenseHistory
+ * @param {Date} today - Current date (defaults to now)
+ * @returns {Object} Actual income/expenses to date, forecast for remainder, and combined annual values
+ */
+function calculateActualPlusForecast(property, today = new Date()) {
+  if (!property) {
+    return {
+      actual: { income: 0, operatingExpenses: 0, mortgagePayments: 0, cashFlow: 0 },
+      forecast: { income: 0, operatingExpenses: 0, mortgagePayments: 0, cashFlow: 0 },
+      annual: { income: 0, operatingExpenses: 0, mortgagePayments: 0, cashFlow: 0 },
+      monthsElapsed: 0,
+      monthsRemaining: 12
+    };
+  }
+  const currentYear = today.getFullYear();
+  const yearStart = new Date(currentYear, 0, 1);
+  const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59);
+  
+  // Calculate months elapsed (Jan = 1, Feb = 2, etc.)
+  const monthsElapsed = Math.max(1, today.getMonth() + 1);
+  const monthsRemaining = Math.max(0, 12 - monthsElapsed);
+  
+  // Calculate actual data from Jan 1 to today
+  let actualIncome = 0;
+  let actualOperatingExpenses = 0;
+  
+  // Sum actual expenses from expenseHistory
+  if (property.expenseHistory && Array.isArray(property.expenseHistory)) {
+    property.expenseHistory.forEach(expense => {
+      const expenseDate = new Date(expense.date);
+      if (expenseDate >= yearStart && expenseDate <= today) {
+        // Separate income (rent payments) from expenses
+        if (expense.category === 'Rent' || expense.category === 'Income' || expense.description?.toLowerCase().includes('rent')) {
+          actualIncome += expense.amount || 0;
+        } else {
+          actualOperatingExpenses += expense.amount || 0;
+        }
+      }
+    });
+  }
+  
+  // Calculate actual rent income (if no expenseHistory income, estimate from monthly rent)
+  const monthlyRent = property.rent?.monthlyRent || 0;
+  if (actualIncome === 0 && monthlyRent > 0) {
+    actualIncome = monthlyRent * monthsElapsed;
+  }
+  
+  // Calculate forecast for remainder of year
+  const forecastIncome = monthlyRent * monthsRemaining;
+  
+  // Calculate monthly operating expenses average
+  const monthlyOperatingExpenses =
+    (property.monthlyExpenses?.propertyTax || 0) +
+    (property.monthlyExpenses?.condoFees || 0) +
+    (property.monthlyExpenses?.insurance || 0) +
+    (property.monthlyExpenses?.maintenance || 0) +
+    (property.monthlyExpenses?.professionalFees || 0) +
+    (property.monthlyExpenses?.utilities || 0);
+  
+  // If we have actual expenses, calculate average monthly rate; otherwise use monthly estimate
+  const actualMonthlyAvg = monthsElapsed > 0 && actualOperatingExpenses > 0
+    ? actualOperatingExpenses / monthsElapsed
+    : monthlyOperatingExpenses;
+  const forecastOperatingExpenses = actualMonthlyAvg * monthsRemaining;
+  
+  // Forecast mortgage payments (same monthly amount for remainder)
+  const monthlyMortgagePayment = property.monthlyExpenses?.mortgagePayment || 0;
+  const forecastMortgagePayments = monthlyMortgagePayment * monthsRemaining;
+  
+  // Calculate actual mortgage payments to date
+  const actualMortgagePayments = monthlyMortgagePayment * monthsElapsed;
+  
+  // Combined annual values
+  const annualIncome = actualIncome + forecastIncome;
+  const annualOperatingExpenses = actualOperatingExpenses + forecastOperatingExpenses;
+  const annualMortgagePayments = actualMortgagePayments + forecastMortgagePayments;
+  const annualCashFlow = annualIncome - annualOperatingExpenses - annualMortgagePayments;
+  
+  return {
+    actual: {
+      income: actualIncome,
+      operatingExpenses: actualOperatingExpenses,
+      mortgagePayments: actualMortgagePayments,
+      cashFlow: actualIncome - actualOperatingExpenses - actualMortgagePayments
+    },
+    forecast: {
+      income: forecastIncome,
+      operatingExpenses: forecastOperatingExpenses,
+      mortgagePayments: forecastMortgagePayments,
+      cashFlow: forecastIncome - forecastOperatingExpenses - forecastMortgagePayments
+    },
+    annual: {
+      income: annualIncome,
+      operatingExpenses: annualOperatingExpenses,
+      mortgagePayments: annualMortgagePayments,
+      cashFlow: annualCashFlow
+    },
+    monthsElapsed,
+    monthsRemaining
+  };
+}
+
 export default function PortfolioSummaryPage() {
   // Get data from PropertyContext
   const { calculationsComplete } = usePropertyContext();
@@ -163,6 +268,9 @@ export default function PortfolioSummaryPage() {
   // Check if onboarding is incomplete
   const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
   const [incompleteOnboardingStep, setIncompleteOnboardingStep] = useState(null);
+
+  // Annual assumptions review modal
+  const [showAnnualAssumptionsModal, setShowAnnualAssumptionsModal] = useState(false);
 
   // Default metrics configuration - Reordered according to new layout
   const defaultMetrics = [
@@ -286,6 +394,30 @@ export default function PortfolioSummaryPage() {
     }
   }, [showOnboardingModal, properties]);
 
+  // Check if annual assumptions review is needed
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Don't show if onboarding modal is showing
+    if (showOnboardingModal) return;
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth(); // 0 = January, 11 = December
+    
+    // Only show in January (month 0)
+    if (currentMonth !== 0) return;
+    
+    // Check if user has already reviewed assumptions for this year
+    const reviewedYears = JSON.parse(localStorage.getItem('annualAssumptionsReviewedYears') || '[]');
+    const hasReviewedThisYear = reviewedYears.includes(currentYear);
+    
+    // Show modal if it's January and user hasn't reviewed yet
+    if (!hasReviewedThisYear) {
+      setShowAnnualAssumptionsModal(true);
+    }
+  }, [showOnboardingModal]);
+
   // Initialize metrics from localStorage or use default
   useEffect(() => {
     // Force reset to new default order for now
@@ -359,13 +491,21 @@ export default function PortfolioSummaryPage() {
   const totalMonthlyDebtService = portfolioMetrics.totalMonthlyDebtService || 0;
   const totalMonthlyExpenses = portfolioMetrics.totalMonthlyExpenses || (totalMonthlyOperatingExpenses + totalMonthlyDebtService);
   const totalAnnualOperatingExpenses = portfolioMetrics.totalAnnualOperatingExpenses || 0;
-  const totalAnnualDebtService = portfolioMetrics.totalAnnualDebtService || (totalMonthlyDebtService * 12);
+  // Calculate annual debt service from actual + forecast
+  const totalAnnualDebtService = (properties || []).reduce((sum, property) => {
+    const { annual } = calculateActualPlusForecast(property);
+    return sum + annual.mortgagePayments;
+  }, 0);
 
 
   // Calculate additional metrics
   const totalMortgageDebt = portfolioMetrics.totalMortgageBalance || 0;
 
-  const annualCashFlow = portfolioMetrics.totalAnnualCashFlow || 0;
+  // Calculate annual cash flow from actual + forecast
+  const annualCashFlow = (properties || []).reduce((sum, property) => {
+    const { annual } = calculateActualPlusForecast(property);
+    return sum + annual.cashFlow;
+  }, 0);
     const totalRevenue = (portfolioMetrics.totalMonthlyRent || 0) * 12;
     const netOperatingIncome = portfolioMetrics.netOperatingIncome || 0;
   const monthlyCashFlowValue = portfolioMetrics.totalMonthlyCashFlow || 0;
@@ -498,14 +638,18 @@ export default function PortfolioSummaryPage() {
 
   // Calculate new KPIs
   // 1. Overall Cap Rate = Total Annual NOI / Total Estimated Portfolio Value
-  const totalAnnualNOI = portfolioMetrics.netOperatingIncome || 0;
+  // Calculate NOI from actual + forecast for each property
+  const totalAnnualNOI = (properties || []).reduce((sum, property) => {
+    const { annual } = calculateActualPlusForecast(property);
+    return sum + (annual.income - annual.operatingExpenses);
+  }, 0);
   const overallCapRate = totalPortfolioValue > 0 ? (totalAnnualNOI / totalPortfolioValue) * 100 : 0;
 
   // 2. Portfolio LTV = Total Mortgage Debt / Total Estimated Portfolio Value
   const portfolioLTV = totalPortfolioValue > 0 ? (totalMortgageDebt / totalPortfolioValue) * 100 : 0;
 
   // 3. Blended Cash on Cash Return = Total Annual Cash Flow Before Tax / Total Initial Cash Invested
-  const totalAnnualCashFlowBeforeTax = portfolioMetrics.totalAnnualCashFlow || 0;
+  const totalAnnualCashFlowBeforeTax = annualCashFlow; // Use the calculated value above
   const totalInitialCashInvested = (properties || []).reduce((sum, property) => {
     const hasTotalInvestment = typeof property.totalInvestment === "number" && !Number.isNaN(property.totalInvestment);
     const fallbackDownPayment = Math.max(
@@ -518,7 +662,7 @@ export default function PortfolioSummaryPage() {
   const blendedCashOnCashReturn = totalInitialCashInvested > 0 ? (totalAnnualCashFlowBeforeTax / totalInitialCashInvested) * 100 : 0;
 
   // 4. Anticipated Annual Equity Built = Sum of annual principal payments + annual appreciation
-  // This accounts for rent paid to date and anticipated rent for the remainder of the year
+  // This uses actual principal payments to date + forecasted for remainder of year
   const annualEquityBuilt = (properties || []).reduce((sum, property) => {
     let propertyEquityBuilt = 0;
     
@@ -683,6 +827,13 @@ export default function PortfolioSummaryPage() {
             </div>
           </div>
         )}
+
+        {/* Annual Assumptions Review Modal */}
+        <AnnualAssumptionsModal
+          isOpen={showAnnualAssumptionsModal}
+          onClose={() => setShowAnnualAssumptionsModal(false)}
+          currentYear={new Date().getFullYear()}
+        />
         
         {/* Onboarding Incomplete Prompt */}
         {showOnboardingPrompt && !showOnboardingModal && (
@@ -735,6 +886,7 @@ export default function PortfolioSummaryPage() {
                 <h1 className="text-3xl font-bold">Portfolio Summary</h1>
                 <p className="mt-2 text-gray-600 dark:text-gray-300">
                   Overview of your real estate investment performance and key metrics for {new Date().getFullYear()}.
+                  Values shown combine actual data from January 1 to today plus forecast for the remainder of the year.
                 </p>
               </div>
 
@@ -1066,7 +1218,7 @@ export default function PortfolioSummaryPage() {
                     return (
                       <MetricCard
                         key={metric.id}
-                        title="Financial Goals 2025"
+                        title={`Financial Goals ${new Date().getFullYear()}`}
                         showInfoIcon={true}
                         tooltipText="This card tracks your progress towards the financial goals set for the current year."
                         isMultiMetric={true}
@@ -2443,13 +2595,14 @@ function MetricCard({
 
 function ScheduleEvents({ properties = [] }) {
   const [dateRange, setDateRange] = useState(30);
+  const currentYear = new Date().getFullYear();
   
   const upcomingEvents = properties.flatMap(property => {
     const events = [
       { propertyName: property.nickname || property.name, eventType: "Mortgage Payment", date: property.mortgage?.nextPayment },
-      { propertyName: property.nickname || property.name, eventType: "Insurance Renewal", date: "2025-02-15" }, // Estimated
-      { propertyName: property.nickname || property.name, eventType: "Property Tax", date: "2025-03-01" }, // Estimated
-      { propertyName: property.nickname || property.name, eventType: "Maintenance", date: "2025-01-20" }, // Estimated
+      { propertyName: property.nickname || property.name, eventType: "Insurance Renewal", date: `${currentYear}-02-15` }, // Estimated
+      { propertyName: property.nickname || property.name, eventType: "Property Tax", date: `${currentYear}-03-01` }, // Estimated
+      { propertyName: property.nickname || property.name, eventType: "Maintenance", date: `${currentYear}-01-20` }, // Estimated
     ];
     
     if (property.tenant?.name && property.tenant?.leaseEndDate) {
