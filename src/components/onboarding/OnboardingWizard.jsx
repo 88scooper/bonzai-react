@@ -363,7 +363,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
           {currentStep === 2 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold mb-2">Add Another Property</h2>
+                <h2 className="text-xl font-semibold mb-2">Add Your Investment Properties</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Enter your property details below
                 </p>
