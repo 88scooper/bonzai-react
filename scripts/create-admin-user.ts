@@ -6,7 +6,8 @@
  * Make sure to run the database migration (003_add_admin_field.sql) first!
  */
 
-import { hashPassword, createUser, getUserByEmail, sql } from '../src/lib/auth';
+import { hashPassword, createUser, getUserByEmail } from '../src/lib/auth';
+import { sql } from '../src/lib/db';
 
 async function createAdminUser() {
   const email = 'admin@proplytics.ca';

@@ -37,7 +37,6 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * Generate a JWT token for a user
  */
 export function generateToken(payload: JWTPayload): string {
-  // eslint-disable-next-line
   return (jwt.sign as any)(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
