@@ -705,7 +705,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             <button
               type="button"
               onClick={onContinue}
-              className="px-4 py-2 rounded-md bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition flex items-center gap-1 ml-auto"
+              className="px-4 py-2 rounded-md border border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 transition flex items-center gap-1 ml-auto"
             >
               Continue
               <ChevronRight className="w-4 h-4" />

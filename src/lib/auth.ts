@@ -10,6 +10,7 @@ export interface User {
   email: string;
   name: string | null;
   created_at: Date;
+  is_admin?: boolean;
 }
 
 export interface JWTPayload {
@@ -36,7 +37,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * Generate a JWT token for a user
  */
 export function generateToken(payload: JWTPayload): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line
   return (jwt.sign as any)(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
@@ -60,7 +61,7 @@ export function verifyToken(token: string): JWTPayload {
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
     const result = await sql`
-      SELECT id, email, name, created_at
+      SELECT id, email, name, created_at, is_admin
       FROM users
       WHERE email = ${email}
       LIMIT 1
@@ -78,7 +79,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 export async function getUserById(id: string): Promise<User | null> {
   try {
     const result = await sql`
-      SELECT id, email, name, created_at
+      SELECT id, email, name, created_at, is_admin
       FROM users
       WHERE id = ${id}
       LIMIT 1
@@ -102,7 +103,7 @@ export async function createUser(
     const result = await sql`
       INSERT INTO users (email, password_hash, name)
       VALUES (${email}, ${passwordHash}, ${name || null})
-      RETURNING id, email, name, created_at
+      RETURNING id, email, name, created_at, is_admin
     ` as User[];
     
     if (!result[0]) {
@@ -170,5 +171,136 @@ export async function deleteExpiredSessions(): Promise<void> {
 export function hashToken(token: string): string {
   // Simple hash for session tracking - in production, use crypto.createHash
   return Buffer.from(token).toString('base64').substring(0, 255);
+}
+
+/**
+ * Update user profile (name and/or email)
+ */
+export async function updateUser(
+  userId: string,
+  updates: { name?: string | null; email?: string }
+): Promise<User> {
+  try {
+    // Check if email is being updated and if it's already in use
+    if (updates.email) {
+      const existingUser = await getUserByEmail(updates.email);
+      if (existingUser && existingUser.id !== userId) {
+        throw new Error('Email already in use');
+      }
+    }
+
+    // Build update query conditionally
+    let result: User[];
+    
+    if (updates.name !== undefined && updates.email) {
+      // Update both name and email
+      result = await sql`
+        UPDATE users
+        SET name = ${updates.name}, email = ${updates.email}
+        WHERE id = ${userId}
+        RETURNING id, email, name, created_at, is_admin
+      ` as User[];
+    } else if (updates.name !== undefined) {
+      // Update only name
+      result = await sql`
+        UPDATE users
+        SET name = ${updates.name}
+        WHERE id = ${userId}
+        RETURNING id, email, name, created_at, is_admin
+      ` as User[];
+    } else if (updates.email) {
+      // Update only email
+      result = await sql`
+        UPDATE users
+        SET email = ${updates.email}
+        WHERE id = ${userId}
+        RETURNING id, email, name, created_at, is_admin
+      ` as User[];
+    } else {
+      // No fields to update, return current user
+      const user = await getUserById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+      return user;
+    }
+
+    if (!result[0]) {
+      throw new Error('User not found');
+    }
+
+    return result[0];
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update user password
+ */
+export async function updateUserPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  try {
+    // Get user with password hash
+    const result = await sql`
+      SELECT id, password_hash
+      FROM users
+      WHERE id = ${userId}
+      LIMIT 1
+    ` as Array<{ id: string; password_hash: string }>;
+
+    if (!result[0]) {
+      throw new Error('User not found');
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await verifyPassword(
+      currentPassword,
+      result[0].password_hash
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new Error('Current password is incorrect');
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(newPassword);
+
+    // Update password
+    await sql`
+      UPDATE users
+      SET password_hash = ${newPasswordHash}
+      WHERE id = ${userId}
+    `;
+  } catch (error) {
+    console.error('Error updating user password:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete user and related data
+ */
+export async function deleteUser(userId: string): Promise<void> {
+  try {
+    // Delete user's sessions first (foreign key constraint)
+    await sql`
+      DELETE FROM sessions
+      WHERE user_id = ${userId}
+    `;
+
+    // Delete user
+    await sql`
+      DELETE FROM users
+      WHERE id = ${userId}
+    `;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    throw error;
+  }
 }
 
