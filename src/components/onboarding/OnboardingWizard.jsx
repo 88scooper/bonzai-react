@@ -175,10 +175,10 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
             setSelectedPropertyId(newProperty.id);
           }
           addToast("Property added successfully!", { type: "success" });
-          // Reset form for next entry
+          // Reset form for next entry but keep it visible
           setPropertyFormKey(prev => prev + 1);
           setPendingPropertyData(null); // Clear pending data
-          setShowAddPropertyForm(false); // Hide form after adding
+          setShowAddPropertyForm(true); // Keep form visible for adding another property
         } else {
           throw new Error(response.error || "Failed to add property");
         }
@@ -365,7 +365,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
               <div>
                 <h2 className="text-xl font-semibold mb-2">Add Your Investment Properties</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Enter your property details below
+                  Let's get started with adding your investment properties - this includes some basics around the property characteristics and purchasing details
                 </p>
               </div>
 
@@ -407,7 +407,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
               )}
 
               {/* Show property list first if not editing */}
-              {properties.length > 0 && !editingPropertyId && (
+              {properties.length > 0 && !editingPropertyId && !pendingPropertyData && (
                 <div className="mb-6 space-y-3">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                     Added Properties ({properties.length})
@@ -456,19 +456,9 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                       </div>
                     ))}
                   </div>
-                  {/* Add Another Property Button */}
-                  {!pendingPropertyData && !showAddPropertyForm && (
-                    <div className="pt-3 space-y-3">
-                      <Button
-                        onClick={() => {
-                          setPropertyFormKey(prev => prev + 1);
-                          setShowAddPropertyForm(true);
-                        }}
-                        variant="secondary"
-                        className="w-full"
-                      >
-                        Add Another Property
-                      </Button>
+                  {/* Continue to Review Button - show when form is not visible */}
+                  {!showAddPropertyForm && (
+                    <div className="pt-3">
                       <Button
                         onClick={() => {
                           setCurrentStep(4);

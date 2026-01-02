@@ -16,6 +16,8 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
     yearBuilt: initialData.yearBuilt || initialData.year_built || '',
     propertyType: initialData.propertyType || initialData.property_type || '',
     numberOfUnits: initialData.numberOfUnits || initialData.number_of_units || '1',
+    principalResidence: initialData.principalResidence ?? initialData.principal_residence ?? false,
+    ownership: initialData.ownership || initialData.ownership_type || '',
     units: initialData.units || (initialData.propertyData?.units) || [{ size: '', beds: '', bathrooms: '', dens: '' }],
     image: initialData.image || null,
     imagePreview: initialData.imageUrl || initialData.image_url || null,
@@ -39,6 +41,8 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         yearBuilt: initialData.yearBuilt || initialData.year_built || '',
         propertyType: initialData.propertyType || initialData.property_type || '',
         numberOfUnits: initialData.numberOfUnits || initialData.number_of_units || '1',
+        principalResidence: initialData.principalResidence ?? initialData.principal_residence ?? false,
+        ownership: initialData.ownership || initialData.ownership_type || '',
         units: initialData.units || (initialData.propertyData?.units) || [{ size: '', beds: '', bathrooms: '', dens: '' }],
         image: initialData.image || null,
         imagePreview: initialData.imageUrl || initialData.image_url || null,
@@ -127,45 +131,74 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
 
   // Helper function to check if a field is filled (has meaningful user input)
   const isFieldFilled = (fieldName, value) => {
-    // Empty or null/undefined values are not filled
-    if (value === '' || value === null || value === undefined) {
+    // Handle null/undefined first
+    if (value === null || value === undefined) {
+      return false;
+    }
+
+    // For text fields (nickname, address), check first before converting
+    if (fieldName === 'nickname' || fieldName === 'address') {
+      // Convert to string and trim
+      const stringValue = String(value).trim();
+      // Any non-empty trimmed value is filled
+      return stringValue !== '';
+    }
+
+    // Convert to string and trim for other fields
+    const stringValue = String(value).trim();
+
+    // Empty string values are not filled
+    if (stringValue === '') {
       return false;
     }
 
     // For purchase price and market value, 0 is not meaningful
     if (fieldName === 'purchasePrice' || fieldName === 'currentMarketValue') {
-      const numValue = parseFloat(value);
+      const numValue = parseFloat(stringValue);
       return !isNaN(numValue) && numValue > 0;
     }
 
     // Closing costs and renovation costs can be 0, which is valid
     // But for color logic, treat "0" as not filled (user hasn't entered anything meaningful)
     if (fieldName === 'closingCosts' || fieldName === 'renovationCosts') {
-      const numValue = parseFloat(value);
-      // Consider it filled only if it's been explicitly set to something other than default 0
-      // Since we can't track if user changed it, we'll treat 0 as not filled for color purposes
+      const numValue = parseFloat(stringValue);
       return !isNaN(numValue) && numValue !== 0;
+    }
+
+    // For purchase date, check if it's a valid date string
+    if (fieldName === 'purchaseDate') {
+      return stringValue !== '' && stringValue !== 'yyyy-mm-dd';
     }
 
     if (fieldName === 'yearBuilt') {
       // Year built should be a valid year
-      const year = parseInt(value);
+      const year = parseInt(stringValue);
       return !isNaN(year) && year >= 1800 && year <= 2100;
+    }
+
+    if (fieldName === 'propertyType') {
+      // Property type is filled if it's not empty and not the default "Select type"
+      return stringValue !== '' && stringValue !== 'Select type';
     }
 
     if (fieldName === 'numberOfUnits') {
       // numberOfUnits defaults to '1', which is valid - consider it filled
-      return value !== '' && value !== null && value !== undefined;
+      return stringValue !== '';
+    }
+
+    if (fieldName === 'ownership') {
+      // Ownership is filled if it's not empty and not the default "Select ownership"
+      return stringValue !== '' && stringValue !== 'Select ownership';
     }
 
     // For unit fields (size, beds, bathrooms, dens), 0 is not meaningful
     if (fieldName === 'size' || fieldName === 'beds' || fieldName === 'bathrooms' || fieldName === 'dens') {
-      const numValue = parseFloat(value);
+      const numValue = parseFloat(stringValue);
       return !isNaN(numValue) && numValue > 0;
     }
 
-    // For text fields, any non-empty value is filled
-    return value !== '';
+    // For any other text fields, any non-empty value is filled
+    return stringValue !== '';
   };
 
   // Helper function to find the next empty field
@@ -180,7 +213,8 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
       'currentMarketValue',
       'yearBuilt',
       'propertyType',
-      'numberOfUnits'
+      'numberOfUnits',
+      'ownership'
     ];
 
     for (const field of fieldOrder) {
@@ -209,16 +243,19 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
     const nextEmpty = getNextEmptyField();
     const isNextField = nextEmpty === fieldName;
 
+    // Priority: filled > next field > other empty
     if (filled) {
       // Filled field - white background (completed)
       return "w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 outline-none focus:ring-2 focus:ring-gray-500/20 dark:focus:ring-gray-400/20 focus:border-gray-400 dark:focus:border-gray-500";
-    } else if (isNextField) {
+    }
+    
+    if (isNextField) {
       // Next empty field - green background (current field to fill)
       return "w-full rounded-md border-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/30 dark:focus:ring-emerald-400/30 focus:border-emerald-500 dark:focus:border-emerald-400 shadow-sm";
-    } else {
-      // Other empty fields - blue background (waiting)
-      return "w-full rounded-md border border-black/15 dark:border-white/15 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-500";
     }
+    
+    // Other empty fields - blue background (waiting)
+    return "w-full rounded-md border border-black/15 dark:border-white/15 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-500";
   };
 
   // Get className for unit fields
@@ -279,6 +316,8 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
       size: totalSize > 0 ? totalSize : undefined,
       unitConfig: unitConfigs || undefined,
       numberOfUnits: formData.numberOfUnits ? parseInt(formData.numberOfUnits) : 1,
+      principalResidence: formData.principalResidence || false,
+      ownership: formData.ownership || undefined,
       units: formData.units,
       image: formData.image || undefined,
     };
@@ -460,6 +499,41 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
               <option key={num} value={num}>{num}</option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label htmlFor="ownership" className="block text-sm font-medium mb-1">
+            Ownership
+          </label>
+          <select
+            id="ownership"
+            name="ownership"
+            value={formData.ownership}
+            onChange={handleChange}
+            className={getFieldClassName('ownership', formData.ownership)}
+          >
+            <option value="">Select ownership</option>
+            <option value="Personal">Personal</option>
+            <option value="Incorporated">Incorporated</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="principalResidence"
+              checked={formData.principalResidence || false}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                principalResidence: e.target.checked
+              }))}
+              className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-emerald-600 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:ring-2"
+            />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Principal Residence
+            </span>
+          </label>
         </div>
       </div>
 
