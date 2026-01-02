@@ -153,7 +153,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [currentAccountId]);
+  }, [currentAccountId, user?.email]);
 
   // Map API property format (snake_case) to frontend format (camelCase)
   function mapApiPropertyToFrontend(apiProperty: any): any {

@@ -4,6 +4,9 @@
 // Mock objects for legacy code that still references Firebase
 export const auth = null;
 export const db = null;
-export default null;
+
+// Assign literal to variable before exporting as default
+const firebaseDefault = null;
+export default firebaseDefault;
 
 
