@@ -92,7 +92,7 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button onClick={onGetStarted}>Get started for free</Button>
-            <Button variant="secondary" onClick={onDemoPortfolio}>Demo Portfolio</Button>
+            <Button onClick={onDemoPortfolio} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 dark:bg-emerald-500 dark:hover:bg-emerald-600">View the Demo Portfolio</Button>
           </div>
         </div>
         <div className="h-64 md:h-80 rounded-xl bg-gradient-to-br from-emerald-300/40 to-teal-300/30 dark:from-emerald-500/10 dark:to-teal-500/10 border border-black/10 dark:border-white/10" />
@@ -103,18 +103,19 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
 
 function FeaturesSection() {
   return (
-    <section id="features" className="mx-auto max-w-7xl px-4 py-12">
-      <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold tracking-tight mb-4">Take control with Proplytics - a free service providing everything you need to understand and simplfy the management and and fully leverage your real estate invesment portfolio!</h2>
-        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-        </p>
+    <section id="features" className="mx-auto max-w-7xl px-4 py-16 md:py-24">
+      <div className="text-center mb-16">
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Take control with Proplytics - a free service providing design for individual investors with everything you need to simplfy the management and fully leverage your real estate invesment portfolio!</h2>
       </div>
       
-      <div className="space-y-12">
+      <div className="space-y-16 md:space-y-20">
         {/* Seamless Portfolio Transparency & Management */}
-        <div>
-          <h3 className="text-2xl font-semibold mb-6">Seamless Portfolio Transparency & Management</h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="h-1 w-12 bg-emerald-500 rounded-full"></div>
+            <h3 className="text-2xl md:text-3xl font-bold tracking-tight">Seamless Portfolio Transparency & Management</h3>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Portfolio transparency & tracking" description="Get a complete view of your portfolio with cash flow, occupancy rates, cap rates, and key performance indicators. Compare actual performance against forecasts and track revenue, tax deductible expenses, and cash flow growth trends." />
             <FeatureCard title="Track equity growth" description="Project your property's equity growth by modeling appreciation, interest rates, and principal paydown over time." />
             <FeatureCard title="Calendar & tasks" description="Track rent collection dates, maintenance schedules, and important tasks across all your properties." />
@@ -122,9 +123,12 @@ function FeaturesSection() {
         </div>
 
         {/* Powerful Analysis, Insights, and Forecasting */}
-        <div>
-          <h3 className="text-2xl font-semibold mb-6">Powerful Analysis, Insights, and Forecasting</h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="h-1 w-12 bg-emerald-500 rounded-full"></div>
+            <h3 className="text-2xl md:text-3xl font-bold tracking-tight">Powerful Analysis, Insights, and Forecasting</h3>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Portfolio insights" description="Get actionable intelligence on top-performing properties, diversification opportunities, and risk assessment." />
             <FeatureCard title="10-year forecasting" description="Project cash flow and equity growth over 10 years with adjustable assumptions for rent growth, expenses, appreciation, and vacancy rates." />
             <FeatureCard title="Sensitivity analysis" description="Model different market scenarios by adjusting assumptions and instantly see the impact on IRR, cash flow, and total profit." />
@@ -133,9 +137,12 @@ function FeaturesSection() {
         </div>
 
         {/* Consolidation of Property Details & Data */}
-        <div>
-          <h3 className="text-2xl font-semibold mb-6">Consolidation of Property Details & Data</h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="h-1 w-12 bg-emerald-500 rounded-full"></div>
+            <h3 className="text-2xl md:text-3xl font-bold tracking-tight">Consolidation of Property Details & Data</h3>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Property records & secure cloud sync" description="Centralized property management with income tracking, expense records, document storage, and historical data, all securely stored in the cloud and automatically synced across all your devices." />
             <FeatureCard title="Mortgage management" description="Track all mortgages, view detailed amortization schedules, calculate refinancing opportunities, and analyze break penalties." />
             <FeatureCard title="Advanced calculators" description="Mortgage payment calculators, refinance analysis, break penalty calculations, and comprehensive payment schedules." />
@@ -150,25 +157,29 @@ function FeatureCard({ title, description }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 p-5 hover:bg-black/5 dark:hover:bg-white/5 transition">
+    <div className="group relative rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 hover:border-emerald-300/50 dark:hover:border-emerald-500/30 hover:shadow-lg transition-all duration-300">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-start justify-between gap-3 text-left group"
+        className="w-full flex items-start justify-between gap-4 text-left"
       >
-        <div className="text-base font-semibold flex-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+        <div className="text-lg font-semibold flex-1 text-gray-900 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
           {title}
         </div>
-        <ChevronDown
-          className={`w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0 transition-transform duration-200 ${
-            isExpanded ? "rotate-180" : ""
-          }`}
-        />
+        <div className={`flex-shrink-0 p-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 transition-all duration-200 ${
+          isExpanded ? "bg-emerald-100 dark:bg-emerald-900/40" : ""
+        }`}>
+          <ChevronDown
+            className={`w-4 h-4 text-emerald-600 dark:text-emerald-400 transition-transform duration-200 ${
+              isExpanded ? "rotate-180" : ""
+            }`}
+          />
+        </div>
       </button>
-      <div className="mt-2">
+      <div className="mt-4">
         {isExpanded ? (
-          <p className="text-sm text-gray-600 dark:text-gray-300">{description}</p>
+          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">{description}</p>
         ) : (
-          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{description}</p>
+          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300 line-clamp-2">{description}</p>
         )}
       </div>
     </div>
