@@ -593,7 +593,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
   };
 
   // Editable DataRow component for PropertyCard (with editing capabilities)
-  const EditableDataRow = ({ label, value, editable = false, field = "", type = "text", isBold = false }) => {
+  const EditableDataRow = ({ label, value, editable = false, field = "", type = "text", isBold = false, options = [] }) => {
     const rawInputValue = field ? getValueAtPath(editedData, field) : undefined;
     const inputValue = rawInputValue === undefined || rawInputValue === null 
       ? (type === "checkbox" ? false : "") 
@@ -611,6 +611,17 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
             onChange={(e) => updateField(field, e.target.checked, type)}
             className="w-4 h-4 text-[#205A3E] border-gray-300 rounded focus:ring-[#205A3E]"
           />
+        ) : type === "select" ? (
+          <select
+            value={inputString}
+            onChange={(e) => updateField(field, e.target.value, type)}
+            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
+          >
+            <option value="">Select...</option>
+            {options.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
         ) : (
           <input
             type={type}
@@ -681,6 +692,14 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
           <EditableDataRow label="Dens" value={property.dens?.[0] || property.dens} editable field="dens" type="number" />
           <EditableDataRow label="Units" value={property.units || 1} editable field="units" type="number" />
           <EditableDataRow label="Principal Residence" value={property.isPrincipalResidence || false} editable field="isPrincipalResidence" type="checkbox" />
+          <EditableDataRow 
+            label="Ownership" 
+            value={property.ownership || property.propertyData?.ownership || ""} 
+            editable 
+            field="ownership" 
+            type="select" 
+            options={["Personal", "Incorporated"]} 
+          />
         </div>
       </Section>
 
@@ -1166,20 +1185,6 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
           )}
         </div>
       </Section>
-
-      <Section title="Property Notes" sectionKey="propertyNotes">
-        <div className="space-y-1">
-          <EditableDataRow label="Appliance Details" value="" editable field="applianceDetails" type="text" />
-          <EditableDataRow label="Paint Details" value="" editable field="paintDetails" type="text" />
-          <EditableDataRow label="Flooring Details" value="" editable field="flooringDetails" type="text" />
-          <EditableDataRow label="Kitchen Features" value="" editable field="kitchenFeatures" type="text" />
-          <EditableDataRow label="Bathroom Features" value="" editable field="bathroomFeatures" type="text" />
-          <EditableDataRow label="Special Features" value="" editable field="specialFeatures" type="text" />
-          <EditableDataRow label="Maintenance Notes" value="" editable field="maintenanceNotes" type="text" />
-          <EditableDataRow label="Upgrade History" value="" editable field="upgradeHistory" type="text" />
-          <EditableDataRow label="General Notes" value="" editable field="generalNotes" type="text" />
-        </div>
-      </Section>
     </div>
   );
 }
@@ -1198,12 +1203,22 @@ export default function DataPage() {
 
   const handlePropertyUpdate = async (propertyId, updatedData) => {
     try {
+      // Normalize purchaseDate to YYYY-MM-DD format
+      let normalizedPurchaseDate = null;
+      if (updatedData.purchaseDate) {
+        const formatted = formatDateOnly(updatedData.purchaseDate);
+        // Only set if it's a valid date format (not "N/A")
+        if (formatted !== "N/A" && /^\d{4}-\d{2}-\d{2}$/.test(formatted)) {
+          normalizedPurchaseDate = formatted;
+        }
+      }
+
       // Prepare the data for the API - map frontend structure to API schema
       const apiData = {
         nickname: updatedData.name || updatedData.nickname,
         address: updatedData.address,
         purchasePrice: updatedData.purchasePrice,
-        purchaseDate: updatedData.purchaseDate,
+        purchaseDate: normalizedPurchaseDate,
         closingCosts: updatedData.closingCosts,
         renovationCosts: updatedData.renovationCosts,
         initialRenovations: updatedData.initialRenovations,
@@ -1222,6 +1237,7 @@ export default function DataPage() {
           bathrooms: updatedData.bathrooms,
           units: updatedData.units,
           isPrincipalResidence: updatedData.isPrincipalResidence || false,
+          ownership: updatedData.ownership || updatedData.propertyData?.ownership || null,
           // Include any other nested data
           ...(updatedData.propertyData || {})
         }
@@ -1230,9 +1246,30 @@ export default function DataPage() {
       // Save to API
       const response = await apiClient.updateProperty(propertyId, apiData);
       
-      if (response.success) {
-        // Update local state after successful API call
-        updateProperty(propertyId, updatedData);
+      if (response.success && response.data) {
+        // Use the API response data to update local state - it has the correct format from the database
+        // Map the API response (snake_case) to frontend format (camelCase)
+        const apiProperty = response.data;
+        const apiPropertyData = apiProperty.property_data || {};
+        const mappedProperty = {
+          ...updatedData,
+          // Override with API response values to ensure consistency
+          nickname: apiProperty.nickname || updatedData.name || updatedData.nickname,
+          address: apiProperty.address || updatedData.address,
+          purchasePrice: parseFloat(apiProperty.purchase_price || 0) || updatedData.purchasePrice,
+          purchaseDate: apiProperty.purchase_date || normalizedPurchaseDate || updatedData.purchaseDate,
+          closingCosts: parseFloat(apiProperty.closing_costs || 0) || updatedData.closingCosts,
+          renovationCosts: parseFloat(apiProperty.renovation_costs || 0) || updatedData.renovationCosts,
+          initialRenovations: parseFloat(apiProperty.initial_renovations || 0) || updatedData.initialRenovations,
+          currentMarketValue: parseFloat(apiProperty.current_market_value || 0) || updatedData.currentMarketValue || updatedData.currentValue,
+          yearBuilt: apiProperty.year_built || updatedData.yearBuilt,
+          propertyType: apiProperty.property_type || updatedData.propertyType || updatedData.type,
+          size: parseFloat(apiProperty.size || 0) || updatedData.size || updatedData.squareFootage,
+          unitConfig: apiProperty.unit_config || updatedData.unitConfig,
+          ownership: apiPropertyData.ownership || updatedData.ownership || null,
+        };
+        // Skip save since we already saved via API - this prevents a reload that would overwrite our changes
+        updateProperty(propertyId, mappedProperty, true);
         addToast("Property updated successfully!", { type: "success" });
       } else {
         throw new Error(response.error || "Failed to update property");

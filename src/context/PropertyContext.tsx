@@ -153,7 +153,7 @@ export interface PropertyContextType {
   getPropertiesByLocation: (location: string) => Property[];
   getPropertiesWithTenants: () => Property[];
   getVacantProperties: () => Property[];
-  updateProperty: (id: string, updatedProperty: Property) => void;
+  updateProperty: (id: string, updatedProperty: Property, skipSave?: boolean) => void;
   
   // Loading and error states (for future use)
   loading: boolean;
@@ -423,7 +423,7 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Get all properties and portfolio metrics
   const allProperties = propertiesState;
 
-  const updateProperty = useCallback((id: string, updatedProperty: Property) => {
+  const updateProperty = useCallback((id: string, updatedProperty: Property, skipSave = false) => {
     setPropertiesState(prevProperties => {
       const updated = prevProperties.map(property => {
         if (property.id !== id) {
@@ -461,8 +461,10 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
         return preparePropertyData(mergedProperty);
       });
       
-      // Save updated properties to account storage
-      saveProperties(updated);
+      // Only save to account storage if not skipping (e.g., when already saved via API)
+      if (!skipSave) {
+        saveProperties(updated);
+      }
       
       return updated;
     });

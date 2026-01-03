@@ -35,6 +35,29 @@ function isAuthenticated(): boolean {
   return !!localStorage.getItem('auth_token');
 }
 
+// Helper function to normalize date to YYYY-MM-DD format
+function normalizeDate(dateValue: any): string | null {
+  if (!dateValue) return null;
+  // If it's already in YYYY-MM-DD format, return as is
+  if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return dateValue;
+  }
+  // If it's an ISO string with time, extract just the date part
+  if (typeof dateValue === 'string' && dateValue.includes('T')) {
+    return dateValue.split('T')[0];
+  }
+  // Try to parse as Date and format
+  try {
+    const date = new Date(dateValue);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  } catch (e) {
+    // If parsing fails, return null
+  }
+  return null;
+}
+
 // Map API account format to context format
 function mapApiAccountToContext(apiAccount: any): Account {
   return {
@@ -192,6 +215,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       type: apiProperty.property_type || '',
       units: propertyData.units || 1,
       isPrincipalResidence: propertyData.isPrincipalResidence || false,
+      ownership: propertyData.ownership || null,
       currentValue: parseFloat(apiProperty.current_market_value || 0),
       // Initialize empty structures that will be populated
       expenses: {},
@@ -653,16 +677,22 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // Save each property via API
       // Note: This is a simplified version - in production you might want to batch updates
       const savePromises = newProperties.map(async (property) => {
+        // Normalize purchaseDate to YYYY-MM-DD format
+        const normalizedProperty = {
+          ...property,
+          purchaseDate: normalizeDate(property.purchaseDate),
+        };
+
         if (property.id) {
           // Update existing property
           return apiClient.updateProperty(property.id, {
-            ...property,
+            ...normalizedProperty,
             accountId: currentAccountId,
           });
         } else {
           // Create new property
           return apiClient.createProperty({
-            ...property,
+            ...normalizedProperty,
             accountId: currentAccountId,
           });
         }
