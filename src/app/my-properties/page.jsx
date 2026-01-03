@@ -317,6 +317,55 @@ function PropertyCard({ property }) {
   const [hoveredMetric, setHoveredMetric] = useState(null); // Track which metric is being hovered
   const [isHydrated, setIsHydrated] = useState(false);
   
+  // Helper function to get property image URL with fallback
+  const getPropertyImageUrl = () => {
+    // First, try the imageUrl from property data
+    if (property.imageUrl) {
+      return property.imageUrl;
+    }
+    
+    // Try to construct from address (e.g., "500-415 Wilson Avenue" -> "500 Wilson Ave.png")
+    if (property.address) {
+      // Match pattern like "500-415 Wilson Avenue" -> extract "500" and "Wilson Avenue"
+      // For addresses with ranges like "500-415", take the first number
+      const addressMatch = property.address.match(/^(\d+)(?:[-\s]*\d*)?\s+(.+?)(?:,|$)/);
+      if (addressMatch) {
+        const firstNumber = addressMatch[1]; // "500"
+        const street = addressMatch[2].trim(); // "Wilson Avenue"
+        
+        // Convert full words to abbreviations
+        let streetAbbr = street
+          .replace(/\bAvenue\b/gi, 'Ave')
+          .replace(/\bStreet\b/gi, 'St')
+          .replace(/\bDrive\b/gi, 'Dr')
+          .replace(/\bWay\b/gi, 'Way')
+          .replace(/\bBoulevard\b/gi, 'Blvd')
+          .replace(/\bRoad\b/gi, 'Rd');
+        
+        // Convert direction words to abbreviations (East -> E, West -> W, etc.)
+        streetAbbr = streetAbbr
+          .replace(/\bEast\b/gi, 'E')
+          .replace(/\bWest\b/gi, 'W')
+          .replace(/\bNorth\b/gi, 'N')
+          .replace(/\bSouth\b/gi, 'S');
+        
+        // Construct: "500 Wilson Ave"
+        const imageName = `${firstNumber} ${streetAbbr}`.trim();
+        return `/images/${imageName}.png`;
+      }
+    }
+    
+    // Fallback: try nickname directly
+    if (property.nickname || property.name) {
+      const nickname = property.nickname || property.name;
+      return `/images/${nickname}.png`;
+    }
+    
+    return null;
+  };
+  
+  const imageUrl = getPropertyImageUrl();
+  
   // Mark as hydrated after mount to avoid hydration mismatches
   useEffect(() => {
     setIsHydrated(true);
@@ -560,18 +609,27 @@ function PropertyCard({ property }) {
             
             {/* Property Image - Compact */}
             <div className="rounded-lg overflow-hidden border border-black/10 dark:border-white/10 bg-gray-100 dark:bg-neutral-800">
-              {property.imageUrl ? (
+              {imageUrl ? (
                 <Image 
-                  src={`${property.imageUrl}?v=3`}
+                  src={`${imageUrl}?v=3`}
                   alt={property.nickname || property.name || 'Property image'}
                   width={600}
                   height={160}
                   className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
                   unoptimized
+                  onError={(e) => {
+                    // If image fails to load, hide it and show placeholder
+                    e.target.style.display = 'none';
+                    const placeholder = e.target.parentElement.querySelector('.image-placeholder');
+                    if (placeholder) placeholder.style.display = 'flex';
+                  }}
                 />
-              ) : (
-                <div className="w-full h-20 md:h-24 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-neutral-800 dark:to-neutral-700" />
-              )}
+              ) : null}
+              <div className={`image-placeholder w-full h-20 md:h-24 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-neutral-800 dark:to-neutral-700 ${imageUrl ? 'hidden' : 'flex'} items-center justify-center`}>
+                <span className="text-gray-400 dark:text-gray-500 text-xs">
+                  {(property.nickname || property.name || 'Property').charAt(0)}
+                </span>
+              </div>
             </div>
             
             {/* Tooltip Display Area - Shows in empty space under thumbnail */}

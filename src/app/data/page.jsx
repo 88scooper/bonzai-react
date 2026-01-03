@@ -1228,6 +1228,9 @@ export default function DataPage() {
         size: updatedData.size || updatedData.squareFootage,
         unitConfig: updatedData.unitConfig,
         propertyData: {
+          // Preserve existing property_data fields first
+          ...(updatedData.propertyData || {}),
+          // Override with updated values
           rent: updatedData.rent,
           mortgage: updatedData.mortgage,
           monthlyExpenses: updatedData.monthlyExpenses,
@@ -1235,11 +1238,10 @@ export default function DataPage() {
           expenseHistory: updatedData.expenseHistory,
           bedrooms: updatedData.bedrooms,
           bathrooms: updatedData.bathrooms,
+          dens: updatedData.dens,
           units: updatedData.units,
           isPrincipalResidence: updatedData.isPrincipalResidence || false,
           ownership: updatedData.ownership || updatedData.propertyData?.ownership || null,
-          // Include any other nested data
-          ...(updatedData.propertyData || {})
         }
       };
 
@@ -1251,9 +1253,10 @@ export default function DataPage() {
         // Map the API response (snake_case) to frontend format (camelCase)
         const apiProperty = response.data;
         const apiPropertyData = apiProperty.property_data || {};
+        // Use API response as source of truth - it contains the exact data as saved in the database
         const mappedProperty = {
           ...updatedData,
-          // Override with API response values to ensure consistency
+          // Override with API response values to ensure consistency (API response is source of truth)
           nickname: apiProperty.nickname || updatedData.name || updatedData.nickname,
           address: apiProperty.address || updatedData.address,
           purchasePrice: parseFloat(apiProperty.purchase_price || 0) || updatedData.purchasePrice,
@@ -1266,7 +1269,21 @@ export default function DataPage() {
           propertyType: apiProperty.property_type || updatedData.propertyType || updatedData.type,
           size: parseFloat(apiProperty.size || 0) || updatedData.size || updatedData.squareFootage,
           unitConfig: apiProperty.unit_config || updatedData.unitConfig,
-          ownership: apiPropertyData.ownership || updatedData.ownership || null,
+          // Use API response property_data as source of truth - contains all saved fields
+          propertyData: apiPropertyData,
+          // Extract key fields from property_data for easy access (using API response values)
+          bedrooms: apiPropertyData.bedrooms,
+          bathrooms: apiPropertyData.bathrooms,
+          dens: apiPropertyData.dens,
+          units: apiPropertyData.units,
+          isPrincipalResidence: apiPropertyData.isPrincipalResidence,
+          ownership: apiPropertyData.ownership,
+          imageUrl: apiPropertyData.imageUrl || (apiProperty.nickname ? `/images/${apiProperty.nickname}.png` : null),
+          rent: apiPropertyData.rent || updatedData.rent,
+          mortgage: apiPropertyData.mortgage || updatedData.mortgage,
+          monthlyExpenses: apiPropertyData.monthlyExpenses || updatedData.monthlyExpenses,
+          tenants: apiPropertyData.tenants || updatedData.tenants,
+          expenseHistory: apiPropertyData.expenseHistory || updatedData.expenseHistory,
         };
         // Skip save since we already saved via API - this prevents a reload that would overwrite our changes
         updateProperty(propertyId, mappedProperty, true);

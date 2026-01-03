@@ -210,13 +210,57 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       tenants: tenants,
       // Mortgage will be loaded separately or from property_data
       mortgage: propertyData.mortgage || null,
-      // Additional fields
+      // Additional fields from property_data
       name: apiProperty.nickname || '',
       type: apiProperty.property_type || '',
       units: propertyData.units || 1,
       isPrincipalResidence: propertyData.isPrincipalResidence || false,
       ownership: propertyData.ownership || null,
+      bedrooms: propertyData.bedrooms !== undefined ? propertyData.bedrooms : null,
+      bathrooms: propertyData.bathrooms !== undefined ? propertyData.bathrooms : null,
+      dens: propertyData.dens !== undefined ? propertyData.dens : null,
       currentValue: parseFloat(apiProperty.current_market_value || 0),
+      // Image URL - try property_data first, then try to generate from address/nickname
+      imageUrl: (() => {
+        if (propertyData.imageUrl) return propertyData.imageUrl;
+        
+        // Try to construct from address (e.g., "500-415 Wilson Avenue" -> "500 Wilson Ave.png")
+        // For addresses with ranges like "500-415", take the first number
+        if (apiProperty.address) {
+          const addressMatch = apiProperty.address.match(/^(\d+)(?:[-\s]*\d*)?\s+(.+?)(?:,|$)/);
+          if (addressMatch) {
+            const firstNumber = addressMatch[1]; // "500"
+            const street = addressMatch[2].trim(); // "Wilson Avenue"
+            
+            // Convert full words to abbreviations
+            let streetAbbr = street
+              .replace(/\bAvenue\b/gi, 'Ave')
+              .replace(/\bStreet\b/gi, 'St')
+              .replace(/\bDrive\b/gi, 'Dr')
+              .replace(/\bWay\b/gi, 'Way')
+              .replace(/\bBoulevard\b/gi, 'Blvd')
+              .replace(/\bRoad\b/gi, 'Rd');
+            
+            // Convert direction words to abbreviations (East -> E, West -> W, etc.)
+            streetAbbr = streetAbbr
+              .replace(/\bEast\b/gi, 'E')
+              .replace(/\bWest\b/gi, 'W')
+              .replace(/\bNorth\b/gi, 'N')
+              .replace(/\bSouth\b/gi, 'S');
+            
+            // Construct: "500 Wilson Ave"
+            const imageName = `${firstNumber} ${streetAbbr}`.trim();
+            return `/images/${imageName}.png`;
+          }
+        }
+        
+        // Fallback to nickname
+        if (apiProperty.nickname) {
+          return `/images/${apiProperty.nickname}.png`;
+        }
+        
+        return null;
+      })(),
       // Initialize empty structures that will be populated
       expenses: {},
       tenant: tenants.length > 0 ? {
