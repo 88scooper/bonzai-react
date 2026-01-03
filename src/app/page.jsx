@@ -105,7 +105,7 @@ function FeaturesSection() {
   return (
     <section id="features" className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="text-center mb-16">
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Take control with Proplytics - a free service providing design for individual investors with everything you need to simplfy the management and fully leverage your real estate invesment portfolio!</h2>
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Take control with Proplytics - a free service designed for individual investors, providing everything you need to simplify financial management and fully leverage your real estate investment portfolio!</h2>
       </div>
       
       <div className="space-y-16 md:space-y-20">

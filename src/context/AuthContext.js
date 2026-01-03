@@ -253,9 +253,20 @@ export function AuthProvider({ children }) {
 
 export function RequireAuth({ children }) {
   const { user, loading } = useAuth();
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  // Check for demo mode on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const demo = sessionStorage.getItem('demoMode') === 'true' || 
+                   new URLSearchParams(window.location.search).get('demo') === 'true';
+      setIsDemoMode(demo);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!loading && !user && typeof window !== 'undefined') {
+    if (!loading && !user && typeof window !== 'undefined' && !isDemoMode) {
+      
       // Check if user is logging out FIRST - before any other logic
       // This prevents redirecting to /login when user explicitly logs out
       const isLoggingOut = sessionStorage.getItem('isLoggingOut') === 'true';
@@ -333,7 +344,8 @@ export function RequireAuth({ children }) {
     );
   }
 
-  if (!user) {
+  // Allow demo mode without user
+  if (!user && !isDemoMode) {
     return null;
   }
 

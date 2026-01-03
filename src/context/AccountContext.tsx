@@ -78,11 +78,66 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false); // Start as false, will be set to true when needed
   const [error, setError] = useState<string | null>(null);
 
+  // Load demo data from public API
+  const loadDemoData = useCallback(async () => {
+    if (typeof window === 'undefined') {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/demo');
+      if (!response.ok) {
+        throw new Error('Failed to load demo data');
+      }
+      
+      const result = await response.json();
+      if (result.success && result.data) {
+        // Set demo account
+        const demoAccount: Account = {
+          id: result.data.account.id,
+          name: result.data.account.name,
+          email: result.data.account.email || '',
+          createdAt: result.data.account.createdAt,
+          isDemo: true,
+        };
+        
+        setAccounts([demoAccount]);
+        setCurrentAccountId(demoAccount.id);
+        setCurrentAccount(demoAccount);
+        
+        // Set demo properties
+        setProperties(result.data.properties || []);
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('current_account_id', demoAccount.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading demo data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load demo data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Load accounts from API
   const loadAccounts = useCallback(async () => {
     // Don't make API calls during SSR/build
     if (typeof window === 'undefined') {
       setLoading(false);
+      return;
+    }
+    
+    // Check for demo mode
+    const isDemoMode = sessionStorage.getItem('demoMode') === 'true' || 
+                      new URLSearchParams(window.location.search).get('demo') === 'true';
+    
+    if (isDemoMode) {
+      await loadDemoData();
       return;
     }
     

@@ -2,8 +2,9 @@
 
 
 import Layout from "@/components/Layout.jsx";
-import { RequireAuth } from "@/context/AuthContext";
+import { RequireAuth, useAuth } from "@/context/AuthContext";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import AnnualAssumptionsModal from "@/components/AnnualAssumptionsModal";
 import { Settings, GripVertical, Building2, PiggyBank, FileSpreadsheet, BarChart3, PieChart as PieChartIcon, X } from "lucide-react";
@@ -251,6 +252,16 @@ function calculateActualPlusForecast(property, today = new Date()) {
 }
 
 export default function PortfolioSummaryPage() {
+  const searchParams = useSearchParams();
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  // Check for demo mode on client side only to avoid hydration mismatch
+  useEffect(() => {
+    const demo = searchParams?.get('demo') === 'true' || 
+                 sessionStorage.getItem('demoMode') === 'true';
+    setIsDemoMode(demo);
+  }, [searchParams]);
+
   // Get data from PropertyContext
   const { calculationsComplete } = usePropertyContext();
   const properties = useProperties();
@@ -809,6 +820,23 @@ export default function PortfolioSummaryPage() {
   return (
     <RequireAuth>
       <Layout>
+        {/* Demo Mode Banner */}
+        {isDemoMode && (
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800 px-4 py-3">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-800 dark:text-emerald-200 font-medium">📊 Demo Mode - Read Only</span>
+                <span className="text-sm text-emerald-700 dark:text-emerald-300">You're viewing a read-only demo portfolio. Sign up to create your own portfolio!</span>
+              </div>
+              <a 
+                href="/" 
+                className="text-sm text-emerald-700 dark:text-emerald-300 hover:underline font-medium"
+              >
+                Get Started →
+              </a>
+            </div>
+          </div>
+        )}
         {/* Onboarding Wizard Modal Overlay */}
         {showOnboardingModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
