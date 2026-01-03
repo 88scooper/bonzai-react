@@ -34,9 +34,10 @@ export const formatNumber = (value: number): string => {
 };
 
 /**
- * Formats a percentage with exactly 2 decimal places
+ * Formats a percentage
+ * Decimal places are controlled by the percentageDecimals setting
  * @param value - The percentage value to format (e.g., 5.5 for 5.5% or 0.055 for 5.5%)
- * @returns Formatted percentage string (e.g., "5.50%")
+ * @returns Formatted percentage string (e.g., "5.50%" or "5%")
  */
 export const formatPercentage = (value: any): string => {
   // Step 1: Check if the input is a valid, finite number.
@@ -47,10 +48,13 @@ export const formatPercentage = (value: any): string => {
   // Step 2: Handle both whole numbers (e.g., 5.5) and decimals (e.g., 0.055).
   const numberToFormat = Math.abs(value) >= 1 ? value / 100 : value;
 
-  // Step 3: Format the valid number.
+  // Step 3: Get the percentageDecimals setting
+  const showDecimals = getSetting('percentageDecimals');
+
+  // Step 4: Format the valid number.
   return new Intl.NumberFormat('en-CA', {
     style: 'percent',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: showDecimals ? 2 : 0,
+    maximumFractionDigits: showDecimals ? 2 : 0,
   }).format(numberToFormat);
 };

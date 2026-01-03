@@ -20,7 +20,11 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Start with loading false if no token exists (optimize for landing page)
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return !!localStorage.getItem('auth_token');
+  });
   const [isNewUser, setIsNewUser] = useState(false);
 
   // Check if user has accounts to determine if they're new

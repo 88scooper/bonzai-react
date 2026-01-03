@@ -422,6 +422,7 @@ function PropertyCard({ property }) {
   // Calculate equity (property-level)
   const equity = Math.max(0, currentValue - mortgageDebt);
   const equityPercentage = currentValue > 0 ? (equity / currentValue) * 100 : 0;
+  const debtPercentage = currentValue > 0 ? (mortgageDebt / currentValue) * 100 : 0;
   
   // Calculate forecasted equity earned this year - use state to avoid hydration mismatch
   const [forecastedEquityEarned, setForecastedEquityEarned] = useState(0);
@@ -659,7 +660,19 @@ function PropertyCard({ property }) {
               <FinancialOverviewCard
                 title="Estimated Property Value"
                 value={formatCurrencyRounded(currentValue)}
-                supporting={`Estimated Appreciation ${formatCurrencyRounded(appreciation)} (${appreciationPercentage}%)`}
+                supporting={
+                  <>
+                    <div>
+                      {formatCurrencyRounded(equity)} equity ({Math.floor(equityPercentage)}%) • {formatCurrencyRounded(mortgageDebt)} debt ({Math.floor(debtPercentage)}%)
+                    </div>
+                    <div className="mt-1 text-[9px] md:text-[10px] opacity-90">
+                      Portfolio LTV: {Math.floor(ltv)}%
+                    </div>
+                    <div className="mt-1 text-[9px] md:text-[10px] opacity-90">
+                      Estimated Appreciation: {formatCurrencyRounded(appreciation)} ({appreciationPercentage}%)
+                    </div>
+                  </>
+                }
                 icon={Building2}
                 accent="emerald"
                 tooltipText={`The current estimated market value of this property. Estimated Appreciation shows the increase in value since purchase (${formatCurrencyRounded(appreciation)}), representing ${appreciationPercentage}% growth from the original purchase price.`}
@@ -669,7 +682,19 @@ function PropertyCard({ property }) {
               <FinancialOverviewCard
                 title="Estimated Equity"
                 value={formatCurrencyRounded(equity)}
-                supporting={`Forecasted equity earned this year: ${formatCurrencyRounded(forecastedEquityEarned)}`}
+                supporting={
+                  <>
+                    <div>
+                      Current total equity: {formatCurrencyRounded(equity)}
+                    </div>
+                    <div className="mt-1">
+                      Forecasted equity earned this year: {formatCurrencyRounded(forecastedEquityEarned)}
+                    </div>
+                    <div className="mt-1 text-[9px] md:text-[10px] opacity-90">
+                      Includes principal payments + estimated appreciation
+                    </div>
+                  </>
+                }
                 icon={PiggyBank}
                 accent="teal"
                 tooltipText={`Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.`}
@@ -679,7 +704,16 @@ function PropertyCard({ property }) {
               <FinancialOverviewCard
                 title="Mortgage Debt"
                 value={formatCurrencyRounded(mortgageDebt)}
-                supporting={`Portfolio LTV (Loan-to-Value): ${Math.floor(ltv)}%`}
+                supporting={
+                  <>
+                    <div>
+                      Monthly debt service: {formatCurrencyRounded(monthlyDebtService)}
+                    </div>
+                    <div className="mt-1 text-[9px] md:text-[10px] opacity-90">
+                      Principal + interest payments
+                    </div>
+                  </>
+                }
                 icon={FileSpreadsheet}
                 accent="amber"
                 tooltipText={`The remaining mortgage balance on this property. LTV (Loan-to-Value) ratio shows what percentage of the property's value is financed through debt.`}
@@ -830,9 +864,9 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
       {supporting && (
         <>
           <div className={`mt-1 md:mt-1.5 border-t-[2px] ${config.separator}`} />
-          <p className={`mt-0.5 md:mt-1 text-[10px] md:text-xs font-bold ${config.supporting} leading-tight`} suppressHydrationWarning>
-            {supporting}
-          </p>
+          <div className={`mt-0.5 md:mt-1 text-[10px] md:text-xs font-bold ${config.supporting} leading-tight`} suppressHydrationWarning>
+            {typeof supporting === 'string' ? supporting : supporting}
+          </div>
         </>
       )}
     </div>
@@ -886,24 +920,13 @@ function IncomeExpensesSection({
   
   return (
     <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-2.5 md:p-3">
-      <div className="flex items-start justify-between gap-2 mb-2.5">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
-            Income & Expenses
-          </h3>
-          <p className="mt-0.5 text-[10px] md:text-xs text-gray-600 dark:text-gray-400">
-            Annualized snapshot of how rent covers operating costs and debt service.
-          </p>
-        </div>
-        <div
-          className={`rounded-full px-2 md:px-2.5 py-0.5 text-[10px] md:text-xs font-semibold flex-shrink-0 ${
-            netPositive
-              ? 'bg-[#D9E5DC] text-[#205A3E] dark:bg-[#1D3A2C] dark:text-[#66B894]'
-              : 'bg-[#F7D9D9] text-[#9F3838] dark:bg-[#2B1111] dark:text-[#F2A5A5]'
-          }`}
-        >
-          {marginLabel === 'N/A' ? 'No revenue' : `${marginLabel} margin`}
-        </div>
+      <div className="mb-2.5">
+        <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
+          Income & Expenses
+        </h3>
+        <p className="mt-0.5 text-[10px] md:text-xs text-gray-600 dark:text-gray-400">
+          Annualized snapshot of how rent covers operating costs and debt service.
+        </p>
       </div>
 
       <div className="space-y-1.5 md:space-y-2">

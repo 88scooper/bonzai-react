@@ -5,6 +5,7 @@ import Link from "next/link";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
+import { ChevronDown } from "lucide-react";
 
 export default function HomePage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -30,11 +31,21 @@ export default function HomePage() {
     setIsSignupOpen(false);
   }
 
+  function handleDemoPortfolio() {
+    // Set demo mode flag for read-only access
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('demoMode', 'true');
+      sessionStorage.setItem('readOnlyMode', 'true');
+      // Navigate to portfolio summary
+      window.location.href = '/portfolio-summary?demo=true';
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100">
       <Header onLoginClick={openLogin} onSignupClick={openSignup} />
       <main>
-        <HeroSection onGetStarted={openSignup} />
+        <HeroSection onGetStarted={openSignup} onDemoPortfolio={handleDemoPortfolio} />
         <FeaturesSection />
         <CtaSection onGetStarted={openSignup} />
       </main>
@@ -70,18 +81,18 @@ function Header({ onLoginClick, onSignupClick }) {
   );
 }
 
-function HeroSection({ onGetStarted }) {
+function HeroSection({ onGetStarted, onDemoPortfolio }) {
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Transparency and optimization for your real estate portfolio.</h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-            Gain complete visibility into your small-scale investment portfolio. Track performance, forecast cash flow, analyze scenarios, and optimize returns — all in one powerful platform designed for real estate investors.
+            Empower yourself with full visibility into your small-scale real estate investment portfolio allowing you understand and optimize your returns. Track revenue & expenses, equity built, forecast cash flow, and analyze scenarios — all in one powerful platform designed for real estate investors.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button onClick={onGetStarted}>Get started</Button>
-            <Link href="/portfolio-summary" className="text-sm underline">View portfolio</Link>
+            <Button onClick={onGetStarted}>Get started for free</Button>
+            <Button variant="secondary" onClick={onDemoPortfolio}>Demo Portfolio</Button>
           </div>
         </div>
         <div className="h-64 md:h-80 rounded-xl bg-gradient-to-br from-emerald-300/40 to-teal-300/30 dark:from-emerald-500/10 dark:to-teal-500/10 border border-black/10 dark:border-white/10" />
@@ -94,34 +105,72 @@ function FeaturesSection() {
   return (
     <section id="features" className="mx-auto max-w-7xl px-4 py-12">
       <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold tracking-tight mb-4">Everything you need to understand and optimize your investments</h2>
+        <h2 className="text-3xl font-bold tracking-tight mb-4">Take control with Proplytics - a free service providing everything you need to understand and simplfy the management and and fully leverage your real estate invesment portfolio!</h2>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Proplytics provides complete transparency into your portfolio with powerful analytics, forecasting, and scenario planning tools.
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <FeatureCard title="Portfolio transparency" description="Get a complete view of your portfolio with cash flow, occupancy rates, cap rates, and key performance indicators across all properties." />
-        <FeatureCard title="10-year forecasting" description="Project cash flow and equity growth over 10 years with adjustable assumptions for rent growth, expenses, appreciation, and vacancy rates." />
-        <FeatureCard title="Sensitivity analysis" description="Model different market scenarios by adjusting assumptions and instantly see the impact on IRR, cash flow, and total profit." />
-        <FeatureCard title="Scenario planning" description="Save and compare multiple investment scenarios to model optimistic, realistic, and conservative market conditions side-by-side." />
-        <FeatureCard title="Year-over-year tracking" description="Compare actual performance against forecasts and track revenue, expense, and cash flow growth trends over time." />
-        <FeatureCard title="Equity analysis" description="Project your property's equity growth by modeling appreciation, interest rates, and principal paydown over time." />
-        <FeatureCard title="Mortgage management" description="Track all mortgages, view detailed amortization schedules, calculate refinancing opportunities, and analyze break penalties." />
-        <FeatureCard title="Advanced calculators" description="Mortgage payment calculators, refinance analysis, break penalty calculations, and comprehensive payment schedules." />
-        <FeatureCard title="Property records" description="Centralized property management with income tracking, expense records, document storage, and historical data." />
-        <FeatureCard title="Calendar & tasks" description="Track rent collection dates, maintenance schedules, and important tasks across all your properties." />
-        <FeatureCard title="Portfolio insights" description="Get actionable intelligence on top-performing properties, diversification opportunities, and risk assessment." />
-        <FeatureCard title="Secure cloud sync" description="Your data is stored securely in the cloud and automatically syncs across all your devices." />
+      
+      <div className="space-y-12">
+        {/* Seamless Portfolio Transparency & Management */}
+        <div>
+          <h3 className="text-2xl font-semibold mb-6">Seamless Portfolio Transparency & Management</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FeatureCard title="Portfolio transparency & tracking" description="Get a complete view of your portfolio with cash flow, occupancy rates, cap rates, and key performance indicators. Compare actual performance against forecasts and track revenue, tax deductible expenses, and cash flow growth trends." />
+            <FeatureCard title="Track equity growth" description="Project your property's equity growth by modeling appreciation, interest rates, and principal paydown over time." />
+            <FeatureCard title="Calendar & tasks" description="Track rent collection dates, maintenance schedules, and important tasks across all your properties." />
+          </div>
+        </div>
+
+        {/* Powerful Analysis, Insights, and Forecasting */}
+        <div>
+          <h3 className="text-2xl font-semibold mb-6">Powerful Analysis, Insights, and Forecasting</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FeatureCard title="Portfolio insights" description="Get actionable intelligence on top-performing properties, diversification opportunities, and risk assessment." />
+            <FeatureCard title="10-year forecasting" description="Project cash flow and equity growth over 10 years with adjustable assumptions for rent growth, expenses, appreciation, and vacancy rates." />
+            <FeatureCard title="Sensitivity analysis" description="Model different market scenarios by adjusting assumptions and instantly see the impact on IRR, cash flow, and total profit." />
+            <FeatureCard title="Scenario planning" description="No more repetitve data entry - save and compare multiple investment scenarios to model optimistic, realistic, and conservative market conditions side-by-side." />
+          </div>
+        </div>
+
+        {/* Consolidation of Property Details & Data */}
+        <div>
+          <h3 className="text-2xl font-semibold mb-6">Consolidation of Property Details & Data</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FeatureCard title="Property records & secure cloud sync" description="Centralized property management with income tracking, expense records, document storage, and historical data, all securely stored in the cloud and automatically synced across all your devices." />
+            <FeatureCard title="Mortgage management" description="Track all mortgages, view detailed amortization schedules, calculate refinancing opportunities, and analyze break penalties." />
+            <FeatureCard title="Advanced calculators" description="Mortgage payment calculators, refinance analysis, break penalty calculations, and comprehensive payment schedules." />
+          </div>
+        </div>
       </div>
     </section>
   );
 }
 
 function FeatureCard({ title, description }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <div className="rounded-xl border border-black/10 dark:border-white/10 p-5 hover:bg-black/5 dark:hover:bg-white/5 transition">
-      <div className="text-base font-semibold">{title}</div>
-      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{description}</p>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-start justify-between gap-3 text-left group"
+      >
+        <div className="text-base font-semibold flex-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+          {title}
+        </div>
+        <ChevronDown
+          className={`w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0 transition-transform duration-200 ${
+            isExpanded ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+      <div className="mt-2">
+        {isExpanded ? (
+          <p className="text-sm text-gray-600 dark:text-gray-300">{description}</p>
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{description}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -133,8 +182,7 @@ function CtaSection({ onGetStarted }) {
         <h2 className="text-2xl font-semibold">Ready to optimize your real estate investments?</h2>
         <p className="mt-2 text-gray-700 dark:text-gray-300">Start gaining transparency into your portfolio and make data-driven investment decisions.</p>
         <div className="mt-6 flex items-center justify-center gap-3">
-          <Button onClick={onGetStarted}>Get started free</Button>
-          <Link className="text-sm underline" href="/signup">Or create from the signup page →</Link>
+          <Button onClick={onGetStarted}>Get started for free</Button>
         </div>
       </div>
     </section>

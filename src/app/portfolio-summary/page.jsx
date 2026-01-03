@@ -1260,7 +1260,11 @@ export default function PortfolioSummaryPage() {
                       <MetricCard
                         key={metric.id}
                         title="Overall Cap Rate"
-                        value={formatPercentage(overallCapRate)}
+                        value={
+                          typeof overallCapRate === 'number' && isFinite(overallCapRate)
+                            ? `${overallCapRate.toFixed(2)}%`
+                            : 'N/A'
+                        }
                         showInfoIcon={true}
                         tooltipText="The portfolio's capitalization rate calculated as total annual NOI divided by total estimated portfolio value. A 'strong' cap rate for a rental property in the Toronto area is typically considered to be in the 5% to 7% range for suburban and high-demand areas, while downtown core properties often have lower cap rates of 3.75% to 4.25% due to higher property values and demand."
                         statusMessage={capRateMessage}
