@@ -1,10 +1,10 @@
 "use client";
 
+// Note: Route segment config moved to layout.jsx for Next.js 16 compatibility
 
 import Layout from "@/components/Layout.jsx";
 import { RequireAuth, useAuth } from "@/context/AuthContext";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import AnnualAssumptionsModal from "@/components/AnnualAssumptionsModal";
 import { Settings, GripVertical, Building2, PiggyBank, FileSpreadsheet, BarChart3, PieChart as PieChartIcon, X } from "lucide-react";
@@ -251,16 +251,20 @@ function calculateActualPlusForecast(property, today = new Date()) {
   };
 }
 
-export default function PortfolioSummaryPage() {
-  const searchParams = useSearchParams();
+// Client component that contains all the page logic
+// This is wrapped in Suspense in the default export to handle any potential useSearchParams usage
+function PortfolioSummaryContent() {
   const [isDemoMode, setIsDemoMode] = useState(false);
 
   // Check for demo mode on client side only to avoid hydration mismatch
+  // Only use sessionStorage to avoid any URL search param issues during static generation
+  // NOTE: We explicitly avoid using useSearchParams() here to prevent build errors
   useEffect(() => {
-    const demo = searchParams?.get('demo') === 'true' || 
-                 sessionStorage.getItem('demoMode') === 'true';
-    setIsDemoMode(demo);
-  }, [searchParams]);
+    if (typeof window !== 'undefined') {
+      const demo = sessionStorage.getItem('demoMode') === 'true';
+      setIsDemoMode(demo);
+    }
+  }, []);
 
   // Get data from PropertyContext
   const { calculationsComplete } = usePropertyContext();
@@ -1447,6 +1451,30 @@ export default function PortfolioSummaryPage() {
   );
 }
 
+
+// Wrapper component to ensure Suspense is at the top level
+function PortfolioSummaryWrapper() {
+  return (
+    <Suspense fallback={
+      <RequireAuth>
+        <Layout>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#205A3E] mx-auto"></div>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading portfolio...</p>
+            </div>
+          </div>
+        </Layout>
+      </RequireAuth>
+    }>
+      <PortfolioSummaryContent />
+    </Suspense>
+  );
+}
+
+export default function PortfolioSummaryPage() {
+  return <PortfolioSummaryWrapper />;
+}
 function TopMetricCard({
   title,
   value,
@@ -2783,9 +2811,3 @@ function ScheduleEvents({ properties = [] }) {
     </div>
   );
 }
-
-
-
-
-
-

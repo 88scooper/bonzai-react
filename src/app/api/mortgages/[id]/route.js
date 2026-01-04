@@ -188,8 +188,11 @@ export async function DELETE(request, { params }) {
     }
 
     if (!db) {
-      // Mock implementation for development
-      mockMortgages = mockMortgages.filter(m => !(m.id === id && m.userId === user.uid));
+      // Mock implementation for development - mutate array in place
+      const mortgageIndex = mockMortgages.findIndex(m => m.id === id && m.userId === user.uid);
+      if (mortgageIndex !== -1) {
+        mockMortgages.splice(mortgageIndex, 1);
+      }
     } else {
       // Real Firebase implementation
       await deleteMortgage(user.uid, id);
