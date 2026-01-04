@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { RequireAuth } from "@/context/AuthContext";
 import { useAuth } from "@/context/AuthContext";
@@ -162,37 +162,7 @@ function DataRow({ label, value, isBold = false }) {
 // Historical Data Display Component
 function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSelectedYear, onYearChange }) {
   const availableYears = [...getAvailableYears(property)].sort((a, b) => a - b);
-  const [internalSelectedYear, setInternalSelectedYear] = useState(
-    availableYears.length > 1 ? 'all' : (availableYears[0] ?? 'all')
-  );
-
-  useEffect(() => {
-    if (availableYears.length === 0) {
-      setInternalSelectedYear('all');
-      return;
-    }
-
-    if (availableYears.length === 1) {
-      setInternalSelectedYear(availableYears[0]);
-      return;
-    }
-
-    setInternalSelectedYear(prev => {
-      if (prev === 'all') {
-        return prev;
-      }
-
-      if (typeof prev === 'number' && availableYears.includes(prev)) {
-        return prev;
-      }
-
-      return 'all';
-    });
-  }, [availableYears]);
-  
-  // Use external year if provided, otherwise use internal state
-  const selectedYear = externalSelectedYear !== undefined ? externalSelectedYear : internalSelectedYear;
-  const setSelectedYear = onYearChange || setInternalSelectedYear;
+  const [hoveredYear, setHoveredYear] = useState(null);
 
   if (availableYears.length === 0) {
     return (
@@ -202,15 +172,11 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
     );
   }
 
-  const showAllYears = selectedYear === 'all';
-  const yearsToDisplay = showAllYears
-    ? availableYears
-    : (typeof selectedYear === 'number' && availableYears.includes(selectedYear))
-      ? [selectedYear]
-      : availableYears;
+  // Always display all years
+  const yearsToDisplay = availableYears;
 
   if (yearsToDisplay.length === 0) {
-  return (
+    return (
       <div className="text-center py-4 text-gray-500 dark:text-gray-400">
         <div className="text-sm">No historical data available</div>
       </div>
@@ -226,9 +192,15 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
       .reduce((acc, expense) => {
         const category = expense.category;
         if (!acc[category]) {
-          acc[category] = 0;
+          acc[category] = { total: 0, paymentFrequency: null };
         }
-        acc[category] += expense.amount;
+        acc[category].total += expense.amount;
+        // Use the first payment frequency found for this category, or prefer from expenseData
+        if (!acc[category].paymentFrequency && expense.expenseData?.paymentFrequency) {
+          acc[category].paymentFrequency = expense.expenseData.paymentFrequency;
+        } else if (!acc[category].paymentFrequency) {
+          acc[category].paymentFrequency = 'Annual'; // Default
+        }
         return acc;
       }, {});
 
@@ -241,159 +213,193 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
     };
   });
 
-  if (showAllYears) {
-    const categorySet = new Set();
-    snapshots.forEach(snapshot => {
-      Object.keys(snapshot.expenseBreakdown).forEach(category => categorySet.add(category));
-    });
-    const sortedCategories = Array.from(categorySet).sort();
+  // Use the same expense categories as the onboarding wizard
+  const EXPENSE_CATEGORIES = [
+    'Advertising',
+    'Insurance',
+    'Interest & Bank Charges',
+    'Office Expenses',
+    'Professional Fees',
+    'Management & Administration',
+    'Repairs & Maintenance',
+    'Salaries, Wages, and Benefits',
+    'Property Taxes',
+    'Travel',
+    'Utilities',
+    'Motor Vehicle Expenses',
+    'Other Expenses',
+    'Condo Maintenance Fees',
+    'Mortgage (Principal)'
+  ];
+  
+  // Always show all categories, not just ones with expenses
+  const sortedCategories = EXPENSE_CATEGORIES;
 
-    const formatValue = (amount) =>
-      `$${(
-        expenseView === 'monthly'
-          ? amount / 12
-          : amount
-      ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatValue = (amount) =>
+    `$${(
+      expenseView === 'monthly'
+        ? amount / 12
+        : amount
+    ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm text-left">
-          <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700">
-              <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200">Category</th>
-              {snapshots.map(snapshot => (
-                <th
-                  key={`header-${snapshot.year}`}
-                  className="py-2 px-4 font-semibold text-gray-700 dark:text-gray-200 text-right"
-                >
-                  {snapshot.year}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            <tr>
-              <td className="py-2 pr-4 text-gray-700 dark:text-gray-300">Rent</td>
-              {snapshots.map(snapshot => (
-                <td key={`rent-${snapshot.year}`} className="py-2 px-4 text-right text-gray-900 dark:text-gray-100">
-                  {formatValue(snapshot.income)}
-                </td>
-              ))}
-            </tr>
-            {sortedCategories.map(category => (
+  // Helper function to determine if a column should be highlighted
+  const isColumnHovered = (year) => hoveredYear === year;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm text-left">
+        <thead>
+          <tr className="border-b border-gray-200 dark:border-gray-700">
+            <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-white dark:bg-gray-900 z-10">Category</th>
+            <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-[200px] bg-white dark:bg-gray-900 z-10 min-w-[140px]">Payment Frequency</th>
+            {snapshots.map(snapshot => (
+              <th
+                key={`header-${snapshot.year}`}
+                className="py-2 px-4 font-semibold text-gray-700 dark:text-gray-200 text-right min-w-[120px]"
+                onMouseEnter={() => setHoveredYear(snapshot.year)}
+                onMouseLeave={() => setHoveredYear(null)}
+              >
+                {snapshot.year}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tr>
+            <td className={`py-2 pr-4 text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              Rent
+            </td>
+            <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              {/* Empty cell for Rent - Payment Frequency does not apply */}
+            </td>
+            {snapshots.map(snapshot => (
+              <td 
+                key={`rent-${snapshot.year}`} 
+                className={`py-2 px-4 text-right text-gray-900 dark:text-gray-100 transition-colors ${
+                  isColumnHovered(snapshot.year) 
+                    ? 'bg-amber-50 dark:bg-amber-900/20' 
+                    : ''
+                }`}
+                onMouseEnter={() => setHoveredYear(snapshot.year)}
+                onMouseLeave={() => setHoveredYear(null)}
+              >
+                {formatValue(snapshot.income)}
+              </td>
+            ))}
+          </tr>
+          {sortedCategories.map(category => {
+            // Get payment frequency from first snapshot that has this category
+            const paymentFrequency = snapshots
+              .map(s => s.expenseBreakdown[category]?.paymentFrequency)
+              .find(freq => freq) || 'Annual';
+            
+            return (
               <tr key={`category-${category}`}>
-                <td className="py-2 pr-4 text-gray-700 dark:text-gray-300">{category}</td>
+                <td className={`py-2 pr-4 text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
+                  snapshots.some(s => isColumnHovered(s.year)) 
+                    ? 'bg-amber-50 dark:bg-amber-900/20' 
+                    : ''
+                }`}>
+                  {category}
+                </td>
+                <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
+                  snapshots.some(s => isColumnHovered(s.year)) 
+                    ? 'bg-amber-50 dark:bg-amber-900/20' 
+                    : ''
+                }`}>
+                  {paymentFrequency}
+                </td>
                 {snapshots.map(snapshot => {
-                  const amount = snapshot.expenseBreakdown[category] || 0;
+                  const categoryData = snapshot.expenseBreakdown[category];
+                  const amount = categoryData?.total || 0;
                   return (
-                    <td key={`category-${category}-${snapshot.year}`} className="py-2 px-4 text-right text-gray-900 dark:text-gray-100">
+                    <td 
+                      key={`category-${category}-${snapshot.year}`} 
+                      className={`py-2 px-4 text-right text-gray-900 dark:text-gray-100 transition-colors ${
+                        isColumnHovered(snapshot.year) 
+                          ? 'bg-amber-50 dark:bg-amber-900/20' 
+                          : ''
+                      }`}
+                      onMouseEnter={() => setHoveredYear(snapshot.year)}
+                      onMouseLeave={() => setHoveredYear(null)}
+                    >
                       {formatValue(amount)}
                     </td>
                   );
                 })}
               </tr>
-            ))}
-            <tr>
-              <td className="py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100">
-                {expenseView === 'monthly' ? 'Total Monthly Expenses' : 'Total Annual Expenses'}
+            );
+          })}
+          <tr>
+            <td className={`py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              {expenseView === 'monthly' ? 'Total Monthly Expenses' : 'Total Annual Expenses'}
+            </td>
+            <td className={`py-2 pr-4 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              {/* Empty cell for total row */}
+            </td>
+            {snapshots.map(snapshot => (
+              <td 
+                key={`total-exp-${snapshot.year}`} 
+                className={`py-2 px-4 text-right font-semibold text-gray-900 dark:text-gray-100 transition-colors ${
+                  isColumnHovered(snapshot.year) 
+                    ? 'bg-amber-50 dark:bg-amber-900/20' 
+                    : ''
+                }`}
+                onMouseEnter={() => setHoveredYear(snapshot.year)}
+                onMouseLeave={() => setHoveredYear(null)}
+              >
+                {formatValue(snapshot.expenses)}
               </td>
-              {snapshots.map(snapshot => (
-                <td key={`total-exp-${snapshot.year}`} className="py-2 px-4 text-right font-semibold text-gray-900 dark:text-gray-100">
-                  {formatValue(snapshot.expenses)}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td className="py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100">
-                {expenseView === 'monthly' ? 'Monthly Net Income' : 'Annual Net Income'}
-              </td>
-              {snapshots.map(snapshot => (
-                <td key={`net-${snapshot.year}`} className="py-2 px-4 text-right font-semibold text-gray-900 dark:text-gray-100">
-                  {formatValue(snapshot.netIncome)}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {snapshots.map((snapshot, index) => (
-        <div key={snapshot.year} className="space-y-4">
-          {showAllYears && (
-            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-              <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                {snapshot.year}
-              </span>
-              <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {expenseView === 'monthly' ? 'Monthly View' : 'Annual View'}
-              </span>
-            </div>
-          )}
-
-      {/* Historical Income */}
-      <div className="space-y-1">
-        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Income</div>
-        <DataRow 
-          label={expenseView === 'monthly' ? 'Monthly Rent' : 'Annual Rent'} 
-              value={`$${expenseView === 'monthly' ? (snapshot.income / 12).toLocaleString() : snapshot.income.toLocaleString()}`} 
-        />
-        <DataRow 
-          label={expenseView === 'monthly' ? 'Total Monthly Revenue' : 'Total Annual Revenue'} 
-              value={`$${expenseView === 'monthly' ? (snapshot.income / 12).toLocaleString() : snapshot.income.toLocaleString()}`} 
-          isBold={true}
-        />
-      </div>
-
-      {/* Separator */}
-      <div className="py-2"></div>
-
-      {/* Historical Expenses */}
-      <div className="space-y-1">
-        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Expenses</div>
-        {property.expenseHistory && property.expenseHistory.length > 0 ? (
-          <>
-                {Object.entries(snapshot.expenseBreakdown).map(([category, amount]) => (
-              <DataRow 
-                    key={`${snapshot.year}-${category}`}
-                label={category} 
-                    value={`$${expenseView === 'monthly'
-                      ? (amount / 12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-              />
             ))}
-            <DataRow 
-              label={expenseView === 'monthly' ? 'Total Monthly Expenses' : 'Total Annual Expenses'} 
-                  value={`$${expenseView === 'monthly'
-                    ? (snapshot.expenses / 12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : snapshot.expenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-              isBold={true}
-            />
-          </>
-        ) : (
-              <div className="text-sm text-gray-500 dark:text-gray-400">No expense data for {snapshot.year}</div>
-        )}
-      </div>
-
-      {/* Net Income */}
-      <div className="py-2 border-t border-gray-200 dark:border-gray-700">
-        <DataRow 
-          label={expenseView === 'monthly' ? 'Monthly Net Income' : 'Annual Net Income'} 
-              value={`$${expenseView === 'monthly'
-                ? (snapshot.netIncome / 12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : snapshot.netIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-          isBold={true}
-        />
-      </div>
-
-          {showAllYears && index < snapshots.length - 1 && (
-            <div className="border-t border-dashed border-gray-200 dark:border-gray-700 pt-4"></div>
-          )}
-        </div>
-      ))}
+          </tr>
+          <tr>
+            <td className={`py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              {expenseView === 'monthly' ? 'Monthly Net Income' : 'Annual Net Income'}
+            </td>
+            <td className={`py-2 pr-4 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              {/* Empty cell for net income row */}
+            </td>
+            {snapshots.map(snapshot => (
+              <td 
+                key={`net-${snapshot.year}`} 
+                className={`py-2 px-4 text-right font-semibold text-gray-900 dark:text-gray-100 transition-colors ${
+                  isColumnHovered(snapshot.year) 
+                    ? 'bg-amber-50 dark:bg-amber-900/20' 
+                    : ''
+                }`}
+                onMouseEnter={() => setHoveredYear(snapshot.year)}
+                onMouseLeave={() => setHoveredYear(null)}
+              >
+                {formatValue(snapshot.netIncome)}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -403,15 +409,8 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
   const [expandedSections, setExpandedSections] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState({});
-  const [expenseView, setExpenseView] = useState('monthly');
+  const [expenseView, setExpenseView] = useState('annual');
   const [tenantView, setTenantView] = useState('current');
-  const [historicalView, setHistoricalView] = useState('current');
-  const availableYears = [...getAvailableYears(property)].sort((a, b) => a - b);
-  const [selectedYear, setSelectedYear] = useState(() => {
-    if (availableYears.length === 0) return 'all';
-    if (availableYears.length === 1) return availableYears[0];
-    return 'all';
-  });
 
   const clonePropertyData = (value) => {
     const structuredCloneFn = (globalThis).structuredClone;
@@ -451,28 +450,6 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
     current[keys[keys.length - 1]] = value;
     return base;
   };
-
-  useEffect(() => {
-    setSelectedYear(prev => {
-      if (availableYears.length === 0) {
-        return 'all';
-      }
-
-      if (availableYears.length === 1) {
-        return availableYears[0];
-      }
-
-      if (prev === 'all') {
-        return 'all';
-      }
-
-      if (typeof prev === 'number' && availableYears.includes(prev)) {
-        return prev;
-      }
-
-      return 'all';
-    });
-  }, [availableYears]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -642,11 +619,32 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
       {/* Card Header */}
-      <div className="p-6 bg-gradient-to-r from-[#205A3E] to-[#2a7050] text-white">
+      <div className="py-[1.35rem] px-6 bg-gradient-to-r from-[#205A3E] to-[#2a7050] text-white">
         <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-2xl font-bold">{property.name || property.nickname}</h2>
-            <p className="text-sm opacity-90 mt-1">{property.address}</p>
+          <div className="flex items-start gap-4 flex-1">
+            {/* Thumbnail Image */}
+            <div className="flex-shrink-0">
+              <div className="w-20 h-20 rounded-lg border-2 border-white/20 overflow-hidden shadow-lg bg-white/10">
+                {property.imageUrl ? (
+                  <img 
+                    src={`${property.imageUrl}?v=3`}
+                    alt={property.name || property.nickname || 'Property image'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-white/20 to-white/10 flex items-center justify-center">
+                    <div className="text-white/60 text-xs text-center px-1">
+                      No Image
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Property Name and Address */}
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold">{property.name || property.nickname}</h2>
+              <p className="text-sm opacity-90 mt-1">{property.address}</p>
+            </div>
           </div>
           <div className="flex gap-2">
             {isEditing ? (
@@ -835,180 +833,13 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
             </button>
           </div>
 
-          {/* Historical Data Toggle */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Data:</span>
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-              <button
-                onClick={() => setHistoricalView('current')}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  historicalView === 'current'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Current
-              </button>
-              <button
-                onClick={() => setHistoricalView('historical')}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  historicalView === 'historical'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Historical
-              </button>
-            </div>
-          </div>
-
-          {/* Year Selector - shown when Historical view is selected */}
-          {historicalView === 'historical' && availableYears.length > 0 && (
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Year(s):</span>
-              <select
-                value={selectedYear === 'all' ? 'all' : selectedYear.toString()}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSelectedYear(value === 'all' ? 'all' : parseInt(value, 10));
-                }}
-                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
-              >
-                <option value="all">All Years</option>
-                {availableYears.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {historicalView === 'current' ? (
-            /* Current Data Display */
-            <>
-              {/* Income */}
-              <EditableDataRow 
-                label={expenseView === 'monthly' ? 'Monthly Rent' : 'Annual Rent'} 
-                value={`$${expenseView === 'monthly' ? (property.rent?.monthlyRent || 0).toLocaleString() : (property.rent?.annualRent || 0).toLocaleString()}`} 
-                editable={expenseView === 'monthly'}
-                field="rent.monthlyRent"
-                type="number" 
-              />
-              <EditableDataRow 
-                label={expenseView === 'monthly' ? 'Total Monthly Revenue' : 'Total Annual Revenue'} 
-                value={`$${expenseView === 'monthly' ? (property.rent?.monthlyRent || 0).toLocaleString() : (property.rent?.annualRent || 0).toLocaleString()}`} 
-                isBold={true}
-              />
-
-              {/* Separator */}
-              <div className="py-2"></div>
-
-              {/* Expenses */}
-              <EditableDataRow 
-                label="Advertising" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.advertising || 0) : ((property.monthlyExpenses?.advertising || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.advertising"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Insurance" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.insurance || 0) : ((property.monthlyExpenses?.insurance || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.insurance"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Interest & Banking Charges" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.mortgageInterest || 0) : ((property.monthlyExpenses?.mortgageInterest || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.mortgageInterest"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Office Expenses" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.officeExpenses || 0) : ((property.monthlyExpenses?.officeExpenses || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.officeExpenses"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Professional Fees" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.professionalFees || 0) : ((property.monthlyExpenses?.professionalFees || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.professionalFees"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Management & Administration" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.management || 0) : ((property.monthlyExpenses?.management || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.management"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Repairs & Maintenance" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.maintenance || 0) : ((property.monthlyExpenses?.maintenance || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.maintenance"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Property Taxes" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.propertyTax || 0) : ((property.monthlyExpenses?.propertyTax || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.propertyTax"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Travel" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.travel || 0) : ((property.monthlyExpenses?.travel || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.travel"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Utilities" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.utilities || 0) : ((property.monthlyExpenses?.utilities || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.utilities"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Motor Vehicle Expense" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.motorVehicle || 0) : ((property.monthlyExpenses?.motorVehicle || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.motorVehicle"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Other Rental Expense (incl. Condo Fees & Broker Fees)" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.condoFees || 0) : ((property.monthlyExpenses?.condoFees || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.condoFees"
-                type="number"
-              />
-              <EditableDataRow 
-                label="Mortgage (Principal)" 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.mortgagePrincipal || 0) : ((property.monthlyExpenses?.mortgagePrincipal || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                editable={expenseView === 'monthly'}
-                field="monthlyExpenses.mortgagePrincipal"
-                type="number"
-              />
-              <EditableDataRow 
-                label={expenseView === 'monthly' ? 'Total Monthly Expenses' : 'Total Annual Expenses'} 
-                value={`$${(expenseView === 'monthly' ? (property.monthlyExpenses?.total || 0) : ((property.monthlyExpenses?.total || 0) * 12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                isBold={true}
-              />
-            </>
-          ) : (
-            /* Historical Data Display */
-            <HistoricalDataDisplay 
-              property={property} 
-              expenseView={expenseView}
-              selectedYear={selectedYear}
-              onYearChange={setSelectedYear}
-            />
-          )}
+          {/* Historical Data Display - Always show historical format */}
+          <HistoricalDataDisplay 
+            property={property} 
+            expenseView={expenseView}
+            selectedYear="all"
+            onYearChange={() => {}}
+          />
         </div>
       </Section>
 
@@ -1487,22 +1318,26 @@ function AddExpenseModal({ property, onClose, onSave }) {
     date: new Date().toISOString().split('T')[0],
     amount: '',
     category: '',
-    description: ''
+    description: '',
+    paymentFrequency: 'Annual'
   });
 
   const expenseCategories = [
-    'Property Tax',
-    'Insurance',
-    'Maintenance',
-    'Repairs',
-    'Utilities',
-    'Professional Fees',
-    'Management',
     'Advertising',
+    'Insurance',
+    'Interest & Bank Charges',
+    'Office Expenses',
+    'Professional Fees',
+    'Management & Administration',
+    'Repairs & Maintenance',
+    'Salaries, Wages, and Benefits',
+    'Property Taxes',
     'Travel',
-    'Motor Vehicle',
-    'Condo Fees',
-    'Other'
+    'Utilities',
+    'Motor Vehicle Expenses',
+    'Other Expenses',
+    'Condo Maintenance Fees',
+    'Mortgage (Principal)'
   ];
 
   const handleSubmit = (e) => {
@@ -1514,7 +1349,10 @@ function AddExpenseModal({ property, onClose, onSave }) {
       date: formData.date,
       amount: parseFloat(formData.amount),
       category: formData.category || null,
-      description: formData.description || null
+      description: formData.description || null,
+      expenseData: {
+        paymentFrequency: formData.paymentFrequency
+      }
     });
   };
 
@@ -1579,6 +1417,20 @@ function AddExpenseModal({ property, onClose, onSave }) {
               {expenseCategories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Payment Frequency
+            </label>
+            <select
+              value={formData.paymentFrequency}
+              onChange={(e) => setFormData(prev => ({ ...prev, paymentFrequency: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            >
+              <option value="Monthly">Monthly</option>
+              <option value="Annual">Annual</option>
             </select>
           </div>
 

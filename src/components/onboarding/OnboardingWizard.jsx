@@ -19,7 +19,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   const { createNewAccount, currentAccountId, accounts } = useAccount();
   const { addToast } = useToast();
 
-  const totalSteps = 5;
+  const totalSteps = 4;
 
   // Mark onboarding as in progress when wizard mounts
   useEffect(() => {
@@ -33,11 +33,11 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
           setCurrentStep(step);
         }
       }
-      // Check if we should show step 5 (when coming from portfolio page)
-      const shouldShowStep5 = sessionStorage.getItem('onboarding_step_5') === 'true';
-      if (shouldShowStep5) {
-        setCurrentStep(5);
-        sessionStorage.removeItem('onboarding_step_5');
+      // Check if we should show step 4 (when coming from portfolio page)
+      const shouldShowStep4 = sessionStorage.getItem('onboarding_step_4') === 'true';
+      if (shouldShowStep4) {
+        setCurrentStep(4);
+        sessionStorage.removeItem('onboarding_step_4');
       }
     }
   }, [totalSteps]);
@@ -48,7 +48,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
       const savedStep = sessionStorage.getItem('onboarding_current_step');
       if (savedStep) {
         const step = parseInt(savedStep, 10);
-        if (step > 1 && step <= 5) {
+        if (step > 1 && step <= 4) {
           return step;
         }
       }
@@ -140,7 +140,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     }
   };
 
-  // Step 3b: Handle manual property submission (create or update)
+  // Handle manual property submission (create or update)
   const handleAddProperty = async (propertyData) => {
     if (!accountId) {
       addToast("Account ID is missing", { type: "error" });
@@ -170,7 +170,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
         if (response.success) {
           const newProperty = response.data;
           setProperties(prev => [...prev, newProperty]);
-          // Set the first property as selected for step 5
+          // Set the first property as selected for step 4 (Financial Data)
           if (!selectedPropertyId) {
             setSelectedPropertyId(newProperty.id);
           }
@@ -247,17 +247,17 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     setShowAddPropertyForm(false);
   };
 
-  // Step 4: Advance to step 5 (financial data)
-  const handleContinueToStep5 = () => {
+  // Step 3: Advance to step 4 (financial data)
+  const handleContinueToStep4 = () => {
     // Save step to sessionStorage
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('onboarding_current_step', '5');
+      sessionStorage.setItem('onboarding_current_step', '4');
     }
-    // Advance to step 5 directly
-    setCurrentStep(5);
+    // Advance to step 4 directly
+    setCurrentStep(4);
   };
 
-  // Step 4: Complete onboarding (skip financial data)
+  // Step 3: Complete onboarding (skip financial data)
   const handleComplete = () => {
     // Clear saved step when completing
     if (typeof window !== 'undefined') {
@@ -279,8 +279,8 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     router.push("/portfolio-summary");
   };
 
-  // If step 5, show as modal overlay
-  const isModalMode = modal || currentStep === 5;
+  // If step 4, show as modal overlay
+  const isModalMode = modal || currentStep === 4;
   
   const wizardContent = (
     <>
@@ -461,7 +461,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                     <div className="pt-3">
                       <Button
                         onClick={() => {
-                          setCurrentStep(4);
+                          setCurrentStep(3);
                         }}
                         className="w-full"
                       >
@@ -530,19 +530,20 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                   onCancel={editingPropertyId ? handleCancelEdit : (properties.length > 0 ? () => setShowAddPropertyForm(false) : () => setCurrentStep(1))}
                   onContinue={() => {
                     if (properties.length > 0) {
-                      setCurrentStep(4);
+                      setCurrentStep(3);
                     } else {
                       handleSkip();
                     }
                   }}
+                  showAddAnotherButton={false}
                 />
               )}
             </div>
           )}
 
 
-          {/* Step 4: Properties Added */}
-          {currentStep === 4 && (
+          {/* Step 3: Properties Added */}
+          {currentStep === 3 && (
             <div className="space-y-6 text-center">
               <div className="flex justify-center">
                 <CheckCircle2 className="w-16 h-16 text-emerald-500" />
@@ -562,15 +563,15 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                 <Button variant="secondary" onClick={handleComplete}>
                   Skip for now
                 </Button>
-                <Button onClick={handleContinueToStep5}>
+                <Button onClick={handleContinueToStep4}>
                   Add Financial Data
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 5: Add Financial Data */}
-          {currentStep === 5 && (
+          {/* Step 4: Add Financial Data */}
+          {currentStep === 4 && (
             <FinancialDataStep
               propertyId={selectedPropertyId}
               properties={properties}
@@ -582,14 +583,14 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
               onTenantAdded={() => setTenantAdded(true)}
               onExpenseAdded={() => setExpenseAdded(true)}
               onComplete={handleComplete}
-              onBack={() => setCurrentStep(4)}
+              onBack={() => setCurrentStep(3)}
             />
           )}
         </div>
     </>
   );
 
-  // Render as modal for step 5
+  // Render as modal for step 4
   if (isModalMode) {
     // If modal prop is true, render without the fixed overlay (parent handles it)
     if (modal) {
@@ -617,7 +618,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
       );
     }
     
-    // Original modal mode for step 5 when not called from portfolio page
+    // Original modal mode for step 4 when not called from portfolio page
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div 
@@ -651,7 +652,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     );
   }
 
-  // Render as full page for steps 1-4
+  // Render as full page for steps 1-3
   return (
     <div className="min-h-screen bg-white dark:bg-neutral-950 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-2xl">

@@ -111,12 +111,15 @@ export default function PropertyFinancialDataForm({
   // Initialize year data structure
   const initializeYearData = (year) => {
     const expenses = {};
+    const expensePaymentFrequencies = {};
     EXPENSE_CATEGORIES.forEach(category => {
       expenses[category] = '';
+      expensePaymentFrequencies[category] = 'Annual'; // Default to Annual
     });
     return {
       revenue: '',
-      expenses: expenses
+      expenses: expenses,
+      expensePaymentFrequencies: expensePaymentFrequencies
     };
   };
 
@@ -144,12 +147,15 @@ export default function PropertyFinancialDataForm({
             const year = expense.year || getDefaultYear();
             if (!migrated.expensesByYear[year]) {
               const expenses = {};
+              const expensePaymentFrequencies = {};
               EXPENSE_CATEGORIES.forEach(category => {
                 expenses[category] = '';
+                expensePaymentFrequencies[category] = 'Annual';
               });
               migrated.expensesByYear[year] = {
                 revenue: '',
-                expenses: expenses
+                expenses: expenses,
+                expensePaymentFrequencies: expensePaymentFrequencies
               };
             }
             if (expense.category && expense.amount) {
@@ -158,6 +164,19 @@ export default function PropertyFinancialDataForm({
           });
           draft.expensesByYear = migrated.expensesByYear;
           delete draft.expenses;
+        }
+        
+        // Ensure expensePaymentFrequencies exists for all years
+        if (draft.expensesByYear) {
+          Object.keys(draft.expensesByYear).forEach(year => {
+            if (!draft.expensesByYear[year].expensePaymentFrequencies) {
+              const expensePaymentFrequencies = {};
+              EXPENSE_CATEGORIES.forEach(category => {
+                expensePaymentFrequencies[category] = 'Annual';
+              });
+              draft.expensesByYear[year].expensePaymentFrequencies = expensePaymentFrequencies;
+            }
+          });
         }
         
         // If no years exist in expensesByYear, initialize with current year
@@ -359,6 +378,26 @@ export default function PropertyFinancialDataForm({
             ...currentYearData,
             expenses: {
               ...(currentYearData.expenses || {}),
+              [category]: value
+            }
+          }
+        }
+      };
+    });
+  };
+
+  // Update payment frequency for a year and category
+  const updateExpensePaymentFrequency = (year, category, value) => {
+    setFormData(prev => {
+      const currentYearData = prev.expensesByYear?.[year] || initializeYearData(year);
+      return {
+        ...prev,
+        expensesByYear: {
+          ...(prev.expensesByYear || {}),
+          [year]: {
+            ...currentYearData,
+            expensePaymentFrequencies: {
+              ...(currentYearData.expensePaymentFrequencies || {}),
               [category]: value
             }
           }
@@ -986,6 +1025,9 @@ export default function PropertyFinancialDataForm({
                           <th className="sticky left-0 z-10 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white">
                             Category
                           </th>
+                          <th className="sticky left-[200px] z-10 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white min-w-[140px]">
+                            Payment Frequency
+                          </th>
                           {getYears().map((year) => (
                             <th key={year} className="relative border-2 border-gray-300 dark:border-gray-600 px-3 py-3 text-center text-xs font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 min-w-[140px]">
                               <div className="flex items-center justify-between gap-2">
@@ -1027,6 +1069,9 @@ export default function PropertyFinancialDataForm({
                           <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-900/20 border-r-2 border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
                             Revenue
                           </td>
+                          <td className="sticky left-[200px] z-10 bg-emerald-50 dark:bg-emerald-900/20 border-r-2 border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                            {/* Empty cell for Revenue - Payment Frequency does not apply */}
+                          </td>
                           {getYears().map((year) => (
                             <td key={year} className="border-r border-gray-200 dark:border-gray-700 px-2 py-2">
                               <input
@@ -1052,6 +1097,21 @@ export default function PropertyFinancialDataForm({
                           <tr key={category} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                             <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 border-r-2 border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300">
                               {category}
+                            </td>
+                            <td className="sticky left-[200px] z-10 bg-white dark:bg-gray-800 border-r-2 border-gray-300 dark:border-gray-600 px-2 py-2.5">
+                              <select
+                                value={(getYears().length > 0 && formData.expensesByYear?.[getYears()[0]]?.expensePaymentFrequencies?.[category]) || 'Annual'}
+                                onChange={(e) => {
+                                  // Update payment frequency for all years (same frequency applies to all years for this category)
+                                  getYears().forEach(year => {
+                                    updateExpensePaymentFrequency(year, category, e.target.value);
+                                  });
+                                }}
+                                className="w-full rounded-md border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500/20 dark:focus:ring-orange-400/20 focus:border-orange-500 dark:focus:border-orange-400 transition-colors"
+                              >
+                                <option value="Monthly">Monthly</option>
+                                <option value="Annual">Annual</option>
+                              </select>
                             </td>
                           {getYears().map((year) => (
                             <td key={year} className="border-r border-gray-200 dark:border-gray-700 px-2 py-2">

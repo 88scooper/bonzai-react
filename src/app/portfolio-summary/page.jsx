@@ -277,7 +277,7 @@ function PortfolioSummaryContent() {
 
   const [activePreset, setActivePreset] = useState(null);
 
-  // Check if onboarding step 5 should be shown as modal
+  // Check if onboarding step 4 should be shown as modal
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   
   // Check if onboarding is incomplete
@@ -328,15 +328,15 @@ function PortfolioSummaryContent() {
     };
   }, [isSettingsOpen]);
 
-  // Check for onboarding step 5 on mount
+  // Check for onboarding step 4 on mount
   useEffect(() => {
-    // Check if onboarding is in progress and we should show step 5
+    // Check if onboarding is in progress and we should show step 4
     const onboardingInProgress = typeof window !== 'undefined' && 
       sessionStorage.getItem('onboarding_in_progress') === 'true';
-    const shouldShowStep5 = typeof window !== 'undefined' && 
-      sessionStorage.getItem('onboarding_step_5') === 'true';
+    const shouldShowStep4 = typeof window !== 'undefined' && 
+      sessionStorage.getItem('onboarding_step_4') === 'true';
     
-    if (onboardingInProgress && shouldShowStep5) {
+    if (onboardingInProgress && shouldShowStep4) {
       setShowOnboardingModal(true);
     }
   }, []);
@@ -382,8 +382,8 @@ function PortfolioSummaryContent() {
     if (!showOnboardingModal) {
       if (savedStep) {
         const step = parseInt(savedStep, 10);
-        // Show prompt if step is between 1 and 5 (incomplete onboarding)
-        if (step >= 1 && step <= 5) {
+        // Show prompt if step is between 1 and 4 (incomplete onboarding)
+        if (step >= 1 && step <= 4) {
           // Always show if there's a saved step (user was in onboarding)
           setIncompleteOnboardingStep(step);
           setShowOnboardingPrompt(true);

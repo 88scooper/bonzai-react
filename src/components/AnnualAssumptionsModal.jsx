@@ -1,19 +1,90 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X, TrendingUp } from "lucide-react";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
+import { useProperties } from "@/context/PropertyContext";
+import { formatCurrency } from "@/utils/formatting";
 
 export default function AnnualAssumptionsModal({ isOpen, onClose, currentYear }) {
   const { addToast } = useToast();
+  const properties = useProperties();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     propertyValueChange: '',
     rentChange: '',
     expenseChange: ''
   });
+  const [unitValues, setUnitValues] = useState({});
+  const [baseUnitValues, setBaseUnitValues] = useState({});
+  
+  // Load saved assumptions when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const savedAssumptions = localStorage.getItem(`annualAssumptions_${currentYear}`);
+      if (savedAssumptions) {
+        try {
+          const parsed = JSON.parse(savedAssumptions);
+          setFormData({
+            propertyValueChange: parsed.propertyValueChange?.toString() || '',
+            rentChange: parsed.rentChange?.toString() || '',
+            expenseChange: parsed.expenseChange?.toString() || ''
+          });
+        } catch (e) {
+          console.error("Error parsing saved assumptions:", e);
+        }
+      }
+    }
+  }, [isOpen, currentYear]);
+
+  // Initialize unit values when modal opens
+  useEffect(() => {
+    if (isOpen && properties.length > 0) {
+      // Calculate base unit values from properties
+      const baseValues = {};
+      properties.forEach(property => {
+        const numUnits = property.units || 1;
+        const propertyValue = property.currentMarketValue || property.currentValue || 0;
+        const unitValue = numUnits > 0 ? propertyValue / numUnits : propertyValue;
+        
+        for (let i = 0; i < numUnits; i++) {
+          const unitKey = `${property.id}_unit_${i + 1}`;
+          baseValues[unitKey] = unitValue;
+        }
+      });
+      setBaseUnitValues(baseValues);
+      
+      // Load saved unit values or use base values
+      const savedUnitValues = localStorage.getItem(`unitValues_${currentYear}`);
+      if (savedUnitValues) {
+        try {
+          const parsed = JSON.parse(savedUnitValues);
+          // Verify all properties have unit values, if not, use base values
+          const allUnitKeys = {};
+          properties.forEach(property => {
+            const numUnits = property.units || 1;
+            for (let i = 0; i < numUnits; i++) {
+              const unitKey = `${property.id}_unit_${i + 1}`;
+              allUnitKeys[unitKey] = parsed[unitKey] !== undefined 
+                ? parsed[unitKey] 
+                : baseValues[unitKey];
+            }
+          });
+          setUnitValues(allUnitKeys);
+        } catch (e) {
+          console.error("Error parsing saved unit values:", e);
+          setUnitValues(baseValues);
+        }
+      } else {
+        setUnitValues(baseValues);
+      }
+      
+      // Reset the ref when modal opens
+      prevPropertyValueChangeRef.current = '';
+    }
+  }, [isOpen, properties, currentYear]);
 
   // Handle Escape key
   useEffect(() => {
@@ -28,13 +99,42 @@ export default function AnnualAssumptionsModal({ isOpen, onClose, currentYear })
     }
   }, [isOpen, loading, onClose]);
 
+  // Track previous property value change to detect when it actually changes
+  const prevPropertyValueChangeRef = useRef('');
+  
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     // Allow negative numbers, decimals, and empty string
     if (value === '' || value === '-' || /^-?\d*\.?\d*$/.test(value)) {
+      const prevValue = formData[name];
       setFormData(prev => ({
         ...prev,
         [name]: value
+      }));
+      
+      // If property value change % changed and is valid, apply it to base unit values
+      if (name === 'propertyValueChange' && value !== '' && value !== '-' && value !== prevValue) {
+        const percentageChange = parseFloat(value);
+        if (!isNaN(percentageChange) && prevPropertyValueChangeRef.current !== value && Object.keys(baseUnitValues).length > 0) {
+          prevPropertyValueChangeRef.current = value;
+          const multiplier = 1 + (percentageChange / 100);
+          const updatedValues = {};
+          Object.keys(baseUnitValues).forEach(key => {
+            updatedValues[key] = baseUnitValues[key] * multiplier;
+          });
+          setUnitValues(updatedValues);
+        }
+      }
+    }
+  };
+
+  const handleUnitValueChange = (unitKey, value) => {
+    // Allow numbers, decimals, commas, and empty string
+    const cleanedValue = value.replace(/,/g, '');
+    if (cleanedValue === '' || cleanedValue === '-' || /^-?\d*\.?\d*$/.test(cleanedValue)) {
+      setUnitValues(prev => ({
+        ...prev,
+        [unitKey]: cleanedValue === '' || cleanedValue === '-' ? 0 : parseFloat(cleanedValue) || 0
       }));
     }
   };
@@ -72,6 +172,9 @@ export default function AnnualAssumptionsModal({ isOpen, onClose, currentYear })
       };
       
       localStorage.setItem(`annualAssumptions_${currentYear}`, JSON.stringify(assumptions));
+      
+      // Store unit values
+      localStorage.setItem(`unitValues_${currentYear}`, JSON.stringify(unitValues));
       
       // Mark this year as reviewed
       const reviewedYears = JSON.parse(localStorage.getItem('annualAssumptionsReviewedYears') || '[]');
@@ -165,6 +268,57 @@ export default function AnnualAssumptionsModal({ isOpen, onClose, currentYear })
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                   Expected annual change in property values (can be positive or negative)
                 </p>
+                
+                {/* Unit Values List */}
+                {properties.length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      Current Estimated Property Values
+                    </p>
+                    <div className="space-y-2 max-h-64 overflow-y-auto border border-black/10 dark:border-white/10 rounded-md p-3 bg-gray-50/50 dark:bg-neutral-900/50">
+                      {properties.map(property => {
+                        const numUnits = property.units || 1;
+                        const propertyName = property.nickname || property.name || property.address || 'Unnamed Property';
+                        
+                        return (
+                          <div key={property.id} className="space-y-2">
+                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                              {propertyName}
+                              {numUnits > 1 && ` (${numUnits} units)`}
+                            </p>
+                            {Array.from({ length: numUnits }, (_, i) => {
+                              const unitIndex = i + 1;
+                              const unitKey = `${property.id}_unit_${unitIndex}`;
+                              const unitValue = unitValues[unitKey] || 0;
+                              
+                              return (
+                                <div key={unitKey} className="flex items-center gap-2 pl-3">
+                                  <label className="text-xs text-gray-600 dark:text-gray-400 min-w-[60px]">
+                                    {numUnits > 1 ? `Unit ${unitIndex}:` : 'Value:'}
+                                  </label>
+                                  <div className="relative flex-1">
+                                    <input
+                                      type="text"
+                                      value={typeof unitValue === 'number' ? unitValue.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : unitValue}
+                                      onChange={(e) => {
+                                        const value = e.target.value.replace(/,/g, '');
+                                        handleUnitValueChange(unitKey, value);
+                                      }}
+                                      className="w-full rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-950 px-2.5 py-1.5 pr-8 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                                    />
+                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-xs">
+                                      $
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

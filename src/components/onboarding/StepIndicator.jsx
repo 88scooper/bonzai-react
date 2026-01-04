@@ -3,9 +3,8 @@
 const STEP_LABELS = {
   1: 'Account',
   2: 'Properties',
-  3: '', // Step 3 was removed
-  4: 'Review',
-  5: 'Financial Data'
+  3: 'Review',
+  4: 'Financial Data'
 };
 
 export default function StepIndicator({ currentStep, totalSteps }) {

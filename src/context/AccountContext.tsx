@@ -132,9 +132,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    // Check for demo mode
-    const isDemoMode = sessionStorage.getItem('demoMode') === 'true' || 
-                      new URLSearchParams(window.location.search).get('demo') === 'true';
+    // Check for demo mode (only from sessionStorage to avoid static generation issues)
+    const isDemoMode = sessionStorage.getItem('demoMode') === 'true';
     
     if (isDemoMode) {
       await loadDemoData();
@@ -231,7 +230,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [currentAccountId, user?.email]);
+  }, [currentAccountId, user?.email, loadDemoData]);
 
   // Map API property format (snake_case) to frontend format (camelCase)
   function mapApiPropertyToFrontend(apiProperty: any): any {

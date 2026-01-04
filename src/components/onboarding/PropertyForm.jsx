@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Upload, X, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId, initialData = {} }) {
+export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId, initialData = {}, showAddAnotherButton = true }) {
   // Normalize API data (snake_case) to form data (camelCase)
   const normalizedData = {
     nickname: initialData.nickname || '',
@@ -663,7 +663,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
           >
             Confirm Details
           </button>
-          {!initialData.id && (
+          {showAddAnotherButton && !initialData.id && (
             <button
               type="button"
               onClick={(e) => {

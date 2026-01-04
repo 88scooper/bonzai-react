@@ -258,8 +258,7 @@ export function RequireAuth({ children }) {
   // Check for demo mode on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const demo = sessionStorage.getItem('demoMode') === 'true' || 
-                   new URLSearchParams(window.location.search).get('demo') === 'true';
+      const demo = sessionStorage.getItem('demoMode') === 'true';
       setIsDemoMode(demo);
     }
   }, []);
@@ -334,7 +333,7 @@ export function RequireAuth({ children }) {
         window.location.href = '/login';
       }
     }
-  }, [user, loading]);
+  }, [user, loading, isDemoMode]);
 
   if (loading) {
     return (
