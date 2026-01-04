@@ -36,8 +36,8 @@ export default function HomePage() {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('demoMode', 'true');
       sessionStorage.setItem('readOnlyMode', 'true');
-      // Navigate to portfolio summary
-      window.location.href = '/portfolio-summary?demo=true';
+      // Navigate to portfolio summary (no URL params to avoid static generation issues)
+      window.location.href = '/portfolio-summary';
     }
   }
 
@@ -91,8 +91,8 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
             Empower yourself with full visibility into your small-scale real estate investment portfolio allowing you understand and optimize your returns. Track revenue & expenses, equity built, forecast cash flow, and analyze scenarios — all in one powerful platform designed for real estate investors.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button onClick={onGetStarted}>Get started for free</Button>
-            <Button onClick={onDemoPortfolio} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 dark:bg-emerald-500 dark:hover:bg-emerald-600">View the Demo Portfolio</Button>
+            <Button onClick={onGetStarted} className="!px-8 !py-4 !text-lg">Get started for free</Button>
+            <Button onClick={onDemoPortfolio} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 dark:bg-emerald-500 dark:hover:bg-emerald-600 !px-8 !py-4 !text-lg">View the Demo Portfolio</Button>
           </div>
         </div>
         <div className="h-64 md:h-80 rounded-xl bg-gradient-to-br from-emerald-300/40 to-teal-300/30 dark:from-emerald-500/10 dark:to-teal-500/10 border border-black/10 dark:border-white/10" />
