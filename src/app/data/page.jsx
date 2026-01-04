@@ -116,6 +116,8 @@ function getHistoricalExpenses(property, year) {
 
 function getAvailableYears(property) {
   const years = new Set();
+  const currentYear = new Date().getFullYear();
+  
   const addYear = (value) => {
     const year = getYearFromDateString(value);
     if (!Number.isNaN(year)) {
@@ -135,7 +137,7 @@ function getAvailableYears(property) {
     property.tenants.forEach(tenant => {
       const leaseStartYear = getYearFromDateString(tenant.leaseStart);
       const leaseEndYear = tenant.leaseEnd === 'Active' 
-        ? new Date().getFullYear()
+        ? currentYear
         : getYearFromDateString(tenant.leaseEnd);
       
       for (let year = leaseStartYear; year <= leaseEndYear; year++) {
@@ -144,6 +146,12 @@ function getAvailableYears(property) {
         }
       }
     });
+  }
+  
+  // Always include current year if we have any data (for forecast mode to work)
+  // This ensures that even if only future years have data, current year is available
+  if (years.size > 0) {
+    years.add(currentYear);
   }
   
   return Array.from(years).sort((a, b) => a - b); // Sort ascending (oldest first)
@@ -160,9 +168,12 @@ function DataRow({ label, value, isBold = false }) {
 }
 
 // Historical Data Display Component
-function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSelectedYear, onYearChange }) {
+function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSelectedYear, onYearChange, isEditing = false, editedData = null, onUpdateExpense = null, onUpdateForecastMode = null }) {
   const availableYears = [...getAvailableYears(property)].sort((a, b) => a - b);
   const [hoveredYear, setHoveredYear] = useState(null);
+  
+  // Use editedData if available, otherwise use property
+  const dataSource = isEditing && editedData ? editedData : property;
 
   if (availableYears.length === 0) {
     return (
@@ -173,7 +184,26 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
   }
 
   // Always display all years
-  const yearsToDisplay = availableYears;
+  // Ensure current year is included if we have any years (needed for forecast mode)
+  const currentYear = new Date().getFullYear();
+  const yearsToDisplay = (() => {
+    if (availableYears.length > 0 && !availableYears.includes(currentYear)) {
+      // Add current year if we have other years but current year is missing
+      return [...availableYears, currentYear].sort((a, b) => a - b);
+    }
+    return availableYears;
+  })();
+  
+  // Determine if forecast mode should be shown (current year must exist and there must be at least one previous year)
+  const currentYearIndex = yearsToDisplay.findIndex(year => year === currentYear);
+  // Show forecast mode if current year exists and there's at least one year before it in the sorted array
+  const showForecastMode = currentYearIndex > 0 && yearsToDisplay.length > 1;
+  
+  // Get forecast modes from property data (stored in propertyData.expenseForecastModes)
+  const expenseForecastModes = (dataSource.propertyData?.expenseForecastModes || {});
+  
+  // Default expense inflation rate (from assumptions, could also be from property.annualAssumptions)
+  const annualExpenseInflation = 2.5; // Default 2.5% (from CASH_FLOW_DEFAULT_ASSUMPTIONS)
 
   if (yearsToDisplay.length === 0) {
     return (
@@ -184,10 +214,10 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
   }
 
   const snapshots = yearsToDisplay.map((year) => {
-    const income = getHistoricalIncome(property, year);
-    const expenses = getHistoricalExpenses(property, year);
+    const income = getHistoricalIncome(dataSource, year);
+    const expenses = getHistoricalExpenses(dataSource, year);
 
-    const expenseBreakdown = (property.expenseHistory || [])
+    const expenseBreakdown = (dataSource.expenseHistory || [])
       .filter(expense => getYearFromDateString(expense.date) === year)
       .reduce((acc, expense) => {
         const category = expense.category;
@@ -232,6 +262,9 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
     'Mortgage (Principal)'
   ];
   
+  // Categories that support forecast mode (all except the excluded ones)
+  const FORECAST_MODE_EXCLUDED = ['Interest & Bank Charges', 'Mortgage (Principal)'];
+  
   // Always show all categories, not just ones with expenses
   const sortedCategories = EXPENSE_CATEGORIES;
 
@@ -244,6 +277,35 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
 
   // Helper function to determine if a column should be highlighted
   const isColumnHovered = (year) => hoveredYear === year;
+
+  // Calculate forecasted value for a category based on previous year
+  const calculateForecastValue = (category, currentYearValue) => {
+    if (currentYearIndex <= 0) return currentYearValue; // No previous year available
+    
+    const previousYear = yearsToDisplay[currentYearIndex - 1];
+    const previousYearSnapshot = snapshots.find(s => s.year === previousYear);
+    const previousYearValue = previousYearSnapshot?.expenseBreakdown[category]?.total || 0;
+    
+    if (previousYearValue === 0) return currentYearValue; // Can't forecast from zero
+    
+    return previousYearValue * (1 + annualExpenseInflation / 100);
+  };
+
+  // Function to update forecast mode for a category
+  const updateForecastMode = (category, mode) => {
+    if (!onUpdateForecastMode) return;
+    
+    // Update the forecast mode
+    onUpdateForecastMode(category, mode);
+    
+    // If switching to automatic, calculate and update the current year expense
+    if (mode === 'automatic' && currentYearIndex >= 0 && onUpdateExpense) {
+      const forecastedValue = calculateForecastValue(category, 0);
+      if (forecastedValue > 0) {
+        onUpdateExpense(category, currentYear, forecastedValue);
+      }
+    }
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -262,6 +324,11 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                 {snapshot.year}
               </th>
             ))}
+            {showForecastMode && (
+              <th className="py-2 px-4 font-semibold text-gray-700 dark:text-gray-200 text-center min-w-[140px]">
+                Forecast Mode
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -294,12 +361,32 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                 {formatValue(snapshot.income)}
               </td>
             ))}
+            {showForecastMode && (
+              <td className="py-2 px-4 text-center">
+                {/* Empty - Rent doesn't have forecast mode */}
+              </td>
+            )}
           </tr>
           {sortedCategories.map(category => {
             // Get payment frequency from first snapshot that has this category
             const paymentFrequency = snapshots
               .map(s => s.expenseBreakdown[category]?.paymentFrequency)
               .find(freq => freq) || 'Annual';
+            
+            // Check if this category supports forecast mode
+            const supportsForecastMode = !FORECAST_MODE_EXCLUDED.includes(category);
+            const currentYearMode = expenseForecastModes[category] || 'manual';
+            
+            // Get current year snapshot data
+            const currentYearSnapshot = snapshots.find(s => s.year === currentYear);
+            const currentYearCategoryData = currentYearSnapshot?.expenseBreakdown[category];
+            const currentYearAmount = currentYearCategoryData?.total || 0;
+            
+            // Calculate automatic forecast value if in automatic mode
+            const shouldUseForecast = showForecastMode && supportsForecastMode && currentYearMode === 'automatic' && currentYearIndex >= 0;
+            const forecastedAmount = shouldUseForecast 
+              ? calculateForecastValue(category, currentYearAmount)
+              : currentYearAmount;
             
             return (
               <tr key={`category-${category}`}>
@@ -320,6 +407,13 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                 {snapshots.map(snapshot => {
                   const categoryData = snapshot.expenseBreakdown[category];
                   const amount = categoryData?.total || 0;
+                  const isCurrentYear = snapshot.year === currentYear;
+                  
+                  // Use forecasted value for current year if in automatic mode, otherwise use actual amount
+                  const displayAmountForYear = isCurrentYear && shouldUseForecast
+                    ? (expenseView === 'monthly' ? forecastedAmount / 12 : forecastedAmount)
+                    : (expenseView === 'monthly' ? amount / 12 : amount);
+                  
                   return (
                     <td 
                       key={`category-${category}-${snapshot.year}`} 
@@ -327,14 +421,60 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                         isColumnHovered(snapshot.year) 
                           ? 'bg-amber-50 dark:bg-amber-900/20' 
                           : ''
+                      } ${
+                        isCurrentYear && shouldUseForecast
+                          ? 'bg-blue-50 dark:bg-blue-900/20'
+                          : ''
                       }`}
                       onMouseEnter={() => setHoveredYear(snapshot.year)}
                       onMouseLeave={() => setHoveredYear(null)}
                     >
-                      {formatValue(amount)}
+                      {isEditing && onUpdateExpense && isCurrentYear ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={displayAmountForYear}
+                          disabled={shouldUseForecast}
+                          onChange={(e) => {
+                            if (shouldUseForecast) return;
+                            const newValue = parseFloat(e.target.value) || 0;
+                            const annualValue = expenseView === 'monthly' ? newValue * 12 : newValue;
+                            onUpdateExpense(category, snapshot.year, annualValue);
+                          }}
+                          className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] text-right ${
+                            shouldUseForecast ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' : ''
+                          }`}
+                          title={shouldUseForecast ? 'Automatically calculated from previous year' : ''}
+                        />
+                      ) : (
+                        formatValue(isCurrentYear && shouldUseForecast ? forecastedAmount : amount)
+                      )}
                     </td>
                   );
                 })}
+                {showForecastMode && (
+                  <td className="py-2 px-4 text-center">
+                    {supportsForecastMode && isEditing ? (
+                      <select
+                        value={currentYearMode}
+                        onChange={(e) => {
+                          const newMode = e.target.value;
+                          updateForecastMode(category, newMode);
+                        }}
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
+                      >
+                        <option value="manual">Manual</option>
+                        <option value="automatic">Automatic</option>
+                      </select>
+                    ) : supportsForecastMode ? (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {currentYearMode === 'automatic' ? 'Auto' : 'Manual'}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                    )}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -353,20 +493,51 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
             }`}>
               {/* Empty cell for total row */}
             </td>
-            {snapshots.map(snapshot => (
-              <td 
-                key={`total-exp-${snapshot.year}`} 
-                className={`py-2 px-4 text-right font-semibold text-gray-900 dark:text-gray-100 transition-colors ${
-                  isColumnHovered(snapshot.year) 
-                    ? 'bg-amber-50 dark:bg-amber-900/20' 
-                    : ''
-                }`}
-                onMouseEnter={() => setHoveredYear(snapshot.year)}
-                onMouseLeave={() => setHoveredYear(null)}
-              >
-                {formatValue(snapshot.expenses)}
+            {snapshots.map(snapshot => {
+              // For current year, recalculate total expenses if any categories are in automatic mode
+              let displayExpenses = snapshot.expenses;
+              if (snapshot.year === currentYear && showForecastMode) {
+                let recalculatedExpenses = 0;
+                sortedCategories.forEach(category => {
+                  if (FORECAST_MODE_EXCLUDED.includes(category)) {
+                    // Include excluded categories from actual data
+                    const categoryData = snapshot.expenseBreakdown[category];
+                    recalculatedExpenses += categoryData?.total || 0;
+                  } else {
+                    const mode = expenseForecastModes[category] || 'manual';
+                    if (mode === 'automatic' && currentYearIndex > 0) {
+                      // Use forecasted value
+                      recalculatedExpenses += calculateForecastValue(category, snapshot.expenseBreakdown[category]?.total || 0);
+                    } else {
+                      // Use actual value
+                      const categoryData = snapshot.expenseBreakdown[category];
+                      recalculatedExpenses += categoryData?.total || 0;
+                    }
+                  }
+                });
+                displayExpenses = recalculatedExpenses;
+              }
+              
+              return (
+                <td 
+                  key={`total-exp-${snapshot.year}`} 
+                  className={`py-2 px-4 text-right font-semibold text-gray-900 dark:text-gray-100 transition-colors ${
+                    isColumnHovered(snapshot.year) 
+                      ? 'bg-amber-50 dark:bg-amber-900/20' 
+                      : ''
+                  }`}
+                  onMouseEnter={() => setHoveredYear(snapshot.year)}
+                  onMouseLeave={() => setHoveredYear(null)}
+                >
+                  {formatValue(displayExpenses)}
+                </td>
+              );
+            })}
+            {showForecastMode && (
+              <td className="py-2 px-4">
+                {/* Empty cell for total row */}
               </td>
-            ))}
+            )}
           </tr>
           <tr>
             <td className={`py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
@@ -383,20 +554,48 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
             }`}>
               {/* Empty cell for net income row */}
             </td>
-            {snapshots.map(snapshot => (
-              <td 
-                key={`net-${snapshot.year}`} 
-                className={`py-2 px-4 text-right font-semibold text-gray-900 dark:text-gray-100 transition-colors ${
-                  isColumnHovered(snapshot.year) 
-                    ? 'bg-amber-50 dark:bg-amber-900/20' 
-                    : ''
-                }`}
-                onMouseEnter={() => setHoveredYear(snapshot.year)}
-                onMouseLeave={() => setHoveredYear(null)}
-              >
-                {formatValue(snapshot.netIncome)}
+            {snapshots.map(snapshot => {
+              // Recalculate net income for current year if expenses were forecasted
+              let displayNetIncome = snapshot.netIncome;
+              if (snapshot.year === currentYear && showForecastMode) {
+                let recalculatedExpenses = 0;
+                sortedCategories.forEach(category => {
+                  if (FORECAST_MODE_EXCLUDED.includes(category)) {
+                    const categoryData = snapshot.expenseBreakdown[category];
+                    recalculatedExpenses += categoryData?.total || 0;
+                  } else {
+                    const mode = expenseForecastModes[category] || 'manual';
+                    if (mode === 'automatic' && currentYearIndex > 0) {
+                      recalculatedExpenses += calculateForecastValue(category, snapshot.expenseBreakdown[category]?.total || 0);
+                    } else {
+                      const categoryData = snapshot.expenseBreakdown[category];
+                      recalculatedExpenses += categoryData?.total || 0;
+                    }
+                  }
+                });
+                displayNetIncome = snapshot.income - recalculatedExpenses;
+              }
+              
+              return (
+                <td 
+                  key={`net-${snapshot.year}`} 
+                  className={`py-2 px-4 text-right font-semibold text-gray-900 dark:text-gray-100 transition-colors ${
+                    isColumnHovered(snapshot.year) 
+                      ? 'bg-amber-50 dark:bg-amber-900/20' 
+                      : ''
+                  }`}
+                  onMouseEnter={() => setHoveredYear(snapshot.year)}
+                  onMouseLeave={() => setHoveredYear(null)}
+                >
+                  {formatValue(displayNetIncome)}
+                </td>
+              );
+            })}
+            {showForecastMode && (
+              <td className="py-2 px-4">
+                {/* Empty cell for net income row */}
               </td>
-            ))}
+            )}
           </tr>
         </tbody>
       </table>
@@ -542,6 +741,67 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
         parsedValue = value;
       }
       return setValueAtPath(base, path, parsedValue);
+    });
+  };
+
+  // Function to update expense amount for a category/year combination
+  const updateExpense = (category, year, annualAmount) => {
+    setEditedData(prev => {
+      const base = prev && Object.keys(prev).length > 0 ? prev : clonePropertyData(property);
+      const expenseHistory = base.expenseHistory || [];
+      
+      const targetYear = parseInt(year);
+      const targetDate = `${targetYear}-01-01`; // Use January 1st as default date
+      const numAmount = parseFloat(annualAmount) || 0;
+      
+      // Remove all expenses for this category/year (we'll add one back if amount > 0)
+      let updatedExpenseHistory = expenseHistory.filter(expense => {
+        const expenseYear = getYearFromDateString(expense.date);
+        return !(expenseYear === targetYear && expense.category === category);
+      });
+      
+      // If amount is greater than 0, add a new expense record (consolidates multiple into one)
+      if (numAmount > 0) {
+        // Try to preserve the date from the first existing expense if any
+        const existingExpense = expenseHistory.find(expense => {
+          const expenseYear = getYearFromDateString(expense.date);
+          return expenseYear === targetYear && expense.category === category;
+        });
+        
+        const newExpense = {
+          date: existingExpense?.date || targetDate,
+          amount: numAmount,
+          category: category,
+          description: existingExpense?.description || null,
+          expenseData: existingExpense?.expenseData || {
+            paymentFrequency: 'Annual'
+          }
+        };
+        updatedExpenseHistory.push(newExpense);
+      }
+      
+      return {
+        ...base,
+        expenseHistory: updatedExpenseHistory
+      };
+    });
+  };
+
+  // Function to update forecast mode for a category
+  const updateForecastMode = (category, mode) => {
+    setEditedData(prev => {
+      const base = prev && Object.keys(prev).length > 0 ? prev : clonePropertyData(property);
+      
+      if (!base.propertyData) {
+        base.propertyData = {};
+      }
+      if (!base.propertyData.expenseForecastModes) {
+        base.propertyData.expenseForecastModes = {};
+      }
+      
+      base.propertyData.expenseForecastModes[category] = mode;
+      
+      return base;
     });
   };
 
@@ -796,8 +1056,8 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
               <strong>Note:</strong> Expenses incurred annually are averaged out over the year.
             </p>
           </div>
-          {/* View Toggle and Add Expense Button */}
-          <div className="flex items-center justify-between mb-4">
+          {/* View Toggle */}
+          <div className="flex items-center mb-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
               <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
@@ -823,14 +1083,6 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                 </button>
               </div>
             </div>
-            <button
-              onClick={() => onAddExpense && onAddExpense(property)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-[#205A3E] text-white rounded-lg hover:bg-[#1a4a32] transition-colors"
-              title="Add expense"
-            >
-              <Plus className="w-4 h-4" />
-              Add Expense
-            </button>
           </div>
 
           {/* Historical Data Display - Always show historical format */}
@@ -839,6 +1091,10 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
             expenseView={expenseView}
             selectedYear="all"
             onYearChange={() => {}}
+            isEditing={isEditing}
+            editedData={editedData}
+            onUpdateExpense={updateExpense}
+            onUpdateForecastMode={updateForecastMode}
           />
         </div>
       </Section>
@@ -1073,6 +1329,8 @@ export default function DataPage() {
           units: updatedData.units,
           isPrincipalResidence: updatedData.isPrincipalResidence || false,
           ownership: updatedData.ownership || updatedData.propertyData?.ownership || null,
+          // Ensure expenseForecastModes is always included (even if empty object)
+          expenseForecastModes: updatedData.propertyData?.expenseForecastModes || {},
         }
       };
 
