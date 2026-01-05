@@ -184,6 +184,8 @@ function DataRow({ label, value, isBold = false }) {
 function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSelectedYear, onYearChange, isEditing = false, editedData = null, onUpdateExpense = null, onUpdateIncome = null, onUpdatePaymentFrequency = null, onUpdateForecastMode = null }) {
   const availableYears = [...getAvailableYears(property)].sort((a, b) => a - b);
   const [hoveredYear, setHoveredYear] = useState(null);
+  // Local state for input values to prevent focus loss during typing
+  const [inputValues, setInputValues] = useState({});
   
   // Use editedData if available, otherwise use property
   const dataSource = isEditing && editedData ? editedData : property;
@@ -361,8 +363,13 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
               {/* Empty cell for Rent - Payment Frequency does not apply */}
             </td>
             {snapshots.map(snapshot => {
-              const income = snapshot.income;
-              const displayAmountForYear = expenseView === 'monthly' ? income / 12 : income;
+              const income = snapshot.income || 0;
+              const calculatedAmount = expenseView === 'monthly' ? income / 12 : income;
+              // Format value for input - round to 2 decimal places, handle NaN
+              const storedValue = isNaN(calculatedAmount) ? 0 : Number(calculatedAmount.toFixed(2));
+              const inputKey = `income-${snapshot.year}`;
+              // Use local input value if it exists, otherwise use stored value
+              const displayValue = inputValues[inputKey] !== undefined ? inputValues[inputKey] : storedValue;
               
               return (
                 <td 
@@ -379,11 +386,38 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                     <input
                       type="number"
                       step="0.01"
-                      value={displayAmountForYear}
+                      value={displayValue}
                       onChange={(e) => {
-                        const newValue = parseFloat(e.target.value) || 0;
-                        const annualValue = expenseView === 'monthly' ? newValue * 12 : newValue;
-                        onUpdateIncome(snapshot.year, annualValue);
+                        const inputValue = e.target.value;
+                        // Update local state immediately for smooth typing
+                        setInputValues(prev => ({
+                          ...prev,
+                          [inputKey]: inputValue
+                        }));
+                      }}
+                      onBlur={(e) => {
+                        const inputValue = e.target.value;
+                        // Clear local state
+                        setInputValues(prev => {
+                          const newState = { ...prev };
+                          delete newState[inputKey];
+                          return newState;
+                        });
+                        // Update parent state with final value
+                        if (inputValue === '' || inputValue === '-') {
+                          onUpdateIncome(snapshot.year, 0);
+                          return;
+                        }
+                        const newValue = parseFloat(inputValue);
+                        if (!isNaN(newValue)) {
+                          const annualValue = expenseView === 'monthly' ? newValue * 12 : newValue;
+                          onUpdateIncome(snapshot.year, annualValue);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.target.blur(); // Trigger blur which will update the parent state
+                        }
                       }}
                       className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] text-right"
                     />
@@ -453,9 +487,15 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                   const isCurrentYear = snapshot.year === currentYear;
                   
                   // Use forecasted value for current year if in automatic mode, otherwise use actual amount
-                  const displayAmountForYear = isCurrentYear && shouldUseForecast
+                  const calculatedAmount = isCurrentYear && shouldUseForecast
                     ? (expenseView === 'monthly' ? forecastedAmount / 12 : forecastedAmount)
                     : (expenseView === 'monthly' ? amount / 12 : amount);
+                  
+                  // Format value for input - round to 2 decimal places, handle NaN
+                  const storedValue = isNaN(calculatedAmount) ? 0 : Number(calculatedAmount.toFixed(2));
+                  const inputKey = `expense-${category}-${snapshot.year}`;
+                  // Use local input value if it exists, otherwise use stored value
+                  const displayAmountForYear = inputValues[inputKey] !== undefined ? inputValues[inputKey] : storedValue;
                   
                   // Check if this year should be disabled
                   // Current year is only editable when in Manual mode (disabled in Automatic mode)
@@ -486,9 +526,37 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                           disabled={isDisabled}
                           onChange={(e) => {
                             if (isDisabled) return;
-                            const newValue = parseFloat(e.target.value) || 0;
-                            const annualValue = expenseView === 'monthly' ? newValue * 12 : newValue;
-                            onUpdateExpense(category, snapshot.year, annualValue);
+                            const inputValue = e.target.value;
+                            // Update local state immediately for smooth typing
+                            setInputValues(prev => ({
+                              ...prev,
+                              [inputKey]: inputValue
+                            }));
+                          }}
+                          onBlur={(e) => {
+                            if (isDisabled) return;
+                            const inputValue = e.target.value;
+                            // Clear local state
+                            setInputValues(prev => {
+                              const newState = { ...prev };
+                              delete newState[inputKey];
+                              return newState;
+                            });
+                            // Update parent state with final value
+                            if (inputValue === '' || inputValue === '-') {
+                              onUpdateExpense(category, snapshot.year, 0);
+                              return;
+                            }
+                            const newValue = parseFloat(inputValue);
+                            if (!isNaN(newValue)) {
+                              const annualValue = expenseView === 'monthly' ? newValue * 12 : newValue;
+                              onUpdateExpense(category, snapshot.year, annualValue);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.target.blur(); // Trigger blur which will update the parent state
+                            }
                           }}
                           className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] text-right ${
                             isDisabled ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' : ''
