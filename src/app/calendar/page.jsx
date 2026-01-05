@@ -15,6 +15,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingEventId, setEditingEventId] = useState(null);
 
   const [formData, setFormData] = useState({
     date: '',
@@ -198,6 +199,38 @@ export default function CalendarPage() {
     }));
   };
 
+  // Start editing an event
+  const editEvent = (event) => {
+    setEditingEventId(event.id);
+    setFormData({
+      date: event.date,
+      time: event.time || '',
+      description: event.description,
+      property: event.property || '',
+      notify: event.notify || false,
+      isRecurring: !!event.recurrence,
+      recurrenceType: event.recurrence?.type || 'weekly',
+      recurrenceInterval: event.recurrence?.interval || 1,
+      recurrenceEndDate: event.recurrence?.endDate || ''
+    });
+  };
+
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditingEventId(null);
+    setFormData({
+      date: selectedDate.toISOString().split('T')[0],
+      time: '',
+      description: '',
+      property: '',
+      notify: false,
+      isRecurring: false,
+      recurrenceType: 'weekly',
+      recurrenceInterval: 1,
+      recurrenceEndDate: ''
+    });
+  };
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -227,41 +260,81 @@ export default function CalendarPage() {
         } : undefined
       };
 
-      const response = await apiClient.createEvent(eventData);
-      
-      if (response.success && response.data) {
-        // Transform database event to UI format
-        const newEvent = {
-          id: response.data.id,
-          date: response.data.date,
-          time: response.data.time || '',
-          description: response.data.description,
-          property: response.data.property || '',
-          notify: response.data.notify,
-          recurrence: response.data.recurrence || undefined
-        };
+      if (editingEventId) {
+        // Update existing event
+        const response = await apiClient.updateEvent(editingEventId, eventData);
         
-        setEvents(prev => [...prev, newEvent]);
-        addToast(formData.isRecurring ? "Recurring event added successfully!" : "Event added successfully!", { type: "success" });
-        
-        // Reset form
-        setFormData({
-          date: selectedDate.toISOString().split('T')[0],
-          time: '',
-          description: '',
-          property: '',
-          notify: false,
-          isRecurring: false,
-          recurrenceType: 'weekly',
-          recurrenceInterval: 1,
-          recurrenceEndDate: ''
-        });
+        if (response.success && response.data) {
+          // Transform database event to UI format
+          const updatedEvent = {
+            id: response.data.id,
+            date: response.data.date,
+            time: response.data.time || '',
+            description: response.data.description,
+            property: response.data.property || '',
+            notify: response.data.notify,
+            recurrence: response.data.recurrence || undefined
+          };
+          
+          setEvents(prev => prev.map(event => 
+            event.id === editingEventId ? updatedEvent : event
+          ));
+          addToast("Event updated successfully!", { type: "success" });
+          
+          // Reset form and editing state
+          setEditingEventId(null);
+          setFormData({
+            date: selectedDate.toISOString().split('T')[0],
+            time: '',
+            description: '',
+            property: '',
+            notify: false,
+            isRecurring: false,
+            recurrenceType: 'weekly',
+            recurrenceInterval: 1,
+            recurrenceEndDate: ''
+          });
+        } else {
+          addToast("Failed to update event.", { type: "error" });
+        }
       } else {
-        addToast("Failed to save event.", { type: "error" });
+        // Create new event
+        const response = await apiClient.createEvent(eventData);
+        
+        if (response.success && response.data) {
+          // Transform database event to UI format
+          const newEvent = {
+            id: response.data.id,
+            date: response.data.date,
+            time: response.data.time || '',
+            description: response.data.description,
+            property: response.data.property || '',
+            notify: response.data.notify,
+            recurrence: response.data.recurrence || undefined
+          };
+          
+          setEvents(prev => [...prev, newEvent]);
+          addToast(formData.isRecurring ? "Recurring event added successfully!" : "Event added successfully!", { type: "success" });
+          
+          // Reset form
+          setFormData({
+            date: selectedDate.toISOString().split('T')[0],
+            time: '',
+            description: '',
+            property: '',
+            notify: false,
+            isRecurring: false,
+            recurrenceType: 'weekly',
+            recurrenceInterval: 1,
+            recurrenceEndDate: ''
+          });
+        } else {
+          addToast("Failed to save event.", { type: "error" });
+        }
       }
     } catch (error) {
-      console.error('Error creating event:', error);
-      addToast("Failed to save event.", { type: "error" });
+      console.error('Error saving event:', error);
+      addToast(editingEventId ? "Failed to update event." : "Failed to save event.", { type: "error" });
     }
   };
 
@@ -384,7 +457,20 @@ export default function CalendarPage() {
             <div className="space-y-6">
               {/* Add Event Form */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
-                <h3 className="text-lg font-semibold mb-4">Add Event/Reminder</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">
+                    {editingEventId ? 'Edit Event' : 'Add Event/Reminder'}
+                  </h3>
+                  {editingEventId && (
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label htmlFor="date" className="block text-sm font-medium mb-1">
@@ -541,7 +627,7 @@ export default function CalendarPage() {
                   </div>
 
                   <Button type="submit" className="w-full">
-                    Add Event
+                    {editingEventId ? 'Update Event' : 'Add Event'}
                   </Button>
                 </form>
               </div>
@@ -590,15 +676,26 @@ export default function CalendarPage() {
                               </div>
                             )}
                           </div>
-                          <button
-                            onClick={() => deleteEvent(event.id)}
-                            className="ml-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
-                            aria-label="Delete event"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => editEvent(event)}
+                              className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                              aria-label="Edit event"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => deleteEvent(event.id)}
+                              className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                              aria-label="Delete event"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       );
                     })}

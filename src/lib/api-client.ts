@@ -446,6 +446,31 @@ class ApiClient {
     });
   }
 
+  async updateEvent(eventId: string, data: {
+    date: string;
+    time?: string;
+    description: string;
+    property?: string;
+    notify?: boolean;
+    recurrence?: any;
+  }) {
+    return this.request<{
+      id: string;
+      user_id: string;
+      date: string;
+      time: string | null;
+      description: string;
+      property: string | null;
+      notify: boolean;
+      recurrence: any | null;
+      created_at: string;
+      updated_at: string;
+    }>(`/events/${eventId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   async deleteEvent(eventId: string) {
     return this.request<{ id: string }>(`/events/${eventId}`, {
       method: 'DELETE',
