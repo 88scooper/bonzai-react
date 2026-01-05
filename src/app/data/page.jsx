@@ -366,10 +366,16 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
               const income = snapshot.income || 0;
               const calculatedAmount = expenseView === 'monthly' ? income / 12 : income;
               // Format value for input - round to 2 decimal places, handle NaN
-              const storedValue = isNaN(calculatedAmount) ? 0 : Number(calculatedAmount.toFixed(2));
+              const storedValue = isNaN(calculatedAmount) ? 0 : parseFloat(calculatedAmount.toFixed(2));
               const inputKey = `income-${snapshot.year}`;
               // Use local input value if it exists, otherwise use stored value
-              const displayValue = inputValues[inputKey] !== undefined ? inputValues[inputKey] : storedValue;
+              // When using stored value, ensure it's properly formatted to 2 decimals
+              let displayValue = inputValues[inputKey] !== undefined ? inputValues[inputKey] : storedValue;
+              
+              // If displayValue is a number and not from local input, ensure it's formatted to 2 decimals
+              if (inputValues[inputKey] === undefined && typeof displayValue === 'number' && !isNaN(displayValue)) {
+                displayValue = parseFloat(displayValue.toFixed(2));
+              }
               
               return (
                 <td 
@@ -403,15 +409,19 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                           delete newState[inputKey];
                           return newState;
                         });
-                        // Update parent state with final value
+                        // Update parent state with final value, rounded to 2 decimals
                         if (inputValue === '' || inputValue === '-') {
                           onUpdateIncome(snapshot.year, 0);
                           return;
                         }
                         const newValue = parseFloat(inputValue);
                         if (!isNaN(newValue)) {
-                          const annualValue = expenseView === 'monthly' ? newValue * 12 : newValue;
-                          onUpdateIncome(snapshot.year, annualValue);
+                          // Round to 2 decimal places before converting
+                          const roundedValue = parseFloat(newValue.toFixed(2));
+                          const annualValue = expenseView === 'monthly' ? roundedValue * 12 : roundedValue;
+                          // Round annual value to 2 decimals as well
+                          const roundedAnnualValue = parseFloat(annualValue.toFixed(2));
+                          onUpdateIncome(snapshot.year, roundedAnnualValue);
                         }
                       }}
                       onKeyDown={(e) => {
@@ -946,6 +956,8 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
       
       const targetYear = parseInt(year);
       const numAmount = parseFloat(annualAmount) || 0;
+      // Round to 2 decimal places
+      const roundedAmount = parseFloat(numAmount.toFixed(2));
       
       // Remove existing income record for this year
       const updatedIncomeHistory = base.incomeHistory.filter(income => {
@@ -954,7 +966,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
       });
       
       // If amount is greater than 0, add a new income record
-      if (numAmount > 0) {
+      if (roundedAmount > 0) {
         const targetDate = `${targetYear}-01-01`; // Use January 1st as default date
         const existingIncome = base.incomeHistory.find(income => {
           const incomeYear = getYearFromDateString(income.date);
@@ -963,7 +975,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
         
         const newIncome = {
           date: existingIncome?.date || targetDate,
-          amount: numAmount,
+          amount: roundedAmount,
           source: 'manual' // Mark as manually entered
         };
         updatedIncomeHistory.push(newIncome);
