@@ -83,9 +83,9 @@ export default function Layout({ children }) {
                   </svg>
                 </button>
                 
-                <Link href="/" className="font-semibold tracking-tight">
+                <span className="font-semibold tracking-tight">
                   Proplytics
-                </Link>
+                </span>
               </div>
               
               <div className="flex items-center gap-3">
