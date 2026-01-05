@@ -37,9 +37,12 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.6",
+    "@types/pg": "^8.16.0",
     "@types/react": "19.2.6",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
+    "pg": "^8.16.3",
     "tailwindcss": "^4"
   }
 }
