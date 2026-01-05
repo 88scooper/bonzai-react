@@ -2,15 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-// Firebase removed - using mock functions for backward compatibility
-// TODO: Migrate to use new API endpoints
-const getMortgages = () => Promise.resolve([]);
-const addMortgage = () => Promise.resolve(null);
-const updateMortgage = () => Promise.resolve(null);
-const deleteMortgage = () => Promise.resolve(null);
-const getMortgage = () => Promise.resolve(null);
-const getMortgagesByProperty = () => Promise.resolve([]);
-const db = null;
+
+// Note: This context is legacy and uses mock functions
+// New mortgage functionality should use the /api/properties/[id]/mortgage endpoints
+// and the useMortgages hook from @/hooks/useMortgages
 
 const MortgageContext = createContext();
 
@@ -28,153 +23,73 @@ export const MortgageProvider = ({ children }) => {
       return;
     }
 
-    if (!db) {
-      // Don't load mock data - new accounts should start empty
-      // Mortgages are now loaded through AccountContext via API
-      setMortgages([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
+    // Don't load mock data - new accounts should start empty
+    // Mortgages are now loaded through AccountContext via API
+    setMortgages([]);
+    setLoading(false);
     setError(null);
-
-    const unsubscribe = getMortgages(user.uid, (mortgageList) => {
-      setMortgages(mortgageList);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
   }, [user?.uid]);
 
-  // Add a new mortgage
+  // Add a new mortgage (mock implementation)
   const addNewMortgage = async (mortgageData) => {
     if (!user?.uid) {
       throw new Error('User not authenticated');
     }
 
-    if (!db) {
-      // Mock implementation for development
-      const mockMortgage = {
-        id: `mock-mortgage-${Date.now()}`,
-        ...mortgageData,
-        userId: user.uid,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      setMortgages(prev => [mockMortgage, ...prev]);
-      return mockMortgage.id;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const mortgageId = await addMortgage(user.uid, {
-        ...mortgageData,
-        userId: user.uid
-      });
-      
-      return mortgageId;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    // Mock implementation - mortgages should be created via API
+    const mockMortgage = {
+      id: `mock-mortgage-${Date.now()}`,
+      ...mortgageData,
+      userId: user.uid,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    setMortgages(prev => [mockMortgage, ...prev]);
+    return mockMortgage.id;
   };
 
-  // Update an existing mortgage
+  // Update an existing mortgage (mock implementation)
   const updateExistingMortgage = async (mortgageId, mortgageData) => {
     if (!user?.uid) {
       throw new Error('User not authenticated');
     }
 
-    if (!db) {
-      // Mock implementation for development
-      setMortgages(prev => prev.map(mortgage => 
-        mortgage.id === mortgageId 
-          ? { ...mortgage, ...mortgageData, updatedAt: new Date() }
-          : mortgage
-      ));
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      await updateMortgage(user.uid, mortgageId, mortgageData);
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    // Mock implementation - mortgages should be updated via API
+    setMortgages(prev => prev.map(mortgage => 
+      mortgage.id === mortgageId 
+        ? { ...mortgage, ...mortgageData, updatedAt: new Date() }
+        : mortgage
+    ));
   };
 
-  // Delete a mortgage
+  // Delete a mortgage (mock implementation)
   const removeMortgage = async (mortgageId) => {
     if (!user?.uid) {
       throw new Error('User not authenticated');
     }
 
-    if (!db) {
-      // Mock implementation for development
-      setMortgages(prev => prev.filter(mortgage => mortgage.id !== mortgageId));
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      await deleteMortgage(user.uid, mortgageId);
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    // Mock implementation - mortgages should be deleted via API
+    setMortgages(prev => prev.filter(mortgage => mortgage.id !== mortgageId));
   };
 
-  // Get a single mortgage
+  // Get a single mortgage (mock implementation)
   const getSingleMortgage = async (mortgageId) => {
     if (!user?.uid) {
       throw new Error('User not authenticated');
     }
 
-    if (!db) {
-      // Mock implementation for development
-      return mortgages.find(mortgage => mortgage.id === mortgageId) || null;
-    }
-
-    try {
-      return await getMortgage(user.uid, mortgageId);
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+    // Mock implementation
+    return mortgages.find(mortgage => mortgage.id === mortgageId) || null;
   };
 
-  // Get mortgages for a specific property
+  // Get mortgages for a specific property (mock implementation)
   const getPropertyMortgages = async (propertyId) => {
     if (!user?.uid) {
       throw new Error('User not authenticated');
     }
 
-    if (!db) {
-      // Mock implementation for development
-      return mortgages.filter(mortgage => mortgage.propertyId === propertyId);
-    }
-
-    try {
-      return await getMortgagesByProperty(user.uid, propertyId);
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+    // Mock implementation
+    return mortgages.filter(mortgage => mortgage.propertyId === propertyId);
   };
 
   // Calculate mortgage payment

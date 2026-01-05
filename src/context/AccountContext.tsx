@@ -331,7 +331,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         status: '',
       },
       monthlyExpenses: {},
-      expenseHistory: [],
+      expenseHistory: propertyData.expenseHistory || [],
+      incomeHistory: propertyData.incomeHistory || [],
     };
   }
 

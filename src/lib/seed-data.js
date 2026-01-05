@@ -72,19 +72,14 @@ export const seedMortgageData = [
   }
 ];
 
-// Helper function to seed production data
+// Helper function to seed production data (legacy - not currently used)
 export async function seedProductionData(userId) {
   try {
     // This would be called from a production seeding script
-    // and would use the actual Firebase/Firestore database
     console.log('Seeding production data for user:', userId);
     console.log('Mortgage data:', seedMortgageData);
     
-    // In a real implementation, this would:
-    // 1. Connect to the production database
-    // 2. Clear existing data for the user
-    // 3. Insert the seed data
-    // 4. Return success/failure status
+    // Note: This function is legacy and not currently implemented
     
     return {
       success: true,

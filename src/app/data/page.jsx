@@ -1598,7 +1598,8 @@ export default function DataPage() {
           mortgage: updatedData.mortgage,
           monthlyExpenses: updatedData.monthlyExpenses,
           tenants: updatedData.tenants,
-          expenseHistory: updatedData.expenseHistory,
+          expenseHistory: updatedData.expenseHistory !== undefined ? updatedData.expenseHistory : (updatedData.propertyData?.expenseHistory || []),
+          incomeHistory: updatedData.incomeHistory !== undefined ? updatedData.incomeHistory : (updatedData.propertyData?.incomeHistory || []),
           bedrooms: updatedData.bedrooms,
           bathrooms: updatedData.bathrooms,
           dens: updatedData.dens,
@@ -1649,6 +1650,7 @@ export default function DataPage() {
           monthlyExpenses: apiPropertyData.monthlyExpenses || updatedData.monthlyExpenses,
           tenants: apiPropertyData.tenants || updatedData.tenants,
           expenseHistory: apiPropertyData.expenseHistory || updatedData.expenseHistory,
+          incomeHistory: apiPropertyData.incomeHistory || updatedData.incomeHistory || [],
         };
         // Skip save since we already saved via API - this prevents a reload that would overwrite our changes
         updateProperty(propertyId, mappedProperty, true);
