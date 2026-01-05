@@ -11,6 +11,7 @@ import { useAccount } from "@/context/AccountContext";
 import { Download, X, ChevronDown, ChevronUp, Edit2, Save, XCircle, Plus, Trash2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import apiClient from "@/lib/api-client";
+import { calculateAmortizationSchedule } from "@/utils/mortgageCalculator";
 
 // Helper functions for historical data calculations
 const getYearFromDateString = (value) => {
@@ -125,6 +126,51 @@ function getHistoricalExpenses(property, year) {
   });
   
   return yearExpenses.reduce((total, expense) => total + expense.amount, 0);
+}
+
+// Calculate mortgage interest and principal for a given year from amortization schedule
+function getMortgageAmountsForYear(property, year) {
+  if (!property.mortgage || !property.mortgage.originalAmount || !property.mortgage.startDate) {
+    return { interest: 0, principal: 0 };
+  }
+
+  try {
+    const targetYear = parseInt(year);
+    const mortgage = property.mortgage;
+    
+    // Calculate amortization schedule
+    const schedule = calculateAmortizationSchedule({
+      lender: mortgage.lender || '',
+      originalAmount: mortgage.originalAmount,
+      interestRate: mortgage.interestRate || 0,
+      rateType: mortgage.rateType || 'Fixed',
+      termMonths: mortgage.termMonths || 0,
+      amortizationYears: mortgage.amortizationYears || 25,
+      paymentFrequency: mortgage.paymentFrequency || 'MONTHLY',
+      startDate: mortgage.startDate
+    });
+
+    // Filter payments for the target year
+    const yearStart = new Date(targetYear, 0, 1);
+    const yearEnd = new Date(targetYear, 11, 31, 23, 59, 59);
+    
+    const yearPayments = schedule.payments.filter(payment => {
+      const paymentDate = new Date(payment.paymentDate);
+      return paymentDate >= yearStart && paymentDate <= yearEnd;
+    });
+
+    // Sum up interest and principal for the year
+    const totalInterest = yearPayments.reduce((sum, payment) => sum + (payment.interest || 0), 0);
+    const totalPrincipal = yearPayments.reduce((sum, payment) => sum + (payment.principal || 0), 0);
+
+    return {
+      interest: parseFloat(totalInterest.toFixed(2)),
+      principal: parseFloat(totalPrincipal.toFixed(2))
+    };
+  } catch (error) {
+    console.error('Error calculating mortgage amounts for year:', error);
+    return { interest: 0, principal: 0 };
+  }
 }
 
 function getAvailableYears(property) {
@@ -249,11 +295,29 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
         return acc;
       }, {});
 
+    // Auto-populate Interest & Bank Charges and Mortgage (Principal) from mortgage data
+    const mortgageAmounts = getMortgageAmountsForYear(dataSource, year);
+    if (mortgageAmounts.interest > 0) {
+      expenseBreakdown['Interest & Bank Charges'] = {
+        total: mortgageAmounts.interest,
+        paymentFrequency: 'Annual'
+      };
+    }
+    if (mortgageAmounts.principal > 0) {
+      expenseBreakdown['Mortgage (Principal)'] = {
+        total: mortgageAmounts.principal,
+        paymentFrequency: 'Annual'
+      };
+    }
+
+    // Recalculate total expenses including mortgage amounts
+    const totalExpenses = expenses + mortgageAmounts.interest + mortgageAmounts.principal;
+
     return {
       year,
       income,
-      expenses,
-      netIncome: income - expenses,
+      expenses: totalExpenses,
+      netIncome: income - totalExpenses,
       expenseBreakdown,
     };
   });
@@ -482,7 +546,12 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                     <select
                       value={paymentFrequency}
                       onChange={(e) => onUpdatePaymentFrequency(category, e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
+                      disabled={category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)'}
+                      className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] ${
+                        (category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)') 
+                          ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' 
+                          : ''
+                      }`}
                     >
                       <option value="Annual">Annual</option>
                       <option value="Monthly">Monthly</option>
@@ -507,11 +576,15 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                   // Use local input value if it exists, otherwise use stored value
                   const displayAmountForYear = inputValues[inputKey] !== undefined ? inputValues[inputKey] : storedValue;
                   
+                  // Check if this category is auto-populated from mortgage data (read-only)
+                  const isAutoPopulated = category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)';
+                  
                   // Check if this year should be disabled
                   // Current year is only editable when in Manual mode (disabled in Automatic mode)
                   // Historical years (2023-2025) are always editable when in edit mode
                   // shouldUseForecast is true only when currentYearMode === 'automatic'
-                  const isDisabled = isCurrentYear && shouldUseForecast;
+                  // Auto-populated categories are always disabled
+                  const isDisabled = isAutoPopulated || (isCurrentYear && shouldUseForecast);
                   
                   return (
                     <td 
@@ -571,7 +644,7 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                           className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] text-right ${
                             isDisabled ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' : ''
                           }`}
-                          title={isDisabled ? 'Automatically calculated from previous year' : ''}
+                          title={isDisabled ? (isAutoPopulated ? 'Automatically calculated from mortgage amortization schedule' : 'Automatically calculated from previous year') : ''}
                         />
                       ) : (
                         formatValue(isCurrentYear && shouldUseForecast ? forecastedAmount : amount)
