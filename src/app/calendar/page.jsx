@@ -1,43 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { RequireAuth } from "@/context/AuthContext";
 import { useProperties } from "@/context/PropertyContext";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
+import apiClient from "@/lib/api-client";
 
 export default function CalendarPage() {
   const { addToast } = useToast();
   const properties = useProperties(); // Get properties from context
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [events, setEvents] = useState([
-    { 
-      id: 1,
-      date: '2025-08-10', 
-      time: '10:00', 
-      description: 'Property Tax Due', 
-      property: '317-30 Tretti Way',
-      notify: true 
-    },
-    { 
-      id: 2,
-      date: '2025-08-15', 
-      time: '14:30', 
-      description: 'Insurance Renewal', 
-      property: '403-311 Richmond St E',
-      notify: true 
-    },
-    { 
-      id: 3,
-      date: '2025-08-20', 
-      time: '09:00', 
-      description: 'Property Inspection', 
-      property: '415-500 Wilson Ave',
-      notify: false 
-    },
-  ]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     date: '',
@@ -53,6 +30,38 @@ export default function CalendarPage() {
 
   // Get property names from context
   const propertyNames = properties.map(prop => prop.address);
+
+  // Fetch events from API on mount
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.getEvents();
+        
+        if (response.success && response.data) {
+          // Transform database events to UI format
+          const transformedEvents = response.data.map(event => ({
+            id: event.id,
+            date: event.date,
+            time: event.time || '',
+            description: event.description,
+            property: event.property || '',
+            notify: event.notify,
+            recurrence: event.recurrence || undefined
+          }));
+          
+          setEvents(transformedEvents);
+        }
+      } catch (error) {
+        console.error('Error loading events:', error);
+        addToast("Failed to load events.", { type: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, [addToast]);
 
   // Get current month and year
   const currentMonth = currentDate.getMonth();
@@ -190,7 +199,7 @@ export default function CalendarPage() {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.date || !formData.description) {
@@ -203,53 +212,74 @@ export default function CalendarPage() {
       return;
     }
 
-    const baseEventData = {
-      id: Date.now(),
-      date: formData.date,
-      time: formData.time,
-      description: formData.description,
-      property: formData.property,
-      notify: formData.notify
-    };
-
-    if (formData.isRecurring) {
-      // Create recurring event with pattern
-      const newEvent = {
-        ...baseEventData,
-        recurrence: {
+    try {
+      const eventData = {
+        date: formData.date,
+        time: formData.time || undefined,
+        description: formData.description,
+        property: formData.property || undefined,
+        notify: formData.notify,
+        recurrence: formData.isRecurring ? {
           startDate: formData.date,
           type: formData.recurrenceType,
           interval: parseInt(formData.recurrenceInterval) || 1,
           endDate: formData.recurrenceEndDate
-        }
+        } : undefined
       };
+
+      const response = await apiClient.createEvent(eventData);
       
-      setEvents(prev => [...prev, newEvent]);
-      addToast("Recurring event added successfully!", { type: "success" });
-    } else {
-      // Create single event
-      setEvents(prev => [...prev, baseEventData]);
-      addToast("Event added successfully!", { type: "success" });
+      if (response.success && response.data) {
+        // Transform database event to UI format
+        const newEvent = {
+          id: response.data.id,
+          date: response.data.date,
+          time: response.data.time || '',
+          description: response.data.description,
+          property: response.data.property || '',
+          notify: response.data.notify,
+          recurrence: response.data.recurrence || undefined
+        };
+        
+        setEvents(prev => [...prev, newEvent]);
+        addToast(formData.isRecurring ? "Recurring event added successfully!" : "Event added successfully!", { type: "success" });
+        
+        // Reset form
+        setFormData({
+          date: selectedDate.toISOString().split('T')[0],
+          time: '',
+          description: '',
+          property: '',
+          notify: false,
+          isRecurring: false,
+          recurrenceType: 'weekly',
+          recurrenceInterval: 1,
+          recurrenceEndDate: ''
+        });
+      } else {
+        addToast("Failed to save event.", { type: "error" });
+      }
+    } catch (error) {
+      console.error('Error creating event:', error);
+      addToast("Failed to save event.", { type: "error" });
     }
-    
-    // Reset form
-    setFormData({
-      date: selectedDate.toISOString().split('T')[0],
-      time: '',
-      description: '',
-      property: '',
-      notify: false,
-      isRecurring: false,
-      recurrenceType: 'weekly',
-      recurrenceInterval: 1,
-      recurrenceEndDate: ''
-    });
   };
 
   // Delete event
-  const deleteEvent = (eventId) => {
-    setEvents(prev => prev.filter(event => event.id !== eventId));
-    addToast("Event deleted.", { type: "success" });
+  const deleteEvent = async (eventId) => {
+    try {
+      const response = await apiClient.deleteEvent(eventId);
+      
+      if (response.success) {
+        setEvents(prev => prev.filter(event => event.id !== eventId));
+        addToast("Event deleted.", { type: "success" });
+      } else {
+        addToast("Failed to delete event.", { type: "error" });
+      }
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      addToast("Failed to delete event.", { type: "error" });
+    }
   };
 
   // Format date for display

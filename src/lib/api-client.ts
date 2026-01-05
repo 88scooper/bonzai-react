@@ -404,6 +404,53 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  // Event methods
+  async getEvents() {
+    return this.request<Array<{
+      id: string;
+      user_id: string;
+      date: string;
+      time: string | null;
+      description: string;
+      property: string | null;
+      notify: boolean;
+      recurrence: any | null;
+      created_at: string;
+      updated_at: string;
+    }>>('/events');
+  }
+
+  async createEvent(data: {
+    date: string;
+    time?: string;
+    description: string;
+    property?: string;
+    notify?: boolean;
+    recurrence?: any;
+  }) {
+    return this.request<{
+      id: string;
+      user_id: string;
+      date: string;
+      time: string | null;
+      description: string;
+      property: string | null;
+      notify: boolean;
+      recurrence: any | null;
+      created_at: string;
+      updated_at: string;
+    }>('/events', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteEvent(eventId: string) {
+    return this.request<{ id: string }>(`/events/${eventId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 // Export singleton instance
