@@ -68,3 +68,8 @@ echo "✅ Account setup complete"
 echo "Demo Account ID: $DEMO_ACCOUNT_ID"
 echo "SC Properties Account ID: $SC_ACCOUNT_ID"
 
+
+
+
+
+

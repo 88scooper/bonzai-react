@@ -252,3 +252,8 @@ If you encounter issues:
 
 **Note:** The migration is one-way. Once data is in the database, the app will use the database as the source of truth. localStorage data can be kept as backup but won't be used by the app anymore.
 
+
+
+
+
+

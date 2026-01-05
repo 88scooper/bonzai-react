@@ -106,3 +106,8 @@ The following Firebase environment variables in `.env.local` are no longer neede
 
 The app now uses **100% Vercel (API) + Neon (Database)** for authentication and data storage.
 
+
+
+
+
+

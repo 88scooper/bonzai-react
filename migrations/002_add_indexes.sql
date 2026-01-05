@@ -19,3 +19,8 @@ CREATE INDEX IF NOT EXISTS idx_properties_account_type ON properties(account_id,
 -- Composite index for expense queries by property and date range
 CREATE INDEX IF NOT EXISTS idx_expenses_property_date ON expenses(property_id, date DESC);
 
+
+
+
+
+

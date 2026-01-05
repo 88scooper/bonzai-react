@@ -94,3 +94,8 @@ await importPropertiesFromCode(demoAccountId, scAccountId, (msg) => console.log(
 - The app will use database properties going forward
 - Code file properties can be kept as backup/reference
 
+
+
+
+
+
