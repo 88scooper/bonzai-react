@@ -43,9 +43,22 @@ const formatDateOnly = (dateValue) => {
 };
 
 function getHistoricalIncome(property, year) {
+  const targetYear = parseInt(year);
+  
+  // Check if there's a manual income override for this year
+  if (property.incomeHistory && property.incomeHistory.length > 0) {
+    const incomeOverride = property.incomeHistory.find(income => {
+      const incomeYear = getYearFromDateString(income.date);
+      return incomeYear === targetYear;
+    });
+    if (incomeOverride) {
+      return incomeOverride.amount || 0;
+    }
+  }
+  
+  // Otherwise, calculate from tenant data
   if (!property.tenants || property.tenants.length === 0) return 0;
   
-  const targetYear = parseInt(year);
   const calendarYearStart = new Date(targetYear, 0, 1); // January 1st
   const calendarYearEnd = new Date(targetYear, 11, 31); // December 31st
   let totalIncome = 0;
@@ -168,7 +181,7 @@ function DataRow({ label, value, isBold = false }) {
 }
 
 // Historical Data Display Component
-function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSelectedYear, onYearChange, isEditing = false, editedData = null, onUpdateExpense = null, onUpdateForecastMode = null }) {
+function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSelectedYear, onYearChange, isEditing = false, editedData = null, onUpdateExpense = null, onUpdateIncome = null, onUpdatePaymentFrequency = null, onUpdateForecastMode = null }) {
   const availableYears = [...getAvailableYears(property)].sort((a, b) => a - b);
   const [hoveredYear, setHoveredYear] = useState(null);
   
@@ -347,20 +360,39 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
             }`}>
               {/* Empty cell for Rent - Payment Frequency does not apply */}
             </td>
-            {snapshots.map(snapshot => (
-              <td 
-                key={`rent-${snapshot.year}`} 
-                className={`py-2 px-4 text-right text-gray-900 dark:text-gray-100 transition-colors ${
-                  isColumnHovered(snapshot.year) 
-                    ? 'bg-amber-50 dark:bg-amber-900/20' 
-                    : ''
-                }`}
-                onMouseEnter={() => setHoveredYear(snapshot.year)}
-                onMouseLeave={() => setHoveredYear(null)}
-              >
-                {formatValue(snapshot.income)}
-              </td>
-            ))}
+            {snapshots.map(snapshot => {
+              const income = snapshot.income;
+              const displayAmountForYear = expenseView === 'monthly' ? income / 12 : income;
+              
+              return (
+                <td 
+                  key={`rent-${snapshot.year}`} 
+                  className={`py-2 px-4 text-right text-gray-900 dark:text-gray-100 transition-colors ${
+                    isColumnHovered(snapshot.year) 
+                      ? 'bg-amber-50 dark:bg-amber-900/20' 
+                      : ''
+                  }`}
+                  onMouseEnter={() => setHoveredYear(snapshot.year)}
+                  onMouseLeave={() => setHoveredYear(null)}
+                >
+                  {isEditing && onUpdateIncome ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={displayAmountForYear}
+                      onChange={(e) => {
+                        const newValue = parseFloat(e.target.value) || 0;
+                        const annualValue = expenseView === 'monthly' ? newValue * 12 : newValue;
+                        onUpdateIncome(snapshot.year, annualValue);
+                      }}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] text-right"
+                    />
+                  ) : (
+                    formatValue(income)
+                  )}
+                </td>
+              );
+            })}
             {showForecastMode && (
               <td className="py-2 px-4 text-center">
                 {/* Empty - Rent doesn't have forecast mode */}
@@ -402,7 +434,18 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                     ? 'bg-amber-50 dark:bg-amber-900/20' 
                     : ''
                 }`}>
-                  {paymentFrequency}
+                  {isEditing && onUpdatePaymentFrequency ? (
+                    <select
+                      value={paymentFrequency}
+                      onChange={(e) => onUpdatePaymentFrequency(category, e.target.value)}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
+                    >
+                      <option value="Annual">Annual</option>
+                      <option value="Monthly">Monthly</option>
+                    </select>
+                  ) : (
+                    paymentFrequency
+                  )}
                 </td>
                 {snapshots.map(snapshot => {
                   const categoryData = snapshot.expenseBreakdown[category];
@@ -413,6 +456,12 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                   const displayAmountForYear = isCurrentYear && shouldUseForecast
                     ? (expenseView === 'monthly' ? forecastedAmount / 12 : forecastedAmount)
                     : (expenseView === 'monthly' ? amount / 12 : amount);
+                  
+                  // Check if this year should be disabled
+                  // Current year is only editable when in Manual mode (disabled in Automatic mode)
+                  // Historical years (2023-2025) are always editable when in edit mode
+                  // shouldUseForecast is true only when currentYearMode === 'automatic'
+                  const isDisabled = isCurrentYear && shouldUseForecast;
                   
                   return (
                     <td 
@@ -429,22 +478,22 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                       onMouseEnter={() => setHoveredYear(snapshot.year)}
                       onMouseLeave={() => setHoveredYear(null)}
                     >
-                      {isEditing && onUpdateExpense && isCurrentYear ? (
+                      {isEditing && onUpdateExpense ? (
                         <input
                           type="number"
                           step="0.01"
                           value={displayAmountForYear}
-                          disabled={shouldUseForecast}
+                          disabled={isDisabled}
                           onChange={(e) => {
-                            if (shouldUseForecast) return;
+                            if (isDisabled) return;
                             const newValue = parseFloat(e.target.value) || 0;
                             const annualValue = expenseView === 'monthly' ? newValue * 12 : newValue;
                             onUpdateExpense(category, snapshot.year, annualValue);
                           }}
                           className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] text-right ${
-                            shouldUseForecast ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' : ''
+                            isDisabled ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' : ''
                           }`}
-                          title={shouldUseForecast ? 'Automatically calculated from previous year' : ''}
+                          title={isDisabled ? 'Automatically calculated from previous year' : ''}
                         />
                       ) : (
                         formatValue(isCurrentYear && shouldUseForecast ? forecastedAmount : amount)
@@ -787,6 +836,78 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
     });
   };
 
+  // Function to update payment frequency for a category
+  const updatePaymentFrequency = (category, frequency) => {
+    setEditedData(prev => {
+      const base = prev && Object.keys(prev).length > 0 ? prev : clonePropertyData(property);
+      const expenseHistory = base.expenseHistory || [];
+      
+      // Update payment frequency for all expenses of this category
+      const updatedExpenseHistory = expenseHistory.map(expense => {
+        if (expense.category === category) {
+          return {
+            ...expense,
+            expenseData: {
+              ...(expense.expenseData || {}),
+              paymentFrequency: frequency
+            }
+          };
+        }
+        return expense;
+      });
+      
+      // If there are no expenses for this category yet, we might want to create a placeholder
+      // But for now, we'll just update existing ones
+      
+      return {
+        ...base,
+        expenseHistory: updatedExpenseHistory
+      };
+    });
+  };
+
+  // Function to update income amount for a year
+  const updateIncome = (year, annualAmount) => {
+    setEditedData(prev => {
+      const base = prev && Object.keys(prev).length > 0 ? prev : clonePropertyData(property);
+      
+      // Initialize incomeHistory if it doesn't exist
+      if (!base.incomeHistory) {
+        base.incomeHistory = [];
+      }
+      
+      const targetYear = parseInt(year);
+      const numAmount = parseFloat(annualAmount) || 0;
+      
+      // Remove existing income record for this year
+      const updatedIncomeHistory = base.incomeHistory.filter(income => {
+        const incomeYear = getYearFromDateString(income.date);
+        return incomeYear !== targetYear;
+      });
+      
+      // If amount is greater than 0, add a new income record
+      if (numAmount > 0) {
+        const targetDate = `${targetYear}-01-01`; // Use January 1st as default date
+        const existingIncome = base.incomeHistory.find(income => {
+          const incomeYear = getYearFromDateString(income.date);
+          return incomeYear === targetYear;
+        });
+        
+        const newIncome = {
+          date: existingIncome?.date || targetDate,
+          amount: numAmount,
+          source: 'manual' // Mark as manually entered
+        };
+        updatedIncomeHistory.push(newIncome);
+      }
+      
+      return {
+        ...base,
+        incomeHistory: updatedIncomeHistory
+      };
+    });
+  };
+
   // Function to update forecast mode for a category
   const updateForecastMode = (category, mode) => {
     setEditedData(prev => {
@@ -1094,6 +1215,8 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
             isEditing={isEditing}
             editedData={editedData}
             onUpdateExpense={updateExpense}
+            onUpdateIncome={updateIncome}
+            onUpdatePaymentFrequency={updatePaymentFrequency}
             onUpdateForecastMode={updateForecastMode}
           />
         </div>
