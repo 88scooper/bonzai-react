@@ -341,6 +341,25 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
     'Mortgage (Principal)'
   ];
   
+  // Expense code mapping
+  const EXPENSE_CODES = {
+    'Advertising': '8521',
+    'Insurance': '8690',
+    'Interest & Bank Charges': '8710',
+    'Office Expenses': '8810',
+    'Professional Fees': '8860',
+    'Management & Administration': '8871',
+    'Repairs & Maintenance': '8960',
+    'Salaries, Wages, and Benefits': '9060',
+    'Property Taxes': '9180',
+    'Travel': '9200',
+    'Utilities': '9220',
+    'Motor Vehicle Expenses': '9281',
+    'Other Expenses': '9270',
+    'Condo Maintenance Fees': '9270',
+    'Mortgage (Principal)': null // No code for mortgage principal
+  };
+  
   // Categories that support forecast mode (all except the excluded ones)
   const FORECAST_MODE_EXCLUDED = ['Interest & Bank Charges', 'Mortgage (Principal)'];
   
@@ -392,7 +411,8 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700">
             <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-white dark:bg-gray-900 z-10">Category</th>
-            <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-[200px] bg-white dark:bg-gray-900 z-10 min-w-[140px]">Payment Frequency</th>
+            <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-[200px] bg-white dark:bg-gray-900 z-10 min-w-[100px]">Code</th>
+            <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-[300px] bg-white dark:bg-gray-900 z-10 min-w-[140px]">Payment Frequency</th>
             {snapshots.map(snapshot => (
               <th
                 key={`header-${snapshot.year}`}
@@ -420,6 +440,13 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
               Rent
             </td>
             <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              {/* Empty cell for Rent - Code does not apply */}
+            </td>
+            <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[300px] bg-white dark:bg-gray-900 z-10 ${
               snapshots.some(s => isColumnHovered(s.year)) 
                 ? 'bg-amber-50 dark:bg-amber-900/20' 
                 : ''
@@ -538,6 +565,13 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                   {category}
                 </td>
                 <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
+                  snapshots.some(s => isColumnHovered(s.year)) 
+                    ? 'bg-amber-50 dark:bg-amber-900/20' 
+                    : ''
+                }`}>
+                  {EXPENSE_CODES[category] || '—'}
+                </td>
+                <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[300px] bg-white dark:bg-gray-900 z-10 ${
                   snapshots.some(s => isColumnHovered(s.year)) 
                     ? 'bg-amber-50 dark:bg-amber-900/20' 
                     : ''
@@ -693,6 +727,13 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
             }`}>
               {/* Empty cell for total row */}
             </td>
+            <td className={`py-2 pr-4 sticky left-[300px] bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              {/* Empty cell for total row */}
+            </td>
             {snapshots.map(snapshot => {
               // For current year, recalculate total expenses if any categories are in automatic mode
               let displayExpenses = snapshot.expenses;
@@ -748,6 +789,13 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
               {expenseView === 'monthly' ? 'Monthly Net Income' : 'Annual Net Income'}
             </td>
             <td className={`py-2 pr-4 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
+              snapshots.some(s => isColumnHovered(s.year)) 
+                ? 'bg-amber-50 dark:bg-amber-900/20' 
+                : ''
+            }`}>
+              {/* Empty cell for net income row */}
+            </td>
+            <td className={`py-2 pr-4 sticky left-[300px] bg-white dark:bg-gray-900 z-10 ${
               snapshots.some(s => isColumnHovered(s.year)) 
                 ? 'bg-amber-50 dark:bg-amber-900/20' 
                 : ''
