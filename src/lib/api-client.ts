@@ -101,7 +101,17 @@ class ApiClient {
         throw new Error('Authentication required');
       }
 
-      // Throw error if request failed (but not for 401s which are handled above)
+      // Handle "Account not found" errors gracefully (404) - return error response instead of throwing
+      // This prevents Next.js error overlay from showing for this expected scenario
+      if (response.status === 404 && data.error && data.error.includes('Account not found')) {
+        return {
+          success: false,
+          error: data.error,
+          data: null,
+        } as ApiResponse<T>;
+      }
+
+      // Throw error if request failed (but not for 401s and Account not found which are handled above)
       if (!response.ok || !data.success) {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
@@ -295,10 +305,26 @@ class ApiClient {
     if (accountId) {
       params.append('accountId', accountId);
     }
-    return this.request<{
-      data: any[];
-      pagination: any;
-    }>(`/properties?${params.toString()}`);
+    
+    try {
+      return await this.request<{
+        data: any[];
+        pagination: any;
+      }>(`/properties?${params.toString()}`);
+    } catch (error) {
+      // Handle "Account not found" gracefully - return empty result instead of throwing
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Account not found')) {
+        // Return empty properties list - the AccountContext will handle clearing the invalid account
+        return {
+          success: false,
+          error: 'Account not found',
+          data: { data: [], pagination: { page, limit, total: 0, totalPages: 0, hasNext: false, hasPrev: false } },
+        };
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async getProperty(id: string) {

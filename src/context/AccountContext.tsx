@@ -132,8 +132,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       return;
     }
     
+    // If user is authenticated, clear demo mode flag (real users shouldn't see demo mode)
+    if (isAuthenticated()) {
+      // Clear demo mode from sessionStorage if a real user is logged in
+      if (sessionStorage.getItem('demoMode') === 'true') {
+        sessionStorage.removeItem('demoMode');
+      }
+    }
+    
     // Check for demo mode (only from sessionStorage to avoid static generation issues)
-    const isDemoMode = sessionStorage.getItem('demoMode') === 'true';
+    // Only use demo mode if user is NOT authenticated
+    const isDemoMode = !isAuthenticated() && sessionStorage.getItem('demoMode') === 'true';
     
     if (isDemoMode) {
       await loadDemoData();
@@ -165,8 +174,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         
         setAccounts(mappedAccounts);
 
+        // If no accounts exist, clear current account to trigger onboarding
+        if (mappedAccounts.length === 0) {
+          setCurrentAccountId(null);
+          setCurrentAccount(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('current_account_id');
+          }
+        }
         // Set current account if not set
-        if (!currentAccountId && mappedAccounts.length > 0) {
+        else if (!currentAccountId && mappedAccounts.length > 0) {
           const savedId = typeof window !== 'undefined' 
             ? localStorage.getItem('current_account_id') 
             : null;
@@ -350,6 +367,21 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
     try {
       const response = await apiClient.getProperties(accountId, 1, 1000); // Get up to 1000 properties
+      
+      // Handle "Account not found" error from API client
+      if (!response.success && response.error === 'Account not found') {
+        console.warn('Account not found, clearing invalid account ID and reloading accounts');
+        // Clear the invalid account ID from state and localStorage
+        setCurrentAccountId(null);
+        setCurrentAccount(null);
+        setProperties([]);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('current_account_id');
+        }
+        // Note: loadAccounts will be called via useEffect and will automatically
+        // select a valid account (or first available account)
+        return;
+      }
       
       if (response.success && response.data) {
         const propertiesData = response.data.data || response.data;
@@ -559,6 +591,22 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load properties';
+      
+      // Handle "Account not found" - account may have been deleted or user lost access
+      if (errorMessage.includes('Account not found')) {
+        console.warn('Account not found, clearing invalid account ID and reloading accounts');
+        // Clear the invalid account ID from state and localStorage
+        setCurrentAccountId(null);
+        setCurrentAccount(null);
+        setProperties([]);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('current_account_id');
+        }
+        // Note: loadAccounts will be called via useEffect and will automatically
+        // select a valid account (or first available account)
+        return;
+      }
+      
       // Only log network errors, don't clear properties (to avoid breaking UI)
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
         console.warn('Network error loading properties (API may be unavailable):', err);

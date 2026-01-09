@@ -4,6 +4,7 @@
 
 import Layout from "@/components/Layout.jsx";
 import { RequireAuth, useAuth } from "@/context/AuthContext";
+import { useAccount } from "@/context/AccountContext";
 import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import AnnualAssumptionsModal from "@/components/AnnualAssumptionsModal";
@@ -256,15 +257,30 @@ function calculateActualPlusForecast(property, today = new Date()) {
 function PortfolioSummaryContent() {
   const [isDemoMode, setIsDemoMode] = useState(false);
 
+  const { user } = useAuth();
+  const { currentAccount } = useAccount();
+
   // Check for demo mode on client side only to avoid hydration mismatch
   // Only use sessionStorage to avoid any URL search param issues during static generation
   // NOTE: We explicitly avoid using useSearchParams() here to prevent build errors
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const demo = sessionStorage.getItem('demoMode') === 'true';
-      setIsDemoMode(demo);
+      // If user is authenticated, don't show demo mode
+      // Also check if current account is marked as demo
+      if (user && currentAccount) {
+        // Real authenticated user - check if account is demo account
+        const isDemo = currentAccount.isDemo === true;
+        setIsDemoMode(isDemo);
+      } else if (!user) {
+        // Not authenticated - check sessionStorage
+        const demo = sessionStorage.getItem('demoMode') === 'true';
+        setIsDemoMode(demo);
+      } else {
+        // User is authenticated but account not loaded yet
+        setIsDemoMode(false);
+      }
     }
-  }, []);
+  }, [user, currentAccount]);
 
   // Get data from PropertyContext
   const { calculationsComplete } = usePropertyContext();
