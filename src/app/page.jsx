@@ -86,7 +86,7 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
     <section className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Clarity and optimization for your real estate portfolio.</h1>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Your key tool providing growth, clarity, and optimization for your real estate portfolio.</h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
             Empower yourself with full visibility into your small-scale real estate investment portfolio allowing you understand and optimize your returns. Track revenue & expenses, equity built, forecast cash flow, and analyze scenarios — all in one powerful platform designed for real estate investors.
           </p>
