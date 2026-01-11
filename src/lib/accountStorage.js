@@ -1,9 +1,9 @@
 // Account storage utility for managing multiple accounts and their data
 // Uses localStorage to persist account data
 
-const STORAGE_KEY_ACCOUNTS = 'proplytics_accounts';
-const STORAGE_KEY_CURRENT_ACCOUNT = 'proplytics_current_account';
-const STORAGE_KEY_ACCOUNT_DATA_PREFIX = 'proplytics_account_data_';
+const STORAGE_KEY_ACCOUNTS = 'bonzai_accounts';
+const STORAGE_KEY_CURRENT_ACCOUNT = 'bonzai_current_account';
+const STORAGE_KEY_ACCOUNT_DATA_PREFIX = 'bonzai_account_data_';
 
 // Get all accounts
 export function getAllAccounts() {
@@ -16,7 +16,7 @@ export function getAllAccounts() {
       const demoAccount = {
         id: 'demo-account',
         name: 'Demo Account',
-        email: 'demo@proplytics.com',
+        email: 'demo@bonzia.com',
         createdAt: new Date().toISOString(),
         isDemo: true
       };

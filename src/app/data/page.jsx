@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Layout from "@/components/Layout";
 import { RequireAuth } from "@/context/AuthContext";
 import { useAuth } from "@/context/AuthContext";
@@ -8,7 +8,7 @@ import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useProperties, usePropertyContext } from "@/context/PropertyContext";
 import { useAccount } from "@/context/AccountContext";
-import { Download, X, ChevronDown, ChevronUp, Edit2, Save, XCircle, Plus, Trash2 } from "lucide-react";
+import { Download, X, ChevronDown, ChevronUp, Edit2, Save, XCircle, Plus, Trash2, Eye, EyeOff, Settings2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import apiClient from "@/lib/api-client";
 import { calculateAmortizationSchedule } from "@/utils/mortgageCalculator";
@@ -232,6 +232,23 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
   const [hoveredYear, setHoveredYear] = useState(null);
   // Local state for input values to prevent focus loss during typing
   const [inputValues, setInputValues] = useState({});
+  // State for resizable column widths (default 120px for years, 100px for Code, 140px for Payment Frequency, 200px for Category)
+  const [columnWidths, setColumnWidths] = useState({
+    category: 200,
+    code: 100,
+    paymentFrequency: 140
+  });
+  const [isResizing, setIsResizing] = useState(null);
+  // Use refs to avoid stale closure issues in event handlers
+  const resizeStartXRef = useRef(0);
+  const resizeStartWidthRef = useRef(0);
+  const isResizingRef = useRef(null);
+  // State for collapsed rows
+  const [collapsedRows, setCollapsedRows] = useState(new Set());
+  // State for column visibility - track which columns are hidden
+  const [hiddenColumns, setHiddenColumns] = useState(new Set());
+  // State for column settings dropdown
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
   
   // Use editedData if available, otherwise use property
   const dataSource = isEditing && editedData ? editedData : property;
@@ -405,22 +422,296 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
     }
   };
 
+  // Resize handlers - using refs to avoid stale closure issues
+  const handleResizeStart = (e, columnId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Get current width from state
+    let currentWidth;
+    if (columnId === 'code') {
+      currentWidth = columnWidths.code || 100;
+    } else if (columnId === 'paymentFrequency') {
+      currentWidth = columnWidths.paymentFrequency || 140;
+    } else if (columnId === 'category') {
+      currentWidth = columnWidths.category || 200;
+    } else {
+      currentWidth = columnWidths[columnId] || 120;
+    }
+    
+    // Store initial values in refs
+    resizeStartXRef.current = e.clientX;
+    resizeStartWidthRef.current = currentWidth;
+    isResizingRef.current = columnId;
+    
+    // Update state
+    setIsResizing(columnId);
+  };
+
+  // Use stable callback for resize move
+  const handleResizeMove = useCallback((e) => {
+    if (isResizingRef.current === null) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const diff = e.clientX - resizeStartXRef.current;
+    const newWidth = Math.max(60, resizeStartWidthRef.current + diff); // Minimum width of 60px
+    
+    setColumnWidths(prev => ({
+      ...prev,
+      [isResizingRef.current]: newWidth
+    }));
+  }, []);
+
+  // Use stable callback for resize end
+  const handleResizeEnd = useCallback((e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    isResizingRef.current = null;
+    setIsResizing(null);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  // Set up resize event listeners
+  useEffect(() => {
+    if (isResizing !== null) {
+      // Update ref when state changes
+      isResizingRef.current = isResizing;
+      
+      document.addEventListener('mousemove', handleResizeMove, { passive: false });
+      document.addEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
+
+  // Toggle column visibility
+  const toggleColumnVisibility = (columnId) => {
+    setHiddenColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
+
+  // Check if column is visible
+  const isColumnVisible = (columnId) => {
+    return !hiddenColumns.has(columnId);
+  };
+
+  // Calculate sticky left positions dynamically based on visible columns
+  const getStickyLeft = (columnType) => {
+    let left = 0;
+    if (columnType === 'category') {
+      return 0;
+    } else if (columnType === 'code') {
+      // Category is always visible, so add its width
+      left = columnWidths.category || 200;
+      return left;
+    } else if (columnType === 'paymentFrequency') {
+      // Category is always visible
+      left += columnWidths.category || 200;
+      // Add code width if visible
+      if (isColumnVisible('code')) {
+        left += columnWidths.code || 100;
+      }
+      return left;
+    }
+    return 0;
+  };
+
+  // Toggle row collapse
+  const toggleRowCollapse = (category) => {
+    setCollapsedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
+  const getColumnWidth = (columnId) => {
+    if (columnId === 'code') {
+      return columnWidths.code || 100;
+    } else if (columnId === 'paymentFrequency') {
+      return columnWidths.paymentFrequency || 140;
+    } else if (columnId === 'category') {
+      return columnWidths.category || 200;
+    }
+    return columnWidths[columnId] || 120;
+  };
+
+  // Filter snapshots to only show visible columns
+  const visibleSnapshots = snapshots.filter(s => isColumnVisible(s.year));
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showColumnSettings && !event.target.closest('.column-settings-container')) {
+        setShowColumnSettings(false);
+      }
+    };
+    
+    if (showColumnSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showColumnSettings]);
+
   return (
     <div className="overflow-x-auto">
+      {/* Column Settings Button */}
+      <div className="mb-2 flex justify-end relative column-settings-container">
+        <button
+          onClick={() => setShowColumnSettings(!showColumnSettings)}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 transition-colors"
+        >
+          <Settings2 className="w-4 h-4" />
+          Column Settings
+        </button>
+        
+        {/* Column Settings Dropdown */}
+        {showColumnSettings && (
+          <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-50 p-3 min-w-[200px]">
+            <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Show/Hide Columns</div>
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {/* Fixed columns */}
+              <label
+                className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-sm border-b border-gray-200 dark:border-gray-700 pb-2 mb-1"
+              >
+                <input
+                  type="checkbox"
+                  checked={isColumnVisible('code')}
+                  onChange={() => toggleColumnVisibility('code')}
+                  className="rounded border-gray-300 dark:border-gray-600 text-[#205A3E] focus:ring-[#205A3E]"
+                />
+                <span className="text-gray-700 dark:text-gray-300">Code</span>
+              </label>
+              <label
+                className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-sm border-b border-gray-200 dark:border-gray-700 pb-2 mb-1"
+              >
+                <input
+                  type="checkbox"
+                  checked={isColumnVisible('paymentFrequency')}
+                  onChange={() => toggleColumnVisibility('paymentFrequency')}
+                  className="rounded border-gray-300 dark:border-gray-600 text-[#205A3E] focus:ring-[#205A3E]"
+                />
+                <span className="text-gray-700 dark:text-gray-300">Payment Frequency</span>
+              </label>
+              {/* Year columns */}
+              {snapshots.map(snapshot => (
+                <label
+                  key={`visibility-${snapshot.year}`}
+                  className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isColumnVisible(snapshot.year)}
+                    onChange={() => toggleColumnVisibility(snapshot.year)}
+                    className="rounded border-gray-300 dark:border-gray-600 text-[#205A3E] focus:ring-[#205A3E]"
+                  />
+                  <span className="text-gray-700 dark:text-gray-300">{snapshot.year}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <table className="min-w-full text-sm text-left">
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700">
-            <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-white dark:bg-gray-900 z-10">Category</th>
-            <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-[200px] bg-white dark:bg-gray-900 z-10 min-w-[100px]">Code</th>
-            <th className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-[300px] bg-white dark:bg-gray-900 z-10 min-w-[140px]">Payment Frequency</th>
-            {snapshots.map(snapshot => (
+            <th 
+              className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-white dark:bg-gray-900 z-10 relative group"
+              style={{ width: getColumnWidth('category'), minWidth: '60px' }}
+            >
+              <div className="flex items-center">Category</div>
+                <div
+                  className="absolute top-0 right-0 w-4 h-full cursor-col-resize hover:bg-[#205A3E] hover:opacity-30 transition-colors z-20 flex items-center justify-center touch-none"
+                  onMouseDown={(e) => handleResizeStart(e, 'category')}
+                  style={{ cursor: 'col-resize' }}
+                  title="Drag to resize column"
+                >
+                  <div className="w-0.5 h-full bg-gray-300 dark:bg-gray-600 group-hover:bg-[#205A3E] transition-colors" />
+                </div>
+            </th>
+            {isColumnVisible('code') && (
+              <th 
+                className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky bg-white dark:bg-gray-900 z-10 relative group"
+                style={{ 
+                  left: `${getStickyLeft('code')}px`,
+                  width: getColumnWidth('code'),
+                  minWidth: '60px'
+                }}
+              >
+                <div className="flex items-center pr-2">Code</div>
+                <div
+                  className="absolute top-0 right-0 w-3 h-full cursor-col-resize hover:bg-[#205A3E] hover:opacity-50 transition-colors z-20 flex items-center justify-center"
+                  onMouseDown={(e) => handleResizeStart(e, 'code')}
+                  style={{ cursor: 'col-resize' }}
+                  title="Drag to resize column"
+                >
+                  <div className="w-0.5 h-6 bg-gray-300 dark:bg-gray-600 group-hover:bg-[#205A3E] transition-colors" />
+                </div>
+              </th>
+            )}
+            {isColumnVisible('paymentFrequency') && (
+              <th 
+                className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky bg-white dark:bg-gray-900 z-10 relative group"
+                style={{ 
+                  left: `${getStickyLeft('paymentFrequency')}px`,
+                  width: getColumnWidth('paymentFrequency'),
+                  minWidth: '60px'
+                }}
+              >
+                <div className="flex items-center pr-2">Payment Frequency</div>
+                <div
+                  className="absolute top-0 right-0 w-3 h-full cursor-col-resize hover:bg-[#205A3E] hover:opacity-50 transition-colors z-20 flex items-center justify-center"
+                  onMouseDown={(e) => handleResizeStart(e, 'paymentFrequency')}
+                  style={{ cursor: 'col-resize' }}
+                  title="Drag to resize column"
+                >
+                  <div className="w-0.5 h-6 bg-gray-300 dark:bg-gray-600 group-hover:bg-[#205A3E] transition-colors" />
+                </div>
+              </th>
+            )}
+            {visibleSnapshots.map(snapshot => (
               <th
                 key={`header-${snapshot.year}`}
-                className="py-2 px-4 font-semibold text-gray-700 dark:text-gray-200 text-right min-w-[120px]"
+                className="py-2 px-4 font-semibold text-gray-700 dark:text-gray-200 text-right relative group"
+                style={{ width: getColumnWidth(snapshot.year), minWidth: '80px' }}
                 onMouseEnter={() => setHoveredYear(snapshot.year)}
                 onMouseLeave={() => setHoveredYear(null)}
               >
-                {snapshot.year}
+                <div className="flex items-center justify-end pr-2">
+                  {snapshot.year}
+                </div>
+                <div
+                  className="absolute top-0 right-0 w-3 h-full cursor-col-resize hover:bg-[#205A3E] hover:opacity-50 transition-colors z-20 flex items-center justify-center"
+                  onMouseDown={(e) => handleResizeStart(e, snapshot.year)}
+                  style={{ cursor: 'col-resize' }}
+                  title="Drag to resize column"
+                >
+                  <div className="w-0.5 h-6 bg-gray-300 dark:bg-gray-600 group-hover:bg-[#205A3E] transition-colors" />
+                </div>
               </th>
             ))}
             {showForecastMode && (
@@ -432,28 +723,39 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
           <tr>
-            <td className={`py-2 pr-4 text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
+            <td 
+              className={`py-2 pr-4 text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ width: getColumnWidth('category') }}
+            >
               Rent
             </td>
-            <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
-              {/* Empty cell for Rent - Code does not apply */}
-            </td>
-            <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[300px] bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
-              {/* Empty cell for Rent - Payment Frequency does not apply */}
-            </td>
-            {snapshots.map(snapshot => {
+            {isColumnVisible('code') && (
+              <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ left: `${getStickyLeft('code')}px`, width: getColumnWidth('code') }}
+              >
+                {/* Empty cell for Rent - Code does not apply */}
+              </td>
+            )}
+            {isColumnVisible('paymentFrequency') && (
+              <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ left: `${getStickyLeft('paymentFrequency')}px`, width: getColumnWidth('paymentFrequency') }}
+              >
+                {/* Empty cell for Rent - Payment Frequency does not apply */}
+              </td>
+            )}
+            {visibleSnapshots.map(snapshot => {
               const income = snapshot.income || 0;
               const calculatedAmount = expenseView === 'monthly' ? income / 12 : income;
               // Format value for input - round to 2 decimal places, handle NaN
@@ -476,6 +778,7 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                       ? 'bg-amber-50 dark:bg-amber-900/20' 
                       : ''
                   }`}
+                  style={{ width: getColumnWidth(snapshot.year) }}
                   onMouseEnter={() => setHoveredYear(snapshot.year)}
                   onMouseLeave={() => setHoveredYear(null)}
                 >
@@ -555,46 +858,88 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
               ? calculateForecastValue(category, currentYearAmount)
               : currentYearAmount;
             
+            const isCollapsed = collapsedRows.has(category);
+            
+            // Skip rendering if collapsed
+            if (isCollapsed) {
+              return (
+                <tr key={`category-${category}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer" onClick={() => toggleRowCollapse(category)}>
+                  <td 
+                    colSpan={1 + (isColumnVisible('code') ? 1 : 0) + (isColumnVisible('paymentFrequency') ? 1 : 0) + visibleSnapshots.length + (showForecastMode ? 1 : 0)} 
+                    className={`py-1.5 px-4 text-gray-600 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-900 z-10 border-b border-gray-200 dark:border-gray-700 ${
+                    visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                      ? 'bg-amber-50 dark:bg-amber-900/20' 
+                      : ''
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm opacity-70 italic">{category} (hidden)</span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            }
+            
             return (
               <tr key={`category-${category}`}>
-                <td className={`py-2 pr-4 text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
-                  snapshots.some(s => isColumnHovered(s.year)) 
-                    ? 'bg-amber-50 dark:bg-amber-900/20' 
-                    : ''
-                }`}>
-                  {category}
-                </td>
-                <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
-                  snapshots.some(s => isColumnHovered(s.year)) 
-                    ? 'bg-amber-50 dark:bg-amber-900/20' 
-                    : ''
-                }`}>
-                  {EXPENSE_CODES[category] || '—'}
-                </td>
-                <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky left-[300px] bg-white dark:bg-gray-900 z-10 ${
-                  snapshots.some(s => isColumnHovered(s.year)) 
-                    ? 'bg-amber-50 dark:bg-amber-900/20' 
-                    : ''
-                }`}>
-                  {isEditing && onUpdatePaymentFrequency ? (
-                    <select
-                      value={paymentFrequency}
-                      onChange={(e) => onUpdatePaymentFrequency(category, e.target.value)}
-                      disabled={category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)'}
-                      className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] ${
-                        (category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)') 
-                          ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' 
-                          : ''
-                      }`}
+                <td 
+                  className={`py-2 pr-4 text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
+                    visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                      ? 'bg-amber-50 dark:bg-amber-900/20' 
+                      : ''
+                  }`}
+                  style={{ width: getColumnWidth('category') }}
+                >
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleRowCollapse(category)}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                      title="Hide row"
                     >
-                      <option value="Annual">Annual</option>
-                      <option value="Monthly">Monthly</option>
-                    </select>
-                  ) : (
-                    paymentFrequency
-                  )}
+                      <ChevronUp className="w-4 h-4 text-gray-400" />
+                    </button>
+                    <span>{category}</span>
+                  </div>
                 </td>
-                {snapshots.map(snapshot => {
+                {isColumnVisible('code') && (
+                  <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky bg-white dark:bg-gray-900 z-10 ${
+                    visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                      ? 'bg-amber-50 dark:bg-amber-900/20' 
+                      : ''
+                  }`}
+                  style={{ left: `${getStickyLeft('code')}px`, width: getColumnWidth('code') }}
+                  >
+                    {EXPENSE_CODES[category] || '—'}
+                  </td>
+                )}
+                {isColumnVisible('paymentFrequency') && (
+                  <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky bg-white dark:bg-gray-900 z-10 ${
+                    visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                      ? 'bg-amber-50 dark:bg-amber-900/20' 
+                      : ''
+                  }`}
+                  style={{ left: `${getStickyLeft('paymentFrequency')}px`, width: getColumnWidth('paymentFrequency') }}
+                  >
+                    {isEditing && onUpdatePaymentFrequency ? (
+                      <select
+                        value={paymentFrequency}
+                        onChange={(e) => onUpdatePaymentFrequency(category, e.target.value)}
+                        disabled={category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)'}
+                        className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] ${
+                          (category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)') 
+                            ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' 
+                            : ''
+                        }`}
+                      >
+                        <option value="Annual">Annual</option>
+                        <option value="Monthly">Monthly</option>
+                      </select>
+                    ) : (
+                      paymentFrequency
+                    )}
+                  </td>
+                )}
+                {visibleSnapshots.map(snapshot => {
                   const categoryData = snapshot.expenseBreakdown[category];
                   const amount = categoryData?.total || 0;
                   const isCurrentYear = snapshot.year === currentYear;
@@ -632,6 +977,7 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                           ? 'bg-blue-50 dark:bg-blue-900/20'
                           : ''
                       }`}
+                      style={{ width: getColumnWidth(snapshot.year) }}
                       onMouseEnter={() => setHoveredYear(snapshot.year)}
                       onMouseLeave={() => setHoveredYear(null)}
                     >
@@ -713,28 +1059,39 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
             );
           })}
           <tr>
-            <td className={`py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
+            <td 
+              className={`py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ width: getColumnWidth('category') }}
+            >
               {expenseView === 'monthly' ? 'Total Monthly Expenses' : 'Total Annual Expenses'}
             </td>
-            <td className={`py-2 pr-4 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
-              {/* Empty cell for total row */}
-            </td>
-            <td className={`py-2 pr-4 sticky left-[300px] bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
-              {/* Empty cell for total row */}
-            </td>
-            {snapshots.map(snapshot => {
+            {isColumnVisible('code') && (
+              <td className={`py-2 pr-4 sticky bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ left: `${getStickyLeft('code')}px`, width: getColumnWidth('code') }}
+              >
+                {/* Empty cell for total row */}
+              </td>
+            )}
+            {isColumnVisible('paymentFrequency') && (
+              <td className={`py-2 pr-4 sticky bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ left: `${getStickyLeft('paymentFrequency')}px`, width: getColumnWidth('paymentFrequency') }}
+              >
+                {/* Empty cell for total row */}
+              </td>
+            )}
+            {visibleSnapshots.map(snapshot => {
               // For current year, recalculate total expenses if any categories are in automatic mode
               let displayExpenses = snapshot.expenses;
               if (snapshot.year === currentYear && showForecastMode) {
@@ -767,6 +1124,7 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                       ? 'bg-amber-50 dark:bg-amber-900/20' 
                       : ''
                   }`}
+                  style={{ width: getColumnWidth(snapshot.year) }}
                   onMouseEnter={() => setHoveredYear(snapshot.year)}
                   onMouseLeave={() => setHoveredYear(null)}
                 >
@@ -781,28 +1139,39 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
             )}
           </tr>
           <tr>
-            <td className={`py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
+            <td 
+              className={`py-2 pr-4 font-semibold text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ width: getColumnWidth('category') }}
+            >
               {expenseView === 'monthly' ? 'Monthly Net Income' : 'Annual Net Income'}
             </td>
-            <td className={`py-2 pr-4 sticky left-[200px] bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
-              {/* Empty cell for net income row */}
-            </td>
-            <td className={`py-2 pr-4 sticky left-[300px] bg-white dark:bg-gray-900 z-10 ${
-              snapshots.some(s => isColumnHovered(s.year)) 
-                ? 'bg-amber-50 dark:bg-amber-900/20' 
-                : ''
-            }`}>
-              {/* Empty cell for net income row */}
-            </td>
-            {snapshots.map(snapshot => {
+            {isColumnVisible('code') && (
+              <td className={`py-2 pr-4 sticky bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ left: `${getStickyLeft('code')}px`, width: getColumnWidth('code') }}
+              >
+                {/* Empty cell for net income row */}
+              </td>
+            )}
+            {isColumnVisible('paymentFrequency') && (
+              <td className={`py-2 pr-4 sticky bg-white dark:bg-gray-900 z-10 ${
+                visibleSnapshots.some(s => isColumnHovered(s.year)) 
+                  ? 'bg-amber-50 dark:bg-amber-900/20' 
+                  : ''
+              }`}
+              style={{ left: `${getStickyLeft('paymentFrequency')}px`, width: getColumnWidth('paymentFrequency') }}
+              >
+                {/* Empty cell for net income row */}
+              </td>
+            )}
+            {visibleSnapshots.map(snapshot => {
               // Recalculate net income for current year if expenses were forecasted
               let displayNetIncome = snapshot.netIncome;
               if (snapshot.year === currentYear && showForecastMode) {
@@ -832,6 +1201,7 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                       ? 'bg-amber-50 dark:bg-amber-900/20' 
                       : ''
                   }`}
+                  style={{ width: getColumnWidth(snapshot.year) }}
                   onMouseEnter={() => setHoveredYear(snapshot.year)}
                   onMouseLeave={() => setHoveredYear(null)}
                 >

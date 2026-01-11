@@ -3,7 +3,7 @@
  * Manages user preferences stored in localStorage
  */
 
-const SETTINGS_KEY = 'proplytics_settings';
+const SETTINGS_KEY = 'bonzai_settings';
 
 const DEFAULT_SETTINGS = {
   currencyDecimals: false, // false = no decimals, true = 2 decimals (0.00)

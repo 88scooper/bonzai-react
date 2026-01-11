@@ -66,7 +66,7 @@ function Header({ onLoginClick, onSignupClick }) {
     <header className="sticky top-0 z-10 border-b border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-950/70 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between">
         <Link href="/" className="font-semibold tracking-tight">
-          Proplytics
+          Bonzai
         </Link>
         <nav className="hidden md:flex items-center gap-6 text-sm">
           <a href="#features" className="hover:underline">Features</a>
@@ -105,7 +105,7 @@ function FeaturesSection() {
   return (
     <section id="features" className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="text-center mb-16">
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Take control with Proplytics - a free service designed for individual investors, providing everything you need to simplify financial management and fully leverage your real estate investment portfolio!</h2>
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Take control with Bonzai - a free service designed for individual investors, providing everything you need to simplify financial management and fully leverage your real estate investment portfolio!</h2>
       </div>
       
       <div className="space-y-16 md:space-y-20">
@@ -252,7 +252,7 @@ function LoginModal({ onClose, onSwitchToSignup }) {
   return (
     <Modal onClose={onClose}>
       <h3 className="text-xl font-semibold">Log in</h3>
-      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Proplytics.</p>
+      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Bonzai.</p>
       
       {error && (
         <div className="mt-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
@@ -358,7 +358,7 @@ function Footer() {
   return (
     <footer className="border-t border-black/10 dark:border-white/10 mt-16">
       <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between text-sm">
-        <div className="text-gray-600 dark:text-gray-300">© {new Date().getFullYear()} Proplytics</div>
+        <div className="text-gray-600 dark:text-gray-300">© {new Date().getFullYear()} Bonzai</div>
         <div className="flex items-center gap-4">
           <a className="hover:underline" href="#features">Features</a>
           <a className="hover:underline" href="#cta">Get Started</a>

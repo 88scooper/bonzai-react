@@ -4,7 +4,7 @@ import { sql } from '@/lib/db';
 
 // Zod schema for PATCH request body validation
 // Both fields are optional for PATCH operations
-const updateProplyticsTestSchema = z.object({
+const updateBonzaiTestSchema = z.object({
   name: z.string().min(1, 'Name cannot be empty').optional(),
   value: z.number().int('Value must be an integer').optional(),
 }).refine(
@@ -15,10 +15,10 @@ const updateProplyticsTestSchema = z.object({
 );
 
 // Type for the validated request body
-type UpdateProplyticsTestInput = z.infer<typeof updateProplyticsTestSchema>;
+type UpdateBonzaiTestInput = z.infer<typeof updateBonzaiTestSchema>;
 
 // Type for database record
-interface ProplyticsTestRecord {
+interface BonzaiTestRecord {
   id: string;
   name: string;
   value: number | null;
@@ -41,7 +41,7 @@ export async function PATCH(
     const body = await request.json();
 
     // Validate request body using Zod
-    const validationResult = updateProplyticsTestSchema.safeParse(body);
+    const validationResult = updateBonzaiTestSchema.safeParse(body);
 
     if (!validationResult.success) {
       const errorMessages = validationResult.error.issues.map(
@@ -54,11 +54,11 @@ export async function PATCH(
       );
     }
 
-    const validatedData: UpdateProplyticsTestInput = validationResult.data;
+    const validatedData: UpdateBonzaiTestInput = validationResult.data;
 
     // Build and execute the UPDATE query based on provided fields
     // Since both fields are optional, we need to handle each combination
-    let result: ProplyticsTestRecord[];
+    let result: BonzaiTestRecord[];
 
     if (validatedData.name !== undefined && validatedData.value !== undefined) {
       // Update both fields
@@ -67,7 +67,7 @@ export async function PATCH(
         SET name = ${validatedData.name}, value = ${validatedData.value}
         WHERE id = ${id}
         RETURNING id, name, value, created_at
-      ` as ProplyticsTestRecord[];
+      ` as BonzaiTestRecord[];
     } else if (validatedData.name !== undefined) {
       // Update name only
       result = await sql`
@@ -75,7 +75,7 @@ export async function PATCH(
         SET name = ${validatedData.name}
         WHERE id = ${id}
         RETURNING id, name, value, created_at
-      ` as ProplyticsTestRecord[];
+      ` as BonzaiTestRecord[];
     } else {
       // Update value only (validatedData.value is defined due to schema validation)
       result = await sql`
@@ -83,7 +83,7 @@ export async function PATCH(
         SET value = ${validatedData.value!}
         WHERE id = ${id}
         RETURNING id, name, value, created_at
-      ` as ProplyticsTestRecord[];
+      ` as BonzaiTestRecord[];
     }
 
     if (result.length === 0) {

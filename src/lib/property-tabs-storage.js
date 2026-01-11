@@ -5,7 +5,7 @@
  * using browser localStorage
  */
 
-const STORAGE_KEY = 'proplytics_property_tabs';
+const STORAGE_KEY = 'bonzai_property_tabs';
 
 /**
  * Get tabs for a specific property

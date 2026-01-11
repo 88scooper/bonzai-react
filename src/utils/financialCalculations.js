@@ -272,9 +272,24 @@ export function calculateIRR(property, years = 5) {
     
     irr = newIrr;
     
-    // Prevent negative or extreme values
-    if (irr < -0.99) irr = -0.99;
-    if (irr > 10) irr = 10;
+    // Prevent extreme values but allow reasonable ranges
+    // Cap at reasonable extremes: -99% (total loss) to 1000% (exceptional returns)
+    // Values outside this range typically indicate calculation errors
+    if (irr < -0.99) {
+      console.warn(`IRR calculation resulted in extreme negative value: ${(irr * 100).toFixed(2)}%. Capping at -99%.`);
+      irr = -0.99;
+    }
+    // Allow high IRR values (up to 500% = 5.0 decimal) without issue
+    // Warn if unusually high (100-500%) but allow it
+    if (irr > 1.0 && irr <= 5.0) { // 100% to 500% - warn but allow
+      console.warn(`IRR calculation resulted in unusually high value: ${(irr * 100).toFixed(2)}%. Verify property data.`);
+    }
+    // Cap at extremely unrealistic values (>500% = 5.0 decimal = 500%)
+    // Values this high typically indicate calculation errors or incorrect data
+    if (irr > 5.0) {
+      console.warn(`IRR calculation resulted in extreme value: ${(irr * 100).toFixed(2)}%. Capping at 500%. Verify property data inputs.`);
+      irr = 5.0;
+    }
   }
   
   return irr * 100; // Convert to percentage

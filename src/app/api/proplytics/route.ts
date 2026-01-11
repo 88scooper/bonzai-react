@@ -3,16 +3,16 @@ import { z } from 'zod';
 import { sql } from '@/lib/db';
 
 // Zod schema for POST request body validation
-const createProplyticsTestSchema = z.object({
+const createBonzaiTestSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   value: z.number().int('Value must be an integer'),
 });
 
 // Type for the validated request body
-type CreateProplyticsTestInput = z.infer<typeof createProplyticsTestSchema>;
+type CreateBonzaiTestInput = z.infer<typeof createBonzaiTestSchema>;
 
 // Type for database record
-interface ProplyticsTestRecord {
+interface BonzaiTestRecord {
   id: string;
   name: string;
   value: number | null;
@@ -29,7 +29,7 @@ export async function GET(): Promise<NextResponse> {
       SELECT id, name, value, created_at
       FROM proplytics_test
       ORDER BY created_at DESC
-    ` as ProplyticsTestRecord[];
+    ` as BonzaiTestRecord[];
     
     return NextResponse.json(
       { success: true, data: records },
@@ -58,7 +58,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const body = await request.json();
     
     // Validate request body using Zod
-    const validationResult = createProplyticsTestSchema.safeParse(body);
+    const validationResult = createBonzaiTestSchema.safeParse(body);
     
     if (!validationResult.success) {
       const errorMessages = validationResult.error.issues.map(
@@ -71,14 +71,14 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
     
-    const validatedData: CreateProplyticsTestInput = validationResult.data;
+    const validatedData: CreateBonzaiTestInput = validationResult.data;
     
     // Insert the record and return it using RETURNING *
     const result = await sql`
       INSERT INTO proplytics_test (name, value)
       VALUES (${validatedData.name}, ${validatedData.value})
       RETURNING id, name, value, created_at
-    ` as ProplyticsTestRecord[];
+    ` as BonzaiTestRecord[];
     
     const newRecord = result[0];
     

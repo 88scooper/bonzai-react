@@ -11,6 +11,7 @@ import { useProperties, usePropertyContext } from "@/context/PropertyContext";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
 import { Building2, PiggyBank, FileSpreadsheet, Plus } from "lucide-react";
 import { getCurrentMortgageBalance, getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from "@/utils/mortgageCalculator";
+import { calculateIRR as calculateIRRProper } from "@/utils/financialCalculations";
 
 // Calculate YoY change percentage
 function calculateYoYChange(currentValue, previousValue) {
@@ -539,15 +540,43 @@ function PropertyCard({ property }) {
   const noi = annualRevenue - annualOperatingExpenses;
   const dscr = annualDebtService > 0 ? noi / annualDebtService : 0;
   
-  // IRR Calculation
-  const calculateIRR = (years) => {
+  // IRR Calculation using proper NPV-based method with Newton-Raphson
+  // This accounts for: time value of money, mortgage paydown, selling costs, and proper discounting
+  const calculatePropertyIRR = (years) => {
     if (years <= 0 || totalInitialCashInvested <= 0) return 0;
-    const projectedValue = currentValue * Math.pow(1.03, years);
-    const totalCashFlow = annualCashFlow * years;
-    const totalReturn = projectedValue + totalCashFlow - totalInitialCashInvested;
-    return Math.pow((totalReturn + totalInitialCashInvested) / totalInitialCashInvested, 1/years) - 1;
+    
+    // Create a property object with totalInvestment for the utility function
+    // The utility function expects property.totalInvestment to exist
+    const propertyForIRR = {
+      ...property,
+      totalInvestment: totalInitialCashInvested,
+      // Ensure currentMarketValue is set (used for appreciation calculation)
+      currentMarketValue: currentValue,
+      currentValue: currentValue,
+      // Ensure mortgage data is available
+      mortgage: property.mortgage || null,
+      // Ensure rent data is available for cash flow calculation
+      rent: property.rent || { monthlyRent: 0 },
+      // Ensure monthlyExpenses are available
+      monthlyExpenses: property.monthlyExpenses || {}
+    };
+    
+    try {
+      // Use the proper Newton-Raphson IRR calculation from financialCalculations.js
+      // This properly discounts cash flows and accounts for mortgage paydown and selling costs
+      const irrPercentage = calculateIRRProper(propertyForIRR, years);
+      
+      // Convert from percentage to decimal for internal calculations and status checks
+      // The function returns a percentage (e.g., 12.5 for 12.5%), but we store as decimal (0.125)
+      // Status checks use decimal format (e.g., irr >= 0.12 for 12%)
+      return irrPercentage / 100;
+    } catch (error) {
+      console.error('Error calculating IRR:', error);
+      return 0; // Return 0 on error rather than showing incorrect data
+    }
   };
-  const irr = calculateIRR(irrYears);
+  
+  const irr = calculatePropertyIRR(irrYears);
   
   // Format purchase date
   const formatPurchaseDate = (date) => {
@@ -765,10 +794,10 @@ function PropertyCard({ property }) {
             <KeyMetricCard
               title="IRR"
               value={formatPercentage(irr * 100)}
-              tooltipText="Internal Rate of Return estimates the annualized return on investment over the selected time period, accounting for cash flows and property appreciation."
+              tooltipText="Internal Rate of Return (IRR) is the annualized return rate that makes the Net Present Value of all cash flows equal to zero. This calculation accounts for: time value of money, annual cash flows, mortgage principal paydown, property appreciation (3% annually), and selling costs (5%). Assumes constant cash flows and does not include tax implications. Consult a financial advisor for tax considerations."
               statusTone={irr >= 0.12 ? 'positive' : irr >= 0.08 ? 'neutral' : 'warning'}
               statusMessage={irr >= 0.12 ? 'STRONG' : irr >= 0.08 ? 'MODERATE' : 'LOW'}
-              onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'IRR', text: "Internal Rate of Return estimates the annualized return on investment over the selected time period, accounting for cash flows and property appreciation." } : null)}
+              onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'IRR', text: "Internal Rate of Return (IRR) is the annualized return rate that makes the Net Present Value of all cash flows equal to zero. This calculation accounts for: time value of money, annual cash flows, mortgage principal paydown, property appreciation (3% annually), and selling costs (5%). Assumes constant cash flows and does not include tax implications. Consult a financial advisor for tax considerations." } : null)}
               customContent={
                 <select 
                   value={irrYears} 
@@ -993,7 +1022,7 @@ function MetricDisplayCard({ label, value, subvalue, isPositive, accent = 'emera
   // Consistent font sizes across all metric cards
   const valueSize = size === 'large' ? 'text-xl' : 'text-lg';
   
-  // Sophisticated tinted backgrounds matching Proplytics TopMetricCard style
+  // Sophisticated tinted backgrounds matching Bonzai TopMetricCard style
   const accentConfig = {
     emerald: {
       border: 'border-[#205A3E]/30 dark:border-[#1C4F39]/40',
@@ -1054,7 +1083,7 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
     if (onHover) onHover(false);
   };
   
-  // Sophisticated tinted backgrounds matching Proplytics TopMetricCard style
+  // Sophisticated tinted backgrounds matching Bonzai TopMetricCard style
   const getCardStyles = () => {
     switch (statusTone) {
       case 'positive':
@@ -1101,7 +1130,7 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
   const cardStyles = getCardStyles();
   const statusStyles = statusToneConfig[statusTone] || statusToneConfig.neutral;
 
-  // Minimal design - neutral text colors matching Proplytics aesthetic
+  // Minimal design - neutral text colors matching Bonzai aesthetic
   const getValueColor = () => {
     return 'text-gray-900 dark:text-gray-100';
   };

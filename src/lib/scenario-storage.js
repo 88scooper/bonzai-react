@@ -7,8 +7,8 @@
  * Extended to support folders, tags, and descriptions
  */
 
-const STORAGE_KEY = 'proplytics_saved_scenarios';
-const FOLDERS_STORAGE_KEY = 'proplytics_scenario_folders';
+const STORAGE_KEY = 'bonzai_saved_scenarios';
+const FOLDERS_STORAGE_KEY = 'bonzai_scenario_folders';
 
 /**
  * Get all saved scenarios from localStorage

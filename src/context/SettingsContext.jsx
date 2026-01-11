@@ -18,7 +18,7 @@ export function SettingsProvider({ children }) {
     if (typeof window === 'undefined') return;
 
     const handleStorageChange = (e) => {
-      if (e.key === 'proplytics_settings') {
+      if (e.key === 'bonzai_settings') {
         setSettingsState(getSettings());
       }
     };

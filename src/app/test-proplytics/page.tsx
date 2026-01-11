@@ -27,7 +27,7 @@ type CreateFormData = z.infer<typeof createFormSchema>;
 type UpdateFormData = z.infer<typeof updateFormSchema>;
 
 // Type for API response record
-interface ProplyticsRecord {
+interface BonzaiRecord {
   id: string;
   name: string;
   value: number | null;
@@ -36,11 +36,11 @@ interface ProplyticsRecord {
 
 interface ApiResponse {
   success: boolean;
-  data: ProplyticsRecord[];
+  data: BonzaiRecord[];
   error?: string;
 }
 
-export default function TestProplyticsPage() {
+export default function TestBonzaiPage() {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -132,7 +132,7 @@ export default function TestProplyticsPage() {
     }
   };
 
-  const handleEditClick = (record: ProplyticsRecord) => {
+  const handleEditClick = (record: BonzaiRecord) => {
     setEditingId(record.id);
     editForm.reset({
       name: record.name,
@@ -147,7 +147,7 @@ export default function TestProplyticsPage() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Proplytics Test Page</h1>
+      <h1 className="text-2xl font-bold mb-6">Bonzai Test Page</h1>
 
       {/* Form */}
       <div className="mb-8 p-4 border rounded">

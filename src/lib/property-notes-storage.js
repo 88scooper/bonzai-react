@@ -5,7 +5,7 @@
  * using browser localStorage
  */
 
-const STORAGE_KEY = 'proplytics_property_notes';
+const STORAGE_KEY = 'bonzai_property_notes';
 
 /**
  * Get notes for a specific property

@@ -1,4 +1,4 @@
--- Proplytics Database Schema
+-- Bonzai Database Schema
 -- This migration creates all necessary tables for the application
 
 -- Enable UUID extension

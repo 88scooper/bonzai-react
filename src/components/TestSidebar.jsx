@@ -63,7 +63,7 @@ function Sidebar({ activePage, onPageChange }) {
   return (
     <aside className="w-64 bg-white shadow-lg border-r border-gray-200">
       <div className="p-6 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900">Proplytics</h1>
+        <h1 className="text-xl font-bold text-gray-900">Bonzai</h1>
       </div>
       
       <nav className="p-4">

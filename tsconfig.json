@@ -1,5 +1,5 @@
 {
-  "exclude": ["proplytics-app", "node_modules"],
+  "exclude": ["bonzai-app", "node_modules"],
   "compilerOptions": {
     "target": "ES2017",
     "lib": [
@@ -38,7 +38,7 @@
   ],
   "exclude": [
     "node_modules",
-    "proplytics-app",
-    "proplytics-React"
+    "bonzai-app",
+    "bonzai-React"
   ]
 }

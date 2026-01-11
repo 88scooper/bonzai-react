@@ -61,7 +61,7 @@ function getLocalStorageAccounts(): LocalStorageAccount[] {
   if (typeof window === 'undefined') return [];
   
   try {
-    const accountsJson = localStorage.getItem('proplytics_accounts');
+    const accountsJson = localStorage.getItem('bonzai_accounts');
     if (!accountsJson) return [];
     return JSON.parse(accountsJson);
   } catch (error) {
@@ -77,7 +77,7 @@ function getLocalStorageProperties(accountId: string): LocalStorageProperty[] {
   if (typeof window === 'undefined') return [];
   
   try {
-    const propertiesJson = localStorage.getItem(`proplytics_account_data_${accountId}`);
+    const propertiesJson = localStorage.getItem(`bonzai_account_data_${accountId}`);
     if (!propertiesJson) return [];
     const data = JSON.parse(propertiesJson);
     return data.properties || [];

@@ -133,7 +133,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
         flex flex-col shadow-lg h-screen
       `}>
         <div className="px-6 py-6 border-b border-black/10 dark:border-white/10">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Proplytics</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Bonzai</h1>
           
           {/* Close Button - Mobile Only */}
           <button

@@ -23,7 +23,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata = {
-  title: "Proplytics",
+  title: "Bonzai",
   description: "Real estate investment management, reimagined.",
 };
 

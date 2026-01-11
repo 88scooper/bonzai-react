@@ -84,7 +84,7 @@ export default function Layout({ children }) {
                 </button>
                 
                 <span className="font-semibold tracking-tight">
-                  Proplytics
+                  Bonzai
                 </span>
               </div>
               

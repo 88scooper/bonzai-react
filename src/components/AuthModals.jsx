@@ -66,7 +66,7 @@ export function LoginModal({ onClose, onSwitchToSignup }) {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-xl font-semibold">Log in</h3>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Proplytics.</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Bonzai.</p>
         </div>
         <button
           onClick={onClose}
