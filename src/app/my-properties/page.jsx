@@ -794,10 +794,12 @@ function PropertyCard({ property }) {
             <KeyMetricCard
               title="IRR"
               value={formatPercentage(irr * 100)}
-              tooltipText="Internal Rate of Return (IRR) is the annualized return rate that makes the Net Present Value of all cash flows equal to zero. This calculation accounts for: time value of money, annual cash flows, mortgage principal paydown, property appreciation (3% annually), and selling costs (5%). Assumes constant cash flows and does not include tax implications. Consult a financial advisor for tax considerations."
+              tooltipText={`IRR (Internal Rate of Return)
+IRR is your property's "all-in" annual growth rate. Unlike simple cash flow, it combines your rental profit, property appreciation (3%), and mortgage paydown into one percentage so you can easily compare this deal to other investments like stocks or savings. By accounting for the time value of money and the 5% cost to eventually sell, it provides the most accurate "big picture" of your total wealth growth.`}
               statusTone={irr >= 0.12 ? 'positive' : irr >= 0.08 ? 'neutral' : 'warning'}
               statusMessage={irr >= 0.12 ? 'STRONG' : irr >= 0.08 ? 'MODERATE' : 'LOW'}
-              onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'IRR', text: "Internal Rate of Return (IRR) is the annualized return rate that makes the Net Present Value of all cash flows equal to zero. This calculation accounts for: time value of money, annual cash flows, mortgage principal paydown, property appreciation (3% annually), and selling costs (5%). Assumes constant cash flows and does not include tax implications. Consult a financial advisor for tax considerations." } : null)}
+              onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'IRR', text: `IRR (Internal Rate of Return)
+IRR is your property's "all-in" annual growth rate. Unlike simple cash flow, it combines your rental profit, property appreciation (3%), and mortgage paydown into one percentage so you can easily compare this deal to other investments like stocks or savings. By accounting for the time value of money and the 5% cost to eventually sell, it provides the most accurate "big picture" of your total wealth growth.` } : null)}
               customContent={
                 <select 
                   value={irrYears} 

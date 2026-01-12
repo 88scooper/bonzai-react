@@ -805,7 +805,7 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                   minWidth: '60px'
                 }}
               >
-                <div className="flex items-center pr-2">Code</div>
+                <div className="flex items-center pr-2" title="Per T1 income tax return reported on Form T776, Statement of Real Estate Rentals">Code</div>
                 <div
                   className="absolute top-0 right-0 w-3 h-full cursor-col-resize hover:bg-[#205A3E] hover:opacity-50 transition-colors z-20 flex items-center justify-center"
                   onMouseDown={(e) => handleResizeStart(e, 'code')}
@@ -1198,6 +1198,8 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {currentYearMode === 'automatic' ? 'Auto' : 'Manual'}
                       </span>
+                    ) : (category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)') ? (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Amortization Schedule</span>
                     ) : (
                       <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
                     )}
@@ -1941,21 +1943,62 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
     });
   };
 
-  const Section = ({ title, sectionKey, children }) => {
+  const Section = ({ title, sectionKey, children, showEditButton = false }) => {
     const isExpanded = expandedSections[sectionKey];
     return (
       <div className="border-t border-gray-200 dark:border-gray-700">
-        <button
-          onClick={() => toggleSection(sectionKey)}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-          {isExpanded ? (
-            <ChevronUp className="w-5 h-5 text-gray-500" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-500" />
+        <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <button
+            onClick={() => toggleSection(sectionKey)}
+            className="flex-1 flex items-center justify-between text-left"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+            {isExpanded ? (
+              <ChevronUp className="w-5 h-5 text-gray-500" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-500" />
+            )}
+          </button>
+          {showEditButton && isExpanded && (
+            <div className="flex gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSave();
+                    }}
+                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Save changes"
+                  >
+                    <Save className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancel();
+                    }}
+                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Cancel editing"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit();
+                  }}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Edit property"
+                >
+                  <Edit2 className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           )}
-        </button>
+        </div>
         {isExpanded && (
           <div className="p-4 pt-0 bg-gray-50 dark:bg-gray-800/50">
             {children}
@@ -2042,39 +2085,11 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
               <p className="text-sm opacity-90 mt-1">{property.address}</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            {isEditing ? (
-              <>
-                <button
-                  onClick={handleSave}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-                  title="Save changes"
-                >
-                  <Save className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={handleCancel}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-                  title="Cancel editing"
-                >
-                  <XCircle className="w-5 h-5" />
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleEdit}
-                className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-                title="Edit property"
-              >
-                <Edit2 className="w-5 h-5" />
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
       {/* Collapsible Sections */}
-      <Section title="Property Details" sectionKey="propertyDetails">
+      <Section title="Property Details" sectionKey="propertyDetails" showEditButton={true}>
         <div className="space-y-1">
           <EditableDataRow label="Property Name" value={property.name || property.nickname} editable field="name" />
           <EditableDataRow label="Address" value={property.address} editable field="address" />
@@ -2097,7 +2112,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
         </div>
       </Section>
 
-      <Section title="Purchase Information" sectionKey="purchaseInfo">
+      <Section title="Purchase Information" sectionKey="purchaseInfo" showEditButton={true}>
         <div className="space-y-1">
           <EditableDataRow label="Purchase Date" value={formatDateOnly(property.purchaseDate)} editable field="purchaseDate" type="date" />
           <EditableDataRow 
@@ -2184,7 +2199,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
         </div>
       </Section>
 
-      <Section title="Income & Expenses" sectionKey="incomeExpenses">
+      <Section title="Income & Expenses" sectionKey="incomeExpenses" showEditButton={true}>
         <div className="space-y-1">
           {/* Note about annual expenses */}
           <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
@@ -2192,35 +2207,6 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
               <strong>Note:</strong> Expenses incurred annually are averaged out over the year.
             </p>
           </div>
-          {/* View Toggle */}
-          <div className="flex items-center mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
-              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                <button
-                  onClick={() => setExpenseView('monthly')}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                    expenseView === 'monthly'
-                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  Monthly
-                </button>
-                <button
-                  onClick={() => setExpenseView('annual')}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                    expenseView === 'annual'
-                      ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  Annual
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* Historical Data Display - Always show historical format */}
           <HistoricalDataDisplay 
             property={property} 
@@ -2239,7 +2225,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
         </div>
       </Section>
 
-      <Section title="Tenant Information" sectionKey="tenantInfo">
+      <Section title="Tenant Information" sectionKey="tenantInfo" showEditButton={true}>
         <div className="space-y-1">
           {/* View Toggle and Add Tenant Button */}
           <div className="flex items-center justify-between mb-4">
