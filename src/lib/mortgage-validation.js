@@ -30,6 +30,13 @@ const baseMortgageSchema = z.object({
     .nullable()
     .transform(val => val === undefined ? null : val),
   
+  primeRate: z.number()
+    .min(0, 'Prime rate must be 0 or greater')
+    .max(20, 'Prime rate must be less than 20%')
+    .optional()
+    .nullable()
+    .transform(val => val === undefined ? null : val),
+  
   amortizationValue: z.number()
     .int('Amortization period must be a whole number')
     .min(1, 'Amortization period must be at least 1')
@@ -101,6 +108,24 @@ export const mortgageSchema = baseMortgageSchema.refine((data) => {
   return true;
 }, {
   message: 'Term exceeds maximum allowed',
+  path: ['termValue']
+}).refine((data) => {
+  // Validate that term does not exceed amortization period
+  if (data.amortizationValue && data.amortizationUnit && data.termValue && data.termUnit) {
+    const amortizationInMonths = data.amortizationUnit === 'years' 
+      ? data.amortizationValue * 12 
+      : data.amortizationValue;
+    const termInMonths = data.termUnit === 'years' 
+      ? data.termValue * 12 
+      : data.termValue;
+    
+    if (termInMonths > amortizationInMonths) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: 'Term cannot exceed amortization period',
   path: ['termValue']
 });
 
@@ -237,6 +262,7 @@ export function transformMortgageFormData(formData) {
     originalAmount: Number(formData.originalAmount),
     interestRate: Number(formData.interestRate) / 100, // Convert percentage to decimal
     variableRateSpread: formData.variableRateSpread ? Number(formData.variableRateSpread) / 100 : null,
+    primeRate: formData.primeRate ? Number(formData.primeRate) / 100 : null,
     amortizationPeriodMonths: amortizationInMonths,
     termMonths: termInMonths,
     startDate: formData.startDate instanceof Date ? formData.startDate.toISOString() : formData.startDate,
@@ -259,6 +285,7 @@ export function transformMortgageApiData(apiData) {
     ...apiData,
     interestRate: Number(apiData.interestRate) * 100, // Convert decimal to percentage
     variableRateSpread: apiData.variableRateSpread ? Number(apiData.variableRateSpread) * 100 : null,
+    primeRate: apiData.primeRate ? Number(apiData.primeRate) * 100 : null,
     startDate: apiData.startDate ? new Date(apiData.startDate) : new Date(),
     amortizationValue: amortizationYears,
     amortizationUnit: 'years',

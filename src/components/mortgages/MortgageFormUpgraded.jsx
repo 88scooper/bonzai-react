@@ -8,6 +8,8 @@ import { useToast } from "@/context/ToastContext";
 import { useProperties } from "@/context/PropertyContext";
 import { mortgageSchema, transformMortgageFormData, transformMortgageApiData } from "@/lib/mortgage-validation";
 import { ArrowLeft, Save, X, Calculator, Loader2, AlertCircle, CheckCircle, Info, TrendingUp, TrendingDown } from "lucide-react";
+import { CANADIAN_PRIME_RATE, calculateEffectiveVariableRate } from "@/utils/mortgageConstants";
+import { calculateRenewalDate, getEffectiveInterestRate } from "@/utils/mortgageUtils";
 
 export default function MortgageFormUpgraded({ mortgage, onClose }) {
   const createMortgage = useCreateMortgage();
@@ -39,6 +41,7 @@ export default function MortgageFormUpgraded({ mortgage, onClose }) {
       interestRate: 0,
       rateType: 'FIXED',
       variableRateSpread: null,
+      primeRate: CANADIAN_PRIME_RATE,
       amortizationValue: 25,
       amortizationUnit: 'years',
       termValue: 5,
@@ -49,7 +52,7 @@ export default function MortgageFormUpgraded({ mortgage, onClose }) {
   });
 
   // Watch form values for payment calculation
-  const watchedValues = watch(['originalAmount', 'interestRate', 'rateType', 'amortizationValue', 'amortizationUnit', 'paymentFrequency']);
+  const watchedValues = watch(['originalAmount', 'interestRate', 'rateType', 'variableRateSpread', 'primeRate', 'amortizationValue', 'amortizationUnit', 'paymentFrequency', 'termValue', 'termUnit', 'startDate']);
 
   // Initialize form with existing mortgage data
   useEffect(() => {
@@ -75,19 +78,25 @@ export default function MortgageFormUpgraded({ mortgage, onClose }) {
 
   // Calculate payment and insights when relevant fields change
   useEffect(() => {
-    const [originalAmount, interestRate, rateType, amortizationValue, amortizationUnit, paymentFrequency] = watchedValues;
+    const [originalAmount, interestRate, rateType, variableRateSpread, primeRate, amortizationValue, amortizationUnit, paymentFrequency, termValue, termUnit, startDate] = watchedValues;
     
-    if (originalAmount > 0 && interestRate > 0 && amortizationValue > 0) {
+    // Calculate effective rate for variable mortgages
+    let effectiveRate = interestRate;
+    if (rateType === 'VARIABLE' && primeRate && variableRateSpread !== null && variableRateSpread !== undefined) {
+      effectiveRate = (primeRate + variableRateSpread);
+    }
+    
+    if (originalAmount > 0 && effectiveRate > 0 && amortizationValue > 0) {
       // Convert amortization to years for calculation
       const amortizationInYears = amortizationUnit === 'years' ? amortizationValue : amortizationValue / 12;
       
       calculatePayment({
         originalAmount,
-        interestRate: interestRate / 100, // Convert percentage to decimal
+        interestRate: effectiveRate / 100, // Convert percentage to decimal
         rateType,
         amortizationPeriodYears: amortizationInYears,
         paymentFrequency,
-        startDate: new Date(),
+        startDate: startDate || new Date(),
         termYears: amortizationInYears
       });
 
@@ -314,23 +323,60 @@ export default function MortgageFormUpgraded({ mortgage, onClose }) {
             )}
           </div>
 
-          {/* Variable Rate Spread (conditional) */}
+          {/* Variable Rate Fields (conditional) */}
           {watch('rateType') === 'VARIABLE' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Variable Rate Spread (%) (Optional)
-              </label>
-              <input
-                {...register('variableRateSpread', { valueAsNumber: true })}
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="-0.5 (for Prime - 0.5%)"
-              />
-              {errors.variableRateSpread && (
-                <p className="mt-1 text-sm text-red-600">{errors.variableRateSpread.message}</p>
-              )}
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Prime Rate (%) *
+                  <span className="text-xs text-gray-500 ml-2">(Current: {CANADIAN_PRIME_RATE}%)</span>
+                </label>
+                <input
+                  {...register('primeRate', { valueAsNumber: true })}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="20"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={CANADIAN_PRIME_RATE.toString()}
+                />
+                {errors.primeRate && (
+                  <p className="mt-1 text-sm text-red-600">{errors.primeRate.message}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Bank of Canada prime rate. Update when rates change.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Variable Rate Spread (%) (Optional)
+                </label>
+                <input
+                  {...register('variableRateSpread', { valueAsNumber: true })}
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="-0.5 (for Prime - 0.5%)"
+                />
+                {errors.variableRateSpread && (
+                  <p className="mt-1 text-sm text-red-600">{errors.variableRateSpread.message}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Your spread above/below prime (e.g., -0.5 means Prime - 0.5%)
+                </p>
+                {/* Effective Rate Display */}
+                {watch('primeRate') && watch('variableRateSpread') !== null && watch('variableRateSpread') !== undefined && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                    <p className="text-sm font-medium text-blue-900">
+                      Effective Rate: {(watch('primeRate') + (watch('variableRateSpread') || 0)).toFixed(2)}%
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      Prime ({watch('primeRate')}%) {watch('variableRateSpread') >= 0 ? '+' : ''} {watch('variableRateSpread')}% = {(watch('primeRate') + (watch('variableRateSpread') || 0)).toFixed(2)}%
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* Amortization Period */}
@@ -578,7 +624,7 @@ export default function MortgageFormUpgraded({ mortgage, onClose }) {
                 <Info className="w-5 h-5" />
                 Financial Summary
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
                 <div>
                   <p className="text-gray-600">Total Interest</p>
                   <p className="font-semibold text-gray-900">
@@ -598,6 +644,32 @@ export default function MortgageFormUpgraded({ mortgage, onClose }) {
                   </p>
                 </div>
               </div>
+              {/* Renewal Date */}
+              {watch('startDate') && watch('termValue') && watch('termUnit') && (
+                <div className="pt-4 border-t border-gray-300">
+                  <div className="flex items-center justify-between">
+                    <p className="text-gray-600">Renewal Date</p>
+                    <p className="font-semibold text-gray-900">
+                      {(() => {
+                        try {
+                          const startDate = watch('startDate');
+                          const termValue = watch('termValue');
+                          const termUnit = watch('termUnit');
+                          const termMonths = termUnit === 'years' ? termValue * 12 : termValue;
+                          const renewalDate = calculateRenewalDate(startDate || new Date(), termMonths);
+                          return new Date(renewalDate).toLocaleDateString('en-CA', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          });
+                        } catch (e) {
+                          return 'N/A';
+                        }
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -17,7 +17,7 @@
  * @param {Object} property - Property object with monthlyExpenses
  * @returns {number} Annual operating expenses
  */
-import { getMonthlyMortgagePayment, getMonthlyMortgageInterest } from './mortgageCalculator';
+import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getAnnualMortgageInterest } from './mortgageCalculator';
 
 const deriveMonthlyMortgagePayment = (property) => {
   if (!property) {
@@ -379,4 +379,47 @@ export function updatePropertyFinancialMetrics(property) {
     annualCashFlow,
     cashOnCashReturn
   };
+}
+
+/**
+ * Calculate annual tax savings from mortgage interest deduction
+ * Mortgage interest is tax-deductible for rental properties in Canada
+ * 
+ * @param {Object} property - Property object with mortgage
+ * @param {number} marginalTaxRate - Optional marginal tax rate as decimal (e.g., 0.40 for 40%)
+ *                                   If not provided, will estimate based on typical investor income
+ * @returns {number} Annual tax savings in dollars
+ */
+export function calculateAnnualTaxSavings(property, marginalTaxRate = null) {
+  if (!property || !property.mortgage) {
+    return 0;
+  }
+
+  try {
+    const annualInterest = getAnnualMortgageInterest(property.mortgage);
+    
+    // If tax rate not provided, estimate based on typical investor income
+    // Assume $150k annual income (middle-high bracket)
+    // Using simplified estimation - 40% combined federal + provincial (typical for $150k income)
+    const taxRate = marginalTaxRate ?? 0.40;
+    
+    return annualInterest * taxRate;
+  } catch (error) {
+    console.warn('Error calculating tax savings:', error);
+    return 0;
+  }
+}
+
+/**
+ * Calculate after-tax cash flow (cash flow + tax savings)
+ * 
+ * @param {Object} property - Property object
+ * @param {number} marginalTaxRate - Optional marginal tax rate as decimal
+ * @returns {number} After-tax annual cash flow
+ */
+export function calculateAfterTaxCashFlow(property, marginalTaxRate = null) {
+  const annualCashFlow = calculateAnnualCashFlow(property);
+  const taxSavings = calculateAnnualTaxSavings(property, marginalTaxRate);
+  
+  return annualCashFlow + taxSavings;
 }
