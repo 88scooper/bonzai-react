@@ -346,6 +346,12 @@ function PortfolioSummaryContent() {
 
   // Check for onboarding step 4 on mount
   useEffect(() => {
+    // Don't show onboarding modal in demo mode
+    if (isDemoMode) {
+      setShowOnboardingModal(false);
+      return;
+    }
+    
     // Check if onboarding is in progress and we should show step 4
     const onboardingInProgress = typeof window !== 'undefined' && 
       sessionStorage.getItem('onboarding_in_progress') === 'true';
@@ -355,11 +361,17 @@ function PortfolioSummaryContent() {
     if (onboardingInProgress && shouldShowStep4) {
       setShowOnboardingModal(true);
     }
-  }, []);
+  }, [isDemoMode]);
 
   // Check if onboarding is incomplete and show prompt
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    // Don't show onboarding prompt in demo mode
+    if (isDemoMode) {
+      setShowOnboardingPrompt(false);
+      return;
+    }
     
     // Check if there's a saved onboarding step (user partially completed onboarding)
     const savedStep = sessionStorage.getItem('onboarding_current_step');
@@ -423,7 +435,7 @@ function PortfolioSummaryContent() {
         setShowOnboardingPrompt(false);
       }
     }
-  }, [showOnboardingModal, properties]);
+  }, [showOnboardingModal, properties, isDemoMode]);
 
   // Check if annual assumptions review is needed
   useEffect(() => {
@@ -521,23 +533,29 @@ function PortfolioSummaryContent() {
   const totalMonthlyOperatingExpenses = portfolioMetrics.totalMonthlyOperatingExpenses || 0;
   const totalMonthlyDebtService = portfolioMetrics.totalMonthlyDebtService || 0;
   const totalMonthlyExpenses = portfolioMetrics.totalMonthlyExpenses || (totalMonthlyOperatingExpenses + totalMonthlyDebtService);
-  const totalAnnualOperatingExpenses = portfolioMetrics.totalAnnualOperatingExpenses || 0;
-  // Calculate annual debt service from actual + forecast
+  // Calculate annual values using calculateActualPlusForecast for consistency
+  // This ensures all calculations use the same method (actual + forecast)
   const totalAnnualDebtService = (properties || []).reduce((sum, property) => {
     const { annual } = calculateActualPlusForecast(property);
     return sum + annual.mortgagePayments;
   }, 0);
-
+  
+  const totalAnnualOperatingExpenses = (properties || []).reduce((sum, property) => {
+    const { annual } = calculateActualPlusForecast(property);
+    return sum + annual.operatingExpenses;
+  }, 0);
+  
+  const totalRevenue = (properties || []).reduce((sum, property) => {
+    const { annual } = calculateActualPlusForecast(property);
+    return sum + annual.income;
+  }, 0);
 
   // Calculate additional metrics
   const totalMortgageDebt = portfolioMetrics.totalMortgageBalance || 0;
 
-  // Calculate annual cash flow from actual + forecast
-  const annualCashFlow = (properties || []).reduce((sum, property) => {
-    const { annual } = calculateActualPlusForecast(property);
-    return sum + annual.cashFlow;
-  }, 0);
-    const totalRevenue = (portfolioMetrics.totalMonthlyRent || 0) * 12;
+  // Calculate annual cash flow from displayed values for consistency
+  // This ensures cash flow matches: Revenue - Operating Expenses - Debt Service
+  const annualCashFlow = totalRevenue - totalAnnualOperatingExpenses - totalAnnualDebtService;
     const netOperatingIncome = portfolioMetrics.netOperatingIncome || 0;
   const monthlyCashFlowValue = portfolioMetrics.totalMonthlyCashFlow || 0;
 
