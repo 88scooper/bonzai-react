@@ -1,6 +1,8 @@
 # Database Setup Guide
 
-This guide will help you set up the Neon Database for the Proplytics application.
+This guide will help you set up the Neon Database for the Bonzai application.
+
+**Note:** This is the Bonzai project (formerly Proplytics).
 
 ## Prerequisites
 
@@ -90,7 +92,7 @@ This will install the new dependencies:
    npm run dev
    ```
 
-2. Test the database connection by making a request to `/api/proplytics` (if that endpoint exists)
+2. Test the database connection by making a request to `/api/bonzai-test` (if that endpoint exists)
 
 3. Test authentication by registering a new user:
    ```bash

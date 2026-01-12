@@ -3,6 +3,7 @@ import { authenticateRequest } from '@/lib/auth-middleware';
 import { updatePropertySchema } from '@/lib/validations/property.schema';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { preventDemoModification } from '@/lib/demo-protection';
 
 interface Property {
   id: string;
@@ -119,6 +120,12 @@ export async function PATCH(
       );
     }
 
+    // Prevent modifications to demo accounts
+    const demoCheck = await preventDemoModification(id, true);
+    if (demoCheck) {
+      return demoCheck;
+    }
+
     // Parse request body
     const body = await request.json();
 
@@ -210,6 +217,12 @@ export async function DELETE(
         createErrorResponse('Property not found', 404),
         { status: 404 }
       );
+    }
+
+    // Prevent modifications to demo accounts
+    const demoCheck = await preventDemoModification(id, true);
+    if (demoCheck) {
+      return demoCheck;
     }
 
     // Delete property (CASCADE will delete related mortgages and expenses)

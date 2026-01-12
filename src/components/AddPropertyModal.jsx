@@ -9,11 +9,17 @@ import apiClient from "@/lib/api-client";
 import PropertyForm from "@/components/onboarding/PropertyForm";
 
 export default function AddPropertyModal({ isOpen, onClose }) {
-  const { currentAccountId, refreshAccounts } = useAccount();
+  const { currentAccountId, currentAccount, refreshAccounts } = useAccount();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
 
   const handleAddProperty = async (propertyData) => {
+    // Prevent modifications to demo accounts
+    if (currentAccount?.isDemo) {
+      addToast("Cannot add properties to demo account. Demo accounts are read-only.", { type: "error" });
+      return;
+    }
+
     if (!currentAccountId) {
       addToast("Please select an account first", { type: "error" });
       return;
@@ -97,7 +103,13 @@ export default function AddPropertyModal({ isOpen, onClose }) {
 
         {/* Content - Scrollable */}
         <div className="overflow-y-auto flex-1 p-6">
-          {!currentAccountId ? (
+          {currentAccount?.isDemo ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Demo accounts are read-only. Please sign up to create your own portfolio and add properties.
+              </p>
+            </div>
+          ) : !currentAccountId ? (
             <div className="text-center py-8">
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Please select an account first to add a property.

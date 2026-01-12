@@ -4,6 +4,7 @@ import { createExpenseSchema } from '@/lib/validations/expense.schema';
 import { sql } from '@/lib/db';
 import { parsePaginationParams, createPaginatedResponse, getOffset } from '@/lib/pagination';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { preventDemoModification } from '@/lib/demo-protection';
 
 interface Expense {
   id: string;
@@ -125,6 +126,12 @@ export async function POST(
         createErrorResponse('Property not found', 404),
         { status: 404 }
       );
+    }
+
+    // Prevent modifications to demo accounts
+    const demoCheck = await preventDemoModification(propertyId, true);
+    if (demoCheck) {
+      return demoCheck;
     }
 
     // Parse request body

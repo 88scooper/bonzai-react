@@ -3,6 +3,7 @@ import { authenticateRequest } from '@/lib/auth-middleware';
 import { updateAccountSchema } from '@/lib/validations/account.schema';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { preventDemoModification } from '@/lib/demo-protection';
 
 interface Account {
   id: string;
@@ -99,6 +100,12 @@ export async function PATCH(
     }
 
     const updateData = validationResult.data;
+
+    // Prevent modifications to demo accounts
+    const demoCheck = await preventDemoModification(id, false);
+    if (demoCheck) {
+      return demoCheck;
+    }
 
     // Build dynamic UPDATE query using sql template
     if (updateData.name !== undefined && updateData.email !== undefined) {
