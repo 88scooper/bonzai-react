@@ -20,6 +20,24 @@ const getYearFromDateString = (value) => {
   return match ? Number(match[1]) : NaN;
 };
 
+// Helper function to get month (0-11) from date string
+const getMonthFromDateString = (value) => {
+  if (!value) return NaN;
+  try {
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      return date.getMonth();
+    }
+  } catch (e) {
+    // If parsing fails, try to extract from YYYY-MM-DD format
+    const match = String(value).match(/^\d{4}-(\d{2})/);
+    if (match) {
+      return parseInt(match[1]) - 1; // Convert to 0-based month
+    }
+  }
+  return NaN;
+};
+
 // Helper function to format date to YYYY-MM-DD (removes time component)
 const formatDateOnly = (dateValue) => {
   if (!dateValue) return "N/A";
@@ -173,6 +191,101 @@ function getMortgageAmountsForYear(property, year) {
   }
 }
 
+// Calculate monthly breakdown for a given year using only database entries
+function getMonthlyBreakdownForYear(property, year, expenseBreakdown, EXPENSE_CODES) {
+  const targetYear = parseInt(year);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Initialize monthly data structure
+  const monthlyData = {};
+  months.forEach(month => {
+    monthlyData[month] = {};
+  });
+  
+  // Use the fixed category order for the modal (Rent first, then expense categories)
+  const allCategories = [
+    'Rent',
+    'Advertising',
+    'Insurance',
+    'Interest & Bank Charges',
+    'Office Expenses',
+    'Professional Fees',
+    'Management & Administration',
+    'Repairs & Maintenance',
+    'Salaries, Wages, and Benefits',
+    'Property Taxes',
+    'Travel',
+    'Utilities',
+    'Motor Vehicle Expenses',
+    'Other Expenses',
+    'Condo Maintenance Fees',
+    'Mortgage (Principal)'
+  ];
+  
+  // Get all expense categories from expenseHistory for this year
+  const yearExpenses = (property.expenseHistory || [])
+    .filter(expense => {
+      const expenseYear = getYearFromDateString(expense.date);
+      return expenseYear === targetYear && expense.category;
+    });
+  
+  // Process income (Rent) from incomeHistory
+  const yearIncomeEntries = (property.incomeHistory || [])
+    .filter(income => {
+      const incomeYear = getYearFromDateString(income.date);
+      return incomeYear === targetYear;
+    });
+  
+  if (yearIncomeEntries.length > 0) {
+    const monthlyIncome = Array(12).fill(0);
+    yearIncomeEntries.forEach(income => {
+      const incomeMonth = getMonthFromDateString(income.date);
+      if (!isNaN(incomeMonth) && incomeMonth >= 0 && incomeMonth < 12) {
+        monthlyIncome[incomeMonth] += income.amount || 0;
+      }
+    });
+    
+    // Add Rent to monthly data
+    months.forEach((month, index) => {
+      monthlyData[month]['Rent'] = {
+        amount: parseFloat(monthlyIncome[index].toFixed(2)),
+        code: null // Rent doesn't have a code
+      };
+    });
+  }
+  
+  // Process expenses from expenseHistory - group by category and month
+  allCategories.forEach(category => {
+    if (category === 'Rent') return; // Already handled
+    
+    const code = EXPENSE_CODES[category] || null;
+    const categoryExpenses = yearExpenses.filter(expense => expense.category === category);
+    
+    if (categoryExpenses.length === 0) return; // Skip if no expenses for this category
+    
+    // Initialize monthly amounts for this category
+    const monthlyAmounts = Array(12).fill(0);
+    
+    // Group expenses by month
+    categoryExpenses.forEach(expense => {
+      const expenseMonth = getMonthFromDateString(expense.date);
+      if (!isNaN(expenseMonth) && expenseMonth >= 0 && expenseMonth < 12) {
+        monthlyAmounts[expenseMonth] += expense.amount || 0;
+      }
+    });
+    
+    // Add to monthly data
+    months.forEach((month, index) => {
+      monthlyData[month][category] = {
+        amount: parseFloat(monthlyAmounts[index].toFixed(2)),
+        code: code
+      };
+    });
+  });
+  
+  return { monthlyData, months, allCategories };
+}
+
 function getAvailableYears(property) {
   const years = new Set();
   const currentYear = new Date().getFullYear();
@@ -227,11 +340,19 @@ function DataRow({ label, value, isBold = false }) {
 }
 
 // Historical Data Display Component
-function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSelectedYear, onYearChange, isEditing = false, editedData = null, onUpdateExpense = null, onUpdateIncome = null, onUpdatePaymentFrequency = null, onUpdateForecastMode = null }) {
+function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSelectedYear, onYearChange, isEditing = false, editedData = null, onUpdateExpense = null, onUpdateIncome = null, onUpdatePaymentFrequency = null, onUpdateForecastMode = null, onUpdateMonthlyIncome = null, onUpdateMonthlyExpense = null }) {
   const availableYears = [...getAvailableYears(property)].sort((a, b) => a - b);
   const [hoveredYear, setHoveredYear] = useState(null);
   // Local state for input values to prevent focus loss during typing
   const [inputValues, setInputValues] = useState({});
+  // State for monthly breakdown modal
+  const [selectedYearForModal, setSelectedYearForModal] = useState(null);
+  // State for edit mode in monthly modal
+  const [isModalEditing, setIsModalEditing] = useState(false);
+  // Local state for modal input values
+  const [modalInputValues, setModalInputValues] = useState({});
+  // State for collapsed rows in modal
+  const [collapsedModalRows, setCollapsedModalRows] = useState(new Set());
   // State for resizable column widths (default 120px for years, 100px for Code, 140px for Payment Frequency, 200px for Category)
   const [columnWidths, setColumnWidths] = useState({
     category: 200,
@@ -576,6 +697,28 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
     }
   }, [showColumnSettings]);
 
+  // Calculate monthly breakdown for modal
+  let monthlyBreakdownData = null;
+  let monthlyData = null;
+  let months = null;
+  let allCategories = null;
+  if (selectedYearForModal) {
+    const snapshot = snapshots.find(s => s.year === selectedYearForModal);
+    if (snapshot) {
+      monthlyBreakdownData = getMonthlyBreakdownForYear(
+        dataSource,
+        selectedYearForModal,
+        snapshot.expenseBreakdown,
+        EXPENSE_CODES
+      );
+      if (monthlyBreakdownData) {
+        monthlyData = monthlyBreakdownData.monthlyData;
+        months = monthlyBreakdownData.months;
+        allCategories = monthlyBreakdownData.allCategories;
+      }
+    }
+  }
+
   return (
     <div className="overflow-x-auto">
       {/* Column Settings Button */}
@@ -701,14 +844,19 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                 onMouseEnter={() => setHoveredYear(snapshot.year)}
                 onMouseLeave={() => setHoveredYear(null)}
               >
-                <div className="flex items-center justify-end pr-2">
+                <button
+                  onClick={() => setSelectedYearForModal(snapshot.year)}
+                  className="flex items-center justify-end pr-2 w-full hover:text-[#205A3E] dark:hover:text-[#4ade80] transition-colors cursor-pointer"
+                  title="Click to view monthly breakdown"
+                >
                   {snapshot.year}
-                </div>
+                </button>
                 <div
                   className="absolute top-0 right-0 w-3 h-full cursor-col-resize hover:bg-[#205A3E] hover:opacity-50 transition-colors z-20 flex items-center justify-center"
                   onMouseDown={(e) => handleResizeStart(e, snapshot.year)}
                   style={{ cursor: 'col-resize' }}
                   title="Drag to resize column"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div className="w-0.5 h-6 bg-gray-300 dark:bg-gray-600 group-hover:bg-[#205A3E] transition-colors" />
                 </div>
@@ -1217,6 +1365,209 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
           </tr>
         </tbody>
       </table>
+      
+      {/* Monthly Breakdown Modal */}
+      {selectedYearForModal && monthlyData && months && allCategories && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" onClick={() => setSelectedYearForModal(null)}>
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-6 w-full max-w-[1749px] mx-4 max-h-[90vh] overflow-hidden flex flex-col border-2 border-[#205A3E]" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    Monthly Breakdown - {selectedYearForModal}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {isModalEditing ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setIsModalEditing(false);
+                            setModalInputValues({});
+                          }}
+                          className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          title="Cancel editing"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            // Trigger save - the changes are already saved via onBlur handlers
+                            // Close edit mode and refresh data
+                            setIsModalEditing(false);
+                            setModalInputValues({});
+                            // Force a refresh by closing and reopening modal, or trigger parent save
+                            if (isEditing && onUpdateIncome) {
+                              // If we're in edit mode, changes are already in editedData
+                              // The parent component's handleSave will save to database
+                            }
+                          }}
+                          className="p-2 text-[#205A3E] hover:text-[#2a7050]"
+                          title="Save changes"
+                        >
+                          <Save className="w-5 h-5" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setIsModalEditing(true)}
+                        className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        title="Edit monthly data"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setSelectedYearForModal(null);
+                        setIsModalEditing(false);
+                        setModalInputValues({});
+                      }}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="overflow-auto flex-1">
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
+                      <tr className="border-b border-gray-300 dark:border-gray-700">
+                        <th className="py-2 px-4 text-left font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-white dark:bg-gray-900 z-20 min-w-[200px]">
+                          Category
+                        </th>
+                        <th className="py-2 px-4 text-left font-semibold text-gray-700 dark:text-gray-200 sticky left-[200px] bg-white dark:bg-gray-900 z-20 min-w-[100px]">
+                          Code
+                        </th>
+                        {months.map((month) => (
+                          <th key={month} className="py-2 px-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[100px]">
+                            {month}
+                          </th>
+                        ))}
+                        <th className="py-2 px-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[120px]">
+                          Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {allCategories.map((category) => {
+                        const categoryCode = category === 'Rent' ? null : (EXPENSE_CODES[category] || null);
+                        const monthlyTotals = months.reduce((sum, month) => {
+                          const monthData = monthlyData[month][category];
+                          return sum + (monthData?.amount || 0);
+                        }, 0);
+                        const isCollapsed = collapsedModalRows.has(category);
+                        
+                        // Toggle row collapse
+                        const toggleModalRowCollapse = () => {
+                          setCollapsedModalRows(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(category)) {
+                              newSet.delete(category);
+                            } else {
+                              newSet.add(category);
+                            }
+                            return newSet;
+                          });
+                        };
+                        
+                        // If collapsed, show only the category row
+                        if (isCollapsed) {
+                          return (
+                            <tr key={category} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer" onClick={toggleModalRowCollapse}>
+                              <td 
+                                colSpan={2 + months.length + 1}
+                                className="py-2 px-4 text-gray-600 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-900 z-10"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                                  <span className="text-sm opacity-70 italic">{category} (hidden)</span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+                        
+                        return (
+                          <tr key={category} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                            <td className="py-2 px-4 text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-900 z-10">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={toggleModalRowCollapse}
+                                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                                  title="Hide row"
+                                >
+                                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                                </button>
+                                <span>{category}</span>
+                              </div>
+                            </td>
+                            <td className="py-2 px-4 text-gray-500 dark:text-gray-400 sticky left-[200px] bg-white dark:bg-gray-900 z-10">
+                              {categoryCode || '—'}
+                            </td>
+                            {months.map((month) => {
+                              const monthData = monthlyData[month][category];
+                              const amount = monthData?.amount || 0;
+                              const inputKey = `modal-${category}-${month}`;
+                              const displayValue = modalInputValues[inputKey] !== undefined ? modalInputValues[inputKey] : amount;
+                              const hasValue = isModalEditing ? (parseFloat(displayValue) > 0) : amount > 0;
+                              
+                              return (
+                                <td key={month} className={`py-2 px-3 text-right ${hasValue ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
+                                  {isModalEditing && (category === 'Rent' ? onUpdateMonthlyIncome : onUpdateMonthlyExpense) ? (
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={displayValue}
+                                      onChange={(e) => {
+                                        const inputValue = e.target.value;
+                                        setModalInputValues(prev => ({
+                                          ...prev,
+                                          [inputKey]: inputValue
+                                        }));
+                                      }}
+                                      onBlur={(e) => {
+                                        const inputValue = e.target.value;
+                                        setModalInputValues(prev => {
+                                          const newState = { ...prev };
+                                          delete newState[inputKey];
+                                          return newState;
+                                        });
+                                        const newValue = parseFloat(inputValue);
+                                        if (!isNaN(newValue)) {
+                                          const roundedValue = parseFloat(newValue.toFixed(2));
+                                          if (category === 'Rent' && onUpdateMonthlyIncome) {
+                                            onUpdateMonthlyIncome(selectedYearForModal, month, roundedValue);
+                                          } else if (category !== 'Rent' && onUpdateMonthlyExpense) {
+                                            onUpdateMonthlyExpense(category, selectedYearForModal, month, roundedValue);
+                                          }
+                                        }
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.target.blur();
+                                        }
+                                      }}
+                                      className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] text-right ${hasValue ? 'bg-green-50 dark:bg-green-900/20' : 'bg-white dark:bg-gray-900'}`}
+                                    />
+                                  ) : (
+                                    <span className="text-gray-900 dark:text-gray-100">
+                                      ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className={`py-2 px-3 text-right font-semibold text-gray-900 dark:text-gray-100 ${monthlyTotals > 0 ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
+                              ${monthlyTotals.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+      )}
     </div>
   );
 }
@@ -1475,6 +1826,99 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
       return {
         ...base,
         incomeHistory: updatedIncomeHistory
+      };
+    });
+  };
+
+  // Function to update monthly income for a specific month
+  const updateMonthlyIncome = (year, monthName, amount) => {
+    setEditedData(prev => {
+      const base = prev && Object.keys(prev).length > 0 ? prev : clonePropertyData(property);
+      
+      if (!base.incomeHistory) {
+        base.incomeHistory = [];
+      }
+      
+      const targetYear = parseInt(year);
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIndex = monthNames.indexOf(monthName);
+      if (monthIndex === -1) return base;
+      
+      const monthNumber = String(monthIndex + 1).padStart(2, '0');
+      const targetDate = `${targetYear}-${monthNumber}-01`;
+      const numAmount = parseFloat(amount) || 0;
+      const roundedAmount = parseFloat(numAmount.toFixed(2));
+      
+      // Remove existing income record for this specific month
+      const updatedIncomeHistory = base.incomeHistory.filter(income => {
+        const incomeYear = getYearFromDateString(income.date);
+        const incomeMonth = getMonthFromDateString(income.date);
+        return !(incomeYear === targetYear && incomeMonth === monthIndex);
+      });
+      
+      // If amount is greater than 0, add a new income record for this month
+      if (roundedAmount > 0) {
+        const newIncome = {
+          date: targetDate,
+          amount: roundedAmount,
+          source: 'manual'
+        };
+        updatedIncomeHistory.push(newIncome);
+      }
+      
+      return {
+        ...base,
+        incomeHistory: updatedIncomeHistory
+      };
+    });
+  };
+
+  // Function to update monthly expense for a category and specific month
+  const updateMonthlyExpense = (category, year, monthName, amount) => {
+    setEditedData(prev => {
+      const base = prev && Object.keys(prev).length > 0 ? prev : clonePropertyData(property);
+      const expenseHistory = base.expenseHistory || [];
+      
+      const targetYear = parseInt(year);
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIndex = monthNames.indexOf(monthName);
+      if (monthIndex === -1) return base;
+      
+      const monthNumber = String(monthIndex + 1).padStart(2, '0');
+      const targetDate = `${targetYear}-${monthNumber}-01`;
+      const numAmount = parseFloat(amount) || 0;
+      const roundedAmount = parseFloat(numAmount.toFixed(2));
+      
+      // Remove existing expense record for this category/month
+      const updatedExpenseHistory = expenseHistory.filter(expense => {
+        const expenseYear = getYearFromDateString(expense.date);
+        const expenseMonth = getMonthFromDateString(expense.date);
+        return !(expenseYear === targetYear && expenseMonth === monthIndex && expense.category === category);
+      });
+      
+      // If amount is greater than 0, add a new expense record for this month
+      if (roundedAmount > 0) {
+        const existingExpense = expenseHistory.find(expense => {
+          const expenseYear = getYearFromDateString(expense.date);
+          const expenseMonth = getMonthFromDateString(expense.date);
+          return expenseYear === targetYear && expenseMonth === monthIndex && expense.category === category;
+        });
+        
+        const newExpense = {
+          date: targetDate,
+          amount: roundedAmount,
+          category: category,
+          description: existingExpense?.description || null,
+          expenseData: existingExpense?.expenseData || {
+            paymentFrequency: 'Monthly'
+          }
+        };
+        updatedExpenseHistory.push(newExpense);
+      }
+      
+      return {
+        ...base,
+        expenseHistory: updatedExpenseHistory
       };
     });
   };
@@ -1789,6 +2233,8 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
             onUpdateIncome={updateIncome}
             onUpdatePaymentFrequency={updatePaymentFrequency}
             onUpdateForecastMode={updateForecastMode}
+            onUpdateMonthlyIncome={updateMonthlyIncome}
+            onUpdateMonthlyExpense={updateMonthlyExpense}
           />
         </div>
       </Section>
