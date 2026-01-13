@@ -99,7 +99,7 @@ export default function AmortizationSchedule({ mortgage, propertyName, onClose }
   // Loading state
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#205A3E] mx-auto mb-4"></div>
@@ -116,7 +116,7 @@ export default function AmortizationSchedule({ mortgage, propertyName, onClose }
   // Empty state
   if (!mortgage) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-4">No Mortgage Selected</h3>
@@ -138,7 +138,7 @@ export default function AmortizationSchedule({ mortgage, propertyName, onClose }
   // Error state
   if (!schedule) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-4">Unable to Calculate Schedule</h3>
@@ -158,7 +158,7 @@ export default function AmortizationSchedule({ mortgage, propertyName, onClose }
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
