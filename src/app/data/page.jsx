@@ -353,11 +353,10 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
   const [modalInputValues, setModalInputValues] = useState({});
   // State for collapsed rows in modal
   const [collapsedModalRows, setCollapsedModalRows] = useState(new Set());
-  // State for resizable column widths (default 120px for years, 100px for Code, 140px for Payment Frequency, 200px for Category)
+  // State for resizable column widths (default 120px for years, 100px for Code, 200px for Category)
   const [columnWidths, setColumnWidths] = useState({
     category: 200,
-    code: 100,
-    paymentFrequency: 140
+    code: 100
   });
   const [isResizing, setIsResizing] = useState(null);
   // Use refs to avoid stale closure issues in event handlers
@@ -552,8 +551,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
     let currentWidth;
     if (columnId === 'code') {
       currentWidth = columnWidths.code || 100;
-    } else if (columnId === 'paymentFrequency') {
-      currentWidth = columnWidths.paymentFrequency || 140;
     } else if (columnId === 'category') {
       currentWidth = columnWidths.category || 200;
     } else {
@@ -644,14 +641,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
       // Category is always visible, so add its width
       left = columnWidths.category || 200;
       return left;
-    } else if (columnType === 'paymentFrequency') {
-      // Category is always visible
-      left += columnWidths.category || 200;
-      // Add code width if visible
-      if (isColumnVisible('code')) {
-        left += columnWidths.code || 100;
-      }
-      return left;
     }
     return 0;
   };
@@ -672,8 +661,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
   const getColumnWidth = (columnId) => {
     if (columnId === 'code') {
       return columnWidths.code || 100;
-    } else if (columnId === 'paymentFrequency') {
-      return columnWidths.paymentFrequency || 140;
     } else if (columnId === 'category') {
       return columnWidths.category || 200;
     }
@@ -748,17 +735,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                 />
                 <span className="text-gray-700 dark:text-gray-300">Code</span>
               </label>
-              <label
-                className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-sm border-b border-gray-200 dark:border-gray-700 pb-2 mb-1"
-              >
-                <input
-                  type="checkbox"
-                  checked={isColumnVisible('paymentFrequency')}
-                  onChange={() => toggleColumnVisibility('paymentFrequency')}
-                  className="rounded border-gray-300 dark:border-gray-600 text-[#205A3E] focus:ring-[#205A3E]"
-                />
-                <span className="text-gray-700 dark:text-gray-300">Payment Frequency</span>
-              </label>
               {/* Year columns */}
               {snapshots.map(snapshot => (
                 <label
@@ -809,26 +785,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                 <div
                   className="absolute top-0 right-0 w-3 h-full cursor-col-resize hover:bg-[#205A3E] hover:opacity-50 transition-colors z-20 flex items-center justify-center"
                   onMouseDown={(e) => handleResizeStart(e, 'code')}
-                  style={{ cursor: 'col-resize' }}
-                  title="Drag to resize column"
-                >
-                  <div className="w-0.5 h-6 bg-gray-300 dark:bg-gray-600 group-hover:bg-[#205A3E] transition-colors" />
-                </div>
-              </th>
-            )}
-            {isColumnVisible('paymentFrequency') && (
-              <th 
-                className="py-2 pr-4 font-semibold text-gray-700 dark:text-gray-200 sticky bg-white dark:bg-gray-900 z-10 relative group"
-                style={{ 
-                  left: `${getStickyLeft('paymentFrequency')}px`,
-                  width: getColumnWidth('paymentFrequency'),
-                  minWidth: '60px'
-                }}
-              >
-                <div className="flex items-center pr-2">Payment Frequency</div>
-                <div
-                  className="absolute top-0 right-0 w-3 h-full cursor-col-resize hover:bg-[#205A3E] hover:opacity-50 transition-colors z-20 flex items-center justify-center"
-                  onMouseDown={(e) => handleResizeStart(e, 'paymentFrequency')}
                   style={{ cursor: 'col-resize' }}
                   title="Drag to resize column"
                 >
@@ -890,17 +846,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
               style={{ left: `${getStickyLeft('code')}px`, width: getColumnWidth('code') }}
               >
                 {/* Empty cell for Rent - Code does not apply */}
-              </td>
-            )}
-            {isColumnVisible('paymentFrequency') && (
-              <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky bg-white dark:bg-gray-900 z-10 ${
-                visibleSnapshots.some(s => isColumnHovered(s.year)) 
-                  ? 'bg-amber-50 dark:bg-amber-900/20' 
-                  : ''
-              }`}
-              style={{ left: `${getStickyLeft('paymentFrequency')}px`, width: getColumnWidth('paymentFrequency') }}
-              >
-                {/* Empty cell for Rent - Payment Frequency does not apply */}
               </td>
             )}
             {visibleSnapshots.map(snapshot => {
@@ -1013,7 +958,7 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
               return (
                 <tr key={`category-${category}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer" onClick={() => toggleRowCollapse(category)}>
                   <td 
-                    colSpan={1 + (isColumnVisible('code') ? 1 : 0) + (isColumnVisible('paymentFrequency') ? 1 : 0) + visibleSnapshots.length + (showForecastMode ? 1 : 0)} 
+                    colSpan={1 + (isColumnVisible('code') ? 1 : 0) + visibleSnapshots.length + (showForecastMode ? 1 : 0)} 
                     className={`py-1.5 px-4 text-gray-600 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-900 z-10 border-b border-gray-200 dark:border-gray-700 ${
                     visibleSnapshots.some(s => isColumnHovered(s.year)) 
                       ? 'bg-amber-50 dark:bg-amber-900/20' 
@@ -1058,33 +1003,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                   style={{ left: `${getStickyLeft('code')}px`, width: getColumnWidth('code') }}
                   >
                     {EXPENSE_CODES[category] || '—'}
-                  </td>
-                )}
-                {isColumnVisible('paymentFrequency') && (
-                  <td className={`py-2 pr-4 text-gray-500 dark:text-gray-400 sticky bg-white dark:bg-gray-900 z-10 ${
-                    visibleSnapshots.some(s => isColumnHovered(s.year)) 
-                      ? 'bg-amber-50 dark:bg-amber-900/20' 
-                      : ''
-                  }`}
-                  style={{ left: `${getStickyLeft('paymentFrequency')}px`, width: getColumnWidth('paymentFrequency') }}
-                  >
-                    {isEditing && onUpdatePaymentFrequency ? (
-                      <select
-                        value={paymentFrequency}
-                        onChange={(e) => onUpdatePaymentFrequency(category, e.target.value)}
-                        disabled={category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)'}
-                        className={`w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] ${
-                          (category === 'Interest & Bank Charges' || category === 'Mortgage (Principal)') 
-                            ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-75' 
-                            : ''
-                        }`}
-                      >
-                        <option value="Annual">Annual</option>
-                        <option value="Monthly">Monthly</option>
-                      </select>
-                    ) : (
-                      paymentFrequency
-                    )}
                   </td>
                 )}
                 {visibleSnapshots.map(snapshot => {
@@ -1230,17 +1148,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                 {/* Empty cell for total row */}
               </td>
             )}
-            {isColumnVisible('paymentFrequency') && (
-              <td className={`py-2 pr-4 sticky bg-white dark:bg-gray-900 z-10 ${
-                visibleSnapshots.some(s => isColumnHovered(s.year)) 
-                  ? 'bg-amber-50 dark:bg-amber-900/20' 
-                  : ''
-              }`}
-              style={{ left: `${getStickyLeft('paymentFrequency')}px`, width: getColumnWidth('paymentFrequency') }}
-              >
-                {/* Empty cell for total row */}
-              </td>
-            )}
             {visibleSnapshots.map(snapshot => {
               // For current year, recalculate total expenses if any categories are in automatic mode
               let displayExpenses = snapshot.expenses;
@@ -1306,17 +1213,6 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
                   : ''
               }`}
               style={{ left: `${getStickyLeft('code')}px`, width: getColumnWidth('code') }}
-              >
-                {/* Empty cell for net income row */}
-              </td>
-            )}
-            {isColumnVisible('paymentFrequency') && (
-              <td className={`py-2 pr-4 sticky bg-white dark:bg-gray-900 z-10 ${
-                visibleSnapshots.some(s => isColumnHovered(s.year)) 
-                  ? 'bg-amber-50 dark:bg-amber-900/20' 
-                  : ''
-              }`}
-              style={{ left: `${getStickyLeft('paymentFrequency')}px`, width: getColumnWidth('paymentFrequency') }}
               >
                 {/* Empty cell for net income row */}
               </td>
