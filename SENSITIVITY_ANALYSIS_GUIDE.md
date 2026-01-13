@@ -239,5 +239,5 @@ Equity = Property Value - Mortgage Balance
 
 This sensitivity analysis tool provides users with powerful insights into how different market conditions and assumptions impact their real estate investments. The implementation follows React best practices, maintains design consistency with the existing application, and provides an intuitive, professional user experience.
 
-**Built with ❤️ for Proplytics**
+**Built with ❤️ for Bonzai**
 

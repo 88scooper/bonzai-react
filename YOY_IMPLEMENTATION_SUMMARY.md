@@ -261,4 +261,4 @@ The implementation seamlessly integrates with the existing sensitivity analysis 
 
 ---
 
-**Built with ❤️ for Proplytics - Advanced Real Estate Analytics**
+**Built with ❤️ for Bonzai - Advanced Real Estate Analytics**

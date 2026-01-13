@@ -16,7 +16,7 @@ export function getAllAccounts() {
       const demoAccount = {
         id: 'demo-account',
         name: 'Demo Account',
-        email: 'demo@bonzia.com',
+        email: 'demo@bonzai.com',
         createdAt: new Date().toISOString(),
         isDemo: true
       };
@@ -153,7 +153,7 @@ export function initializeDemoAccount(properties) {
   const demoAccount = {
     id: demoAccountId,
     name: 'Demo Account',
-    email: 'demo@proplytics.com',
+    email: 'demo@bonzai.com',
     createdAt: new Date().toISOString(),
     isDemo: true
   };

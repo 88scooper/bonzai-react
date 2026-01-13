@@ -201,4 +201,4 @@ Users now have access to accurate Cash on Cash Return calculations in all proper
 
 ---
 
-**Built with ❤️ for Proplytics - Reliable Real Estate Analytics**
+**Built with ❤️ for Bonzai - Reliable Real Estate Analytics**

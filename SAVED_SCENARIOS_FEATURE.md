@@ -350,5 +350,5 @@ The saved scenarios feature transforms the sensitivity analysis tool into a comp
 
 ---
 
-**Built with ❤️ for Proplytics** - Making real estate investment analysis more powerful and accessible.
+**Built with ❤️ for Bonzai** - Making real estate investment analysis more powerful and accessible.
 

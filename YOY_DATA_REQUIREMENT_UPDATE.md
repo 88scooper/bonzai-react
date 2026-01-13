@@ -250,4 +250,4 @@ The implementation ensures that YoY analysis is both accurate and transparent, b
 
 ---
 
-**Built with ❤️ for Proplytics - Professional Real Estate Analytics**
+**Built with ❤️ for Bonzai - Professional Real Estate Analytics**
