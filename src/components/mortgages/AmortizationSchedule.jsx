@@ -9,23 +9,29 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 export default function AmortizationSchedule({ mortgage, propertyName, onClose }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [schedule, setSchedule] = useState(null);
   const downloadMenuRef = useRef(null);
   const parentRef = useRef(null);
   const paymentsPerPage = 12; // Show 12 payments per page (1 year)
 
   // Calculate amortization schedule with loading state
-  const schedule = useMemo(() => {
-    if (!mortgage) return null;
+  useEffect(() => {
+    if (!mortgage) {
+      setSchedule(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = calculateAmortizationSchedule(mortgage);
-      setIsLoading(false);
-      return result;
+      setSchedule(result);
     } catch (error) {
       console.error("Error calculating amortization schedule:", error);
+      setSchedule(null);
+    } finally {
       setIsLoading(false);
-      return null;
     }
   }, [mortgage]);
 

@@ -5,10 +5,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { ChevronDown, ChevronUp, Calendar, Edit2 } from 'lucide-react';
 import { formatCurrency, formatPercentage } from '@/utils/formatting';
 import { calculateAmortizationSchedule } from '@/utils/mortgageCalculator';
+import AmortizationSchedule from './AmortizationSchedule';
 
 const MortgageCardView = ({ mortgage, onEdit }) => {
   const [showAmortizationSchedule, setShowAmortizationSchedule] = useState(false);
   const [showMortgageDetails, setShowMortgageDetails] = useState(false);
+  const [showCompleteScheduleModal, setShowCompleteScheduleModal] = useState(false);
   // Calculate mortgage data
   const mortgageData = useMemo(() => {
     if (!mortgage) return null;
@@ -472,7 +474,7 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
                       Showing first 12 of {mortgageData.schedule.length} payments
                     </p>
                     <button
-                      onClick={() => setShowAmortizationSchedule(false)}
+                      onClick={() => setShowCompleteScheduleModal(true)}
                       className="px-4 py-2 bg-[#205A3E] text-white rounded-lg hover:bg-[#2d7a5a] transition-colors text-sm"
                     >
                       View Complete Schedule
@@ -484,6 +486,15 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
           </div>
         )}
       </div>
+
+      {/* Complete Amortization Schedule Modal */}
+      {showCompleteScheduleModal && (
+        <AmortizationSchedule
+          mortgage={mortgageObj}
+          propertyName={mortgage.property?.address || mortgage.propertyName || 'Property'}
+          onClose={() => setShowCompleteScheduleModal(false)}
+        />
+      )}
     </div>
   );
 };
