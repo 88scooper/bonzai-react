@@ -146,7 +146,7 @@ export async function PATCH(
 
     // Build dynamic UPDATE query - this is simplified, in production you'd want a more robust solution
     // For now, we'll update all fields that are provided
-    const result = await sql`
+    const resultRaw = await sql`
       UPDATE properties
       SET 
         nickname = COALESCE(${updateData.nickname || null}, nickname),
@@ -167,7 +167,8 @@ export async function PATCH(
                  closing_costs, renovation_costs, initial_renovations, current_market_value,
                  year_built, property_type, size, unit_config, property_data,
                  created_at, updated_at
-    ` as Property[];
+    `;
+    const result = resultRaw as Property[];
 
     if (!result[0]) {
       return NextResponse.json(

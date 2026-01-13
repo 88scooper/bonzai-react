@@ -8,12 +8,13 @@ import { sql } from '@/lib/db';
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Find demo account (is_demo = true)
-    const demoAccountResult = await sql`
+    const demoAccountResultRaw = await sql`
       SELECT id, name, email, is_demo, created_at, updated_at
       FROM accounts
       WHERE is_demo = true
       LIMIT 1
-    ` as Array<{
+    `;
+    const demoAccountResult = demoAccountResultRaw as Array<{
       id: string;
       name: string;
       email: string | null;
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const demoAccount = demoAccountResult[0];
 
     // Get properties for demo account
-    const propertiesResult = await sql`
+    const propertiesResultRaw = await sql`
       SELECT id, account_id, nickname, address, purchase_price, purchase_date,
              closing_costs, renovation_costs, initial_renovations, current_market_value,
              year_built, property_type, size, unit_config, property_data,
@@ -40,32 +41,35 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       FROM properties
       WHERE account_id = ${demoAccount.id}
       ORDER BY created_at DESC
-    ` as Array<any>;
+    `;
+    const propertiesResult = propertiesResultRaw as Array<any>;
 
     // Get mortgages for demo account properties
     const propertyIds = propertiesResult.map(p => p.id);
     let mortgagesResult: any[] = [];
     if (propertyIds.length > 0) {
-      mortgagesResult = await sql`
+      const mortgagesResultRaw = await sql`
         SELECT id, property_id, lender_name, original_amount, current_balance,
                interest_rate, term_months, start_date, payment_frequency,
                payment_amount, mortgage_data, created_at, updated_at
         FROM mortgages
         WHERE property_id = ANY(${propertyIds})
         ORDER BY created_at DESC
-      ` as Array<any>;
+      `;
+      mortgagesResult = mortgagesResultRaw as Array<any>;
     }
 
     // Get expenses for demo account properties
     let expensesResult: any[] = [];
     if (propertyIds.length > 0) {
-      expensesResult = await sql`
+      const expensesResultRaw = await sql`
         SELECT id, property_id, expense_type, amount, expense_date, description,
                category, is_recurring, recurring_frequency, created_at, updated_at
         FROM expenses
         WHERE property_id = ANY(${propertyIds})
         ORDER BY expense_date DESC
-      ` as Array<any>;
+      `;
+      expensesResult = expensesResultRaw as Array<any>;
     }
 
     return NextResponse.json({
