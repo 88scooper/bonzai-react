@@ -3,6 +3,7 @@ import { loginSchema } from '@/lib/validations/auth.schema';
 import { verifyPassword, generateToken, hashToken, createSession } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 
 /**
  * POST /api/auth/login
@@ -10,6 +11,32 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Rate limiting - 5 attempts per 15 minutes per IP
+    const ip = getClientIP(request);
+    const rateLimitResult = await checkRateLimit(
+      `login:${ip}`,
+      5, // max 5 attempts
+      15 * 60 * 1000 // 15 minutes
+    );
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        createErrorResponse(
+          'Too many login attempts. Please try again later.',
+          429
+        ),
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '5',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
+          }
+        }
+      );
+    }
+
     // Parse request body
     const body = await request.json();
 
@@ -75,7 +102,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
         token,
       }),
-      { status: 200 }
+      { 
+        status: 200,
+        headers: {
+          'X-RateLimit-Limit': '5',
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+          'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+        }
+      }
     );
   } catch (error) {
     console.error('Error logging in user:', error);

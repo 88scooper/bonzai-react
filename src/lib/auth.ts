@@ -1,8 +1,13 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { sql } from './db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET === 'your-secret-key-change-in-production') {
+  throw new Error('JWT_SECRET environment variable must be set to a secure random value. Generate one with: openssl rand -base64 32');
+}
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 export interface User {
@@ -165,11 +170,10 @@ export async function deleteExpiredSessions(): Promise<void> {
 }
 
 /**
- * Hash a token for storage (simple hash for session tracking)
+ * Hash a token for storage using SHA-256
  */
 export function hashToken(token: string): string {
-  // Simple hash for session tracking - in production, use crypto.createHash
-  return Buffer.from(token).toString('base64').substring(0, 255);
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 /**
