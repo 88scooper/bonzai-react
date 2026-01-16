@@ -1771,7 +1771,7 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Income & Expenses
+            Income & Expenses (Forecasted)
           </h3>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Annualized snapshot of how rent covers operating costs and debt service.
@@ -1796,7 +1796,7 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
         }`}
       >
         <div>
-          <p className="text-[1.375rem] font-semibold">Annual Net Cash Flow</p>
+          <p className="text-[1.375rem] font-semibold">Annual Net Cash Flow (Forecasted)</p>
           <p className="text-base opacity-80">After operating expenses and debt service</p>
         </div>
         <div className="text-right">
