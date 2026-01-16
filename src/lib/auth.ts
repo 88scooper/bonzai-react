@@ -3,12 +3,19 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sql } from './db';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET || JWT_SECRET === 'your-secret-key-change-in-production') {
-  throw new Error('JWT_SECRET environment variable must be set to a secure random value. Generate one with: openssl rand -base64 32');
-}
-
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+/**
+ * Get JWT_SECRET from environment with runtime validation
+ * This avoids build-time errors when JWT_SECRET is not set during build
+ */
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === 'your-secret-key-change-in-production') {
+    throw new Error('JWT_SECRET environment variable must be set to a secure random value. Generate one with: openssl rand -base64 32');
+  }
+  return secret;
+}
 
 export interface User {
   id: string;
@@ -42,7 +49,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * Generate a JWT token for a user
  */
 export function generateToken(payload: JWTPayload): string {
-  return (jwt.sign as any)(payload, JWT_SECRET, {
+  return (jwt.sign as any)(payload, getJwtSecret(), {
     expiresIn: JWT_EXPIRES_IN,
   });
 }
@@ -52,7 +59,7 @@ export function generateToken(payload: JWTPayload): string {
  */
 export function verifyToken(token: string): JWTPayload {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
     return decoded;
   } catch (error) {
     throw new Error('Invalid or expired token');
