@@ -1,0 +1,49 @@
+import { NextResponse } from 'next/server';
+
+/**
+ * GET /api/test-jwt-secret
+ * Test endpoint to verify JWT_SECRET is accessible
+ * This helps debug environment variable issues
+ */
+export async function GET(): Promise<NextResponse> {
+  try {
+    const jwtSecret = process.env.JWT_SECRET;
+    const nodeEnv = process.env.NODE_ENV;
+    const vercel = process.env.VERCEL;
+    
+    // Don't expose the actual secret value, just confirm it exists
+    const hasSecret = !!jwtSecret;
+    const secretLength = jwtSecret ? jwtSecret.length : 0;
+    const isDefaultValue = jwtSecret === 'your-secret-key-change-in-production';
+    
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          hasJwtSecret: hasSecret,
+          secretLength: secretLength,
+          isDefaultValue: isDefaultValue,
+          nodeEnv: nodeEnv,
+          isVercel: !!vercel,
+          // Only show first 4 chars for verification (not the full secret)
+          secretPreview: jwtSecret ? `${jwtSecret.substring(0, 4)}...` : 'NOT SET',
+        },
+        message: hasSecret && !isDefaultValue 
+          ? 'JWT_SECRET is configured correctly' 
+          : 'JWT_SECRET is missing or using default value',
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Test JWT_SECRET error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+      },
+      { status: 500 }
+    );
+  }
+}
