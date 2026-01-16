@@ -18,12 +18,14 @@ export default function NotFound() {
             <div className="space-x-4">
               <Link 
                 href="/my-properties"
+                prefetch={false}
                 className="inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed bg-black text-white dark:bg-white dark:text-black hover:opacity-90"
               >
                 Go to My Properties
               </Link>
               <Link 
                 href="/portfolio-summary"
+                prefetch={false}
                 className="inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed border border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5"
               >
                 Portfolio Summary

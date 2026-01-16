@@ -1,0 +1,4 @@
+PROJECT: Bonzai (bonzai-app)
+Location: /Users/stu/Documents/Bonzai Real Estate App/Active Project/Bonzai-React
+Status: ACTIVE
+Old project location should NOT be used

@@ -434,10 +434,10 @@ export default function CalendarPage() {
                         >
                           {date.getDate()}
                           {hasEvents(date) && (
-                            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex items-center gap-0.5">
-                              <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex items-center gap-1">
+                              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-emerald-500/30"></div>
                               {events.some(event => event.recurrence && matchesRecurrencePattern(date, event)) && (
-                                <svg className="w-2 h-2 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                                 </svg>
                               )}
@@ -650,48 +650,48 @@ export default function CalendarPage() {
                         `${event.recurrence.interval === 1 ? '' : `Every ${event.recurrence.interval} `}${event.recurrence.type.charAt(0).toUpperCase() + event.recurrence.type.slice(1)}` : '';
                       
                       return (
-                        <div key={`${event.id}-${index}`} className="flex items-start justify-between p-3 rounded-md bg-gray-50 dark:bg-gray-800">
+                        <div key={`${event.id}-${index}`} className="flex items-start justify-between p-4 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 shadow-sm">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <div className="font-medium text-sm">{event.description}</div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="font-semibold text-base text-gray-900 dark:text-gray-100">{event.description}</div>
                               {isRecurring && (
-                                <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20" title="Recurring event">
+                                <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20" title="Recurring event">
                                   <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                                 </svg>
                               )}
                             </div>
                             {isRecurring && (
-                              <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              <div className="text-sm font-medium text-emerald-700 dark:text-emerald-400 mt-1 mb-1">
                                 {recurrenceLabel}
                               </div>
                             )}
                             {event.time && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {event.time}
+                              <div className="text-sm text-gray-700 dark:text-gray-300 mt-1.5">
+                                <span className="font-medium">Time:</span> {event.time}
                               </div>
                             )}
                             {event.property && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {event.property}
+                              <div className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                                <span className="font-medium">Property:</span> {event.property}
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => editEvent(event)}
-                              className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                              className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20"
                               aria-label="Edit event"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
                             <button
                               onClick={() => deleteEvent(event.id)}
-                              className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                              className="p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors rounded-md hover:bg-red-50 dark:hover:bg-red-900/20"
                               aria-label="Delete event"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             </button>

@@ -1,0 +1,15 @@
+# Cursor ignore patterns
+node_modules/
+.next/
+.vercel/
+dist/
+build/
+*.log
+.DS_Store
+*.tsbuildinfo
+
+# Legacy/backup directories
+proplytics-app/
+
+# Archived project location (outside this workspace)
+../Proplytics/Active Project/Proplytics-React-ARCHIVED-DO-NOT-USE

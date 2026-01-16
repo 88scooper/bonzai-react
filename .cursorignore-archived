@@ -1,0 +1,3 @@
+# Cursor should ignore the archived project directory
+# Add this path to Cursor's ignored directories:
+/Users/stu/Documents/Proplytics/Active Project/Proplytics-React-ARCHIVED-DO-NOT-USE

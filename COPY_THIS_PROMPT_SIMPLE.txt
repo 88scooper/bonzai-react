@@ -1,0 +1,13 @@
+IMPORTANT: Before starting any work, verify you're in the correct project:
+
+1. Run: pwd
+   Must show: /Users/stu/Documents/Bonzai Real Estate App/Active Project/Bonzai-React
+
+2. Run: grep '"name"' package.json
+   Must show: "name": "bonzai-app",
+
+Project: Bonzai (bonzai-app)
+NOT: Proplytics or proplytics-app
+
+If you see "Proplytics" in the path, navigate to the Bonzai project first.
+Confirm you're in the correct project before proceeding.

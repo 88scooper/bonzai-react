@@ -1,0 +1,15 @@
+╔══════════════════════════════════════════════════════════════╗
+║                    🚨 START HERE 🚨                          ║
+║                                                              ║
+║  This is the BONZAI project                                  ║
+║  Package: bonzai-app                                         ║
+║  Location: Bonzai Real Estate App/Active Project/Bonzai-React║
+║                                                              ║
+║  Before starting ANY work, verify:                           ║
+║  1. pwd → Should show Bonzai project path                    ║
+║  2. grep '"name"' package.json → Should show "bonzai-app"    ║
+║                                                              ║
+║  ❌ DO NOT use any "Proplytics" directory                    ║
+║                                                              ║
+║  See AGENT_START_HERE.md for full instructions               ║
+╚══════════════════════════════════════════════════════════════╝

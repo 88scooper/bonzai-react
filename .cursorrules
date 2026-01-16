@@ -1,0 +1,63 @@
+# 🚨 CRITICAL: This is the BONZAI Project 🚨
+
+## PROJECT IDENTIFICATION (READ FIRST)
+
+**Project Name:** Bonzai  
+**Package Name:** bonzai-app  
+**Location:** /Users/stu/Documents/Bonzai Real Estate App/Active Project/Bonzai-React
+
+## ⚠️ STOP: Verify Location BEFORE Any Action
+
+**MANDATORY VERIFICATION - Run these commands FIRST:**
+
+```bash
+pwd
+```
+**MUST show:** `/Users/stu/Documents/Bonzai Real Estate App/Active Project/Bonzai-React`
+
+```bash
+grep '"name"' package.json
+```
+**MUST show:** `"name": "bonzai-app",`
+
+**If either check fails, STOP immediately and navigate to the Bonzai project location.**
+
+## ❌ ABSOLUTELY DO NOT USE
+
+- ❌ **ANY** directory path containing "Proplytics"
+- ❌ `/Users/stu/Documents/Proplytics/Active Project/Proplytics-React-ARCHIVED-DO-NOT-USE`
+- ❌ `/Users/stu/Documents/Proplytics/Active Project/Proplytics-React` (if it exists)
+- ❌ The `proplytics-app/` subdirectory inside this project (legacy backup only)
+- ❌ **If your `pwd` shows "Proplytics" in the path, you are in the WRONG location**
+
+## ✅ THIS IS THE CORRECT PROJECT
+
+- ✅ Project: **Bonzai** (formerly named "Proplytics" but has been renamed)
+- ✅ Package: **bonzai-app** (NOT proplytics-app)
+- ✅ Location contains: **"Bonzai Real Estate App"** (NOT "Proplytics")
+- ✅ All branding should be "Bonzai" not "Proplytics"
+- ✅ Main source: `/src/` directory
+- ✅ API routes use "bonzai" naming: `/api/bonzai-test`
+
+## 🔍 QUICK CHECKLIST BEFORE STARTING
+
+- [ ] `pwd` shows "Bonzai Real Estate App" (NOT "Proplytics")
+- [ ] `package.json` shows `"bonzai-app"` (NOT "proplytics-app")
+- [ ] Location path does NOT contain "Proplytics"
+- [ ] You are NOT in the archived directory
+
+## 🚨 IF YOU SEE "PROPLYTICS" IN YOUR PATH
+
+**STOP IMMEDIATELY** - You are in the wrong location!
+
+1. Close current workspace
+2. Navigate to: `/Users/stu/Documents/Bonzai Real Estate App/Active Project/Bonzai-React`
+3. Open that directory in Cursor
+4. Verify with `pwd` and `grep '"name"' package.json`
+5. Only then proceed
+
+## 📝 Project Context
+
+This is the **Bonzai** project workspace. The old "Proplytics" project has been archived and should NEVER be accessed.
+
+**Remember:** If you see "Proplytics" in the path = WRONG location. Always use the "Bonzai Real Estate App" path.

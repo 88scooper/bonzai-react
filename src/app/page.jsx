@@ -65,7 +65,7 @@ function Header({ onLoginClick, onSignupClick }) {
   return (
     <header className="sticky top-0 z-10 border-b border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-950/70 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="font-semibold tracking-tight">
+        <Link href="/" prefetch={false} className="font-semibold tracking-tight">
           Bonzai
         </Link>
         <nav className="hidden md:flex items-center gap-6 text-sm">

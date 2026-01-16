@@ -155,6 +155,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    prefetch={false}
                     onClick={handleNavClick}
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
                       isActive
@@ -172,6 +173,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
               <li>
                 <Link
                   href={adminNavItem.href}
+                  prefetch={false}
                   onClick={handleNavClick}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
                     pathname === adminNavItem.href || pathname?.startsWith(adminNavItem.href + "/")

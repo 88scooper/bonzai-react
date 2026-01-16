@@ -1,0 +1,11 @@
+CRITICAL INSTRUCTIONS FOR AI AGENT:
+
+Before starting ANY work, you MUST verify you're in the correct project:
+
+1. Run: cd "/Users/stu/Documents/Bonzai Real Estate App/Active Project/Bonzai-React"
+2. Verify: pwd (should show Bonzai project path)
+3. Verify: grep '"name"' package.json (should show "bonzai-app")
+4. DO NOT use any directory containing "Proplytics" in the path
+5. The correct project is named "Bonzai" with package "bonzai-app"
+
+See AGENT_START_HERE.md for complete instructions.
