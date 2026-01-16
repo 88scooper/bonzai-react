@@ -98,6 +98,15 @@ export default function CalendarPage() {
     return d;
   };
 
+  // Helper function to format date as YYYY-MM-DD in local time (avoiding timezone issues)
+  const formatDateString = (date) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Helper function to check if a date matches a recurring event pattern
   const matchesRecurrencePattern = (date, event) => {
     if (!event.recurrence || !event.recurrence.startDate) return false;
@@ -144,7 +153,7 @@ export default function CalendarPage() {
 
   // Filter events for selected date (including recurring events)
   const selectedDateEvents = useMemo(() => {
-    const selectedDateString = selectedDate.toISOString().split('T')[0];
+    const selectedDateString = formatDateString(selectedDate);
     return events.filter(event => {
       // Regular event
       if (!event.recurrence) {
@@ -158,7 +167,7 @@ export default function CalendarPage() {
   // Check if a date has events (including recurring events)
   const hasEvents = (date) => {
     if (!date) return false;
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = formatDateString(date);
     return events.some(event => {
       // Regular event
       if (!event.recurrence) {
@@ -185,7 +194,7 @@ export default function CalendarPage() {
       setSelectedDate(date);
       setFormData(prev => ({
         ...prev,
-        date: date.toISOString().split('T')[0]
+        date: formatDateString(date)
       }));
     }
   };
@@ -219,7 +228,7 @@ export default function CalendarPage() {
   const cancelEdit = () => {
     setEditingEventId(null);
     setFormData({
-      date: selectedDate.toISOString().split('T')[0],
+      date: formatDateString(selectedDate),
       time: '',
       description: '',
       property: '',
@@ -284,7 +293,7 @@ export default function CalendarPage() {
           // Reset form and editing state
           setEditingEventId(null);
           setFormData({
-            date: selectedDate.toISOString().split('T')[0],
+            date: formatDateString(selectedDate),
             time: '',
             description: '',
             property: '',
@@ -318,7 +327,7 @@ export default function CalendarPage() {
           
           // Reset form
           setFormData({
-            date: selectedDate.toISOString().split('T')[0],
+            date: formatDateString(selectedDate),
             time: '',
             description: '',
             property: '',
