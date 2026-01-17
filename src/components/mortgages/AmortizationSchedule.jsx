@@ -283,7 +283,12 @@ export default function AmortizationSchedule({ mortgage, propertyName, onClose }
                       <div className="grid grid-cols-6 gap-4 px-4 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                         <div className="text-gray-900 dark:text-white">{payment.paymentNumber}</div>
                         <div className="text-gray-600 dark:text-gray-300">
-                          {new Date(payment.paymentDate).toLocaleDateString()}
+                          {(() => {
+                            // Parse YYYY-MM-DD as local date to avoid UTC timezone shift
+                            const [year, month, day] = payment.paymentDate.split('-').map(Number);
+                            const date = new Date(year, month - 1, day);
+                            return date.toLocaleDateString();
+                          })()}
                         </div>
                         <div className="text-right font-medium text-gray-900 dark:text-white">
                           {formatCurrency(payment.monthlyPayment)}

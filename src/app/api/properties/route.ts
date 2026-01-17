@@ -5,6 +5,7 @@ import { sql } from '@/lib/db';
 import { parsePaginationParams, createPaginatedResponse, getOffset } from '@/lib/pagination';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 import { preventDemoModification } from '@/lib/demo-protection';
+import { validateRequest } from '@/lib/validate-request';
 
 interface Property {
   id: string;
@@ -144,16 +145,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Parse request body
     const body = await request.json();
 
-    // Validate request body
-    const validationResult = createPropertySchema.safeParse(body);
+    // Validate request body using shared validation utility
+    const validationResult = validateRequest(createPropertySchema, body);
     if (!validationResult.success) {
-      const errorMessages = validationResult.error.issues
-        .map((err) => `${err.path.join('.')}: ${err.message}`)
-        .join(', ');
-
       return NextResponse.json(
-        createErrorResponse(`Validation failed: ${errorMessages}`, 400),
-        { status: 400 }
+        createErrorResponse(validationResult.error, validationResult.statusCode || 400),
+        { status: validationResult.statusCode || 400 }
       );
     }
 

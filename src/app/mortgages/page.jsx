@@ -4,10 +4,9 @@ import Layout from "@/components/Layout";
 import { RequireAuth } from "@/context/AuthContext";
 import { useMortgages } from "@/hooks/useMortgages";
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Filter, MoreVertical, Edit, Trash2, Eye, Upload, Calculator, TrendingDown, DollarSign, Percent, Calendar, Building2, Clock, Banknote, Download, BarChart3, PieChart, TrendingUp, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Filter, MoreVertical, Edit, Trash2, Eye, Calculator, TrendingDown, DollarSign, Percent, Calendar, Building2, Clock, Banknote, Download, BarChart3, PieChart, TrendingUp, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 import MortgageFormUpgraded from "@/components/mortgages/MortgageFormUpgraded";
 import MortgageDetails from "@/components/mortgages/MortgageDetails";
-import BulkUploadModal from "@/components/mortgages/BulkUploadModal";
 import AmortizationSchedule from "@/components/mortgages/AmortizationSchedule";
 import MortgageSummaryBanner from "@/components/mortgages/MortgageSummaryBanner";
 import MortgageDetailsPanel from "@/components/mortgages/MortgageDetailsPanel";
@@ -27,7 +26,6 @@ export default function MortgagesPage() {
   const [editingMortgage, setEditingMortgage] = useState(null);
   const [viewingMortgage, setViewingMortgage] = useState(null);
   const [filterProperty, setFilterProperty] = useState("");
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showAmortization, setShowAmortization] = useState(false);
   const [selectedMortgage, setSelectedMortgage] = useState(null);
   const [selectedMortgageForDashboard, setSelectedMortgageForDashboard] = useState(null);
@@ -475,14 +473,6 @@ export default function MortgagesPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
-                onClick={() => setShowBulkUpload(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm sm:text-base"
-              >
-                <Upload className="w-4 h-4" />
-                <span className="hidden sm:inline">Bulk Upload</span>
-                <span className="sm:hidden">Upload</span>
-              </button>
-              <button
                 onClick={() => setShowForm(true)}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-[#205A3E] text-white rounded-lg hover:bg-[#1a4a32] transition-colors text-sm sm:text-base"
               >
@@ -764,16 +754,6 @@ export default function MortgagesPage() {
               setEditingMortgage(mortgage);
               setViewingMortgage(null);
               setShowForm(true);
-            }}
-          />
-        )}
-
-        {showBulkUpload && (
-          <BulkUploadModal
-            onClose={() => setShowBulkUpload(false)}
-            onUpload={(data) => {
-              console.log('Bulk upload data:', data);
-              setShowBulkUpload(false);
             }}
           />
         )}

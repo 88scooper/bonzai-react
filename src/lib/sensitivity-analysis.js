@@ -75,7 +75,21 @@ export function calculateIRR(cashFlows) {
       dnpv += (-j * cashFlows[j]) / Math.pow(1 + rate, j + 1);
     }
 
+    // Guard against division by zero
+    if (Math.abs(dnpv) < tolerance) {
+      // Derivative is near zero - adjust rate guess to avoid division by zero
+      rate = rate * 1.1;
+      continue;
+    }
+
     const newRate = rate - npv / dnpv;
+
+    // Guard against invalid rate (NaN or Infinity)
+    if (!isFinite(newRate) || isNaN(newRate)) {
+      // If calculation produces invalid result, try adjusting the guess
+      rate = rate * 0.9;
+      continue;
+    }
 
     if (Math.abs(newRate - rate) < tolerance) {
       return newRate * 100; // Return as percentage
@@ -108,6 +122,21 @@ export function calculateNPV(cashFlows, discountRate) {
  * @returns {Object} Forecast data with yearly projections
  */
 export function generateForecast(property, assumptions = DEFAULT_ASSUMPTIONS, years = 10, analysisMode = 'cash-flow') {
+  // Validate inputs
+  if (!property) {
+    throw new Error('Property is required for forecast generation');
+  }
+
+  // Validate assumptions - prevent negative inflation rates
+  if (assumptions.annualRentIncrease < 0 || assumptions.annualExpenseInflation < 0) {
+    throw new Error('Inflation rates cannot be negative');
+  }
+
+  // Validate property value exists (required for calculations)
+  if (!property.purchasePrice && !property.currentMarketValue) {
+    throw new Error('Property must have purchase price or market value');
+  }
+
   // Initialize forecast structure based on mode
   const forecast = analysisMode === 'equity' ? {
     years: [],
@@ -132,39 +161,47 @@ export function generateForecast(property, assumptions = DEFAULT_ASSUMPTIONS, ye
     debtServiceInterest: [],
   };
 
-  // Get current mortgage details
-  let currentMortgageBalance;
-  try {
-    currentMortgageBalance = getCurrentMortgageBalance(property.mortgage);
-  } catch (error) {
-    console.warn('Error getting mortgage balance, using original amount:', error);
-    currentMortgageBalance = property.mortgage.originalAmount;
-  }
+  // Handle properties without mortgages (rental-only or paid-off)
+  const hasMortgage = property.mortgage && property.mortgage.originalAmount && property.mortgage.originalAmount > 0;
 
-  // Store original values for equity calculations
-  if (analysisMode === 'equity') {
-    forecast.originalMortgageBalance = property.mortgage.originalAmount || currentMortgageBalance;
-  }
-
-  let monthlyMortgagePayment;
-  try {
-    monthlyMortgagePayment = getMonthlyMortgagePayment(property.mortgage);
-  } catch (error) {
-    console.warn('Error calculating mortgage payment:', error);
-    // Fallback calculation
-    const monthlyRate = (property.mortgage.interestRate / 12);
-    const numPayments = property.mortgage.amortizationYears * 12;
-    monthlyMortgagePayment = property.mortgage.originalAmount * 
-      (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
-      (Math.pow(1 + monthlyRate, numPayments) - 1);
-  }
-
-  // Pre-compute forward-looking mortgage schedule summaries (fallback to empty on error)
+  // Get current mortgage details (only if mortgage exists)
+  let currentMortgageBalance = 0;
+  let monthlyMortgagePayment = 0;
   let mortgageYearSummaries = [];
-  try {
-    mortgageYearSummaries = getMortgageYearlySummary(property.mortgage, years);
-  } catch (error) {
-    console.warn('Error building mortgage yearly summary:', error);
+
+  if (hasMortgage) {
+    try {
+      currentMortgageBalance = getCurrentMortgageBalance(property.mortgage);
+    } catch (error) {
+      console.warn('Error getting mortgage balance, using original amount:', error);
+      currentMortgageBalance = property.mortgage?.originalAmount || 0;
+    }
+
+    // Store original values for equity calculations
+    if (analysisMode === 'equity') {
+      forecast.originalMortgageBalance = property.mortgage.originalAmount || currentMortgageBalance;
+    }
+
+    try {
+      monthlyMortgagePayment = getMonthlyMortgagePayment(property.mortgage);
+    } catch (error) {
+      console.warn('Error calculating mortgage payment:', error);
+      // Fallback calculation (only if mortgage data is valid)
+      if (property.mortgage.interestRate && property.mortgage.amortizationYears) {
+        const monthlyRate = (property.mortgage.interestRate / 12);
+        const numPayments = property.mortgage.amortizationYears * 12;
+        monthlyMortgagePayment = property.mortgage.originalAmount * 
+          (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
+          (Math.pow(1 + monthlyRate, numPayments) - 1);
+      }
+    }
+
+    // Pre-compute forward-looking mortgage schedule summaries (fallback to empty on error)
+    try {
+      mortgageYearSummaries = getMortgageYearlySummary(property.mortgage, years);
+    } catch (error) {
+      console.warn('Error building mortgage yearly summary:', error);
+    }
   }
 
   // Starting values
@@ -207,9 +244,10 @@ export function generateForecast(property, assumptions = DEFAULT_ASSUMPTIONS, ye
       const mortgageSummary = mortgageYearSummaries[year - 1];
       if (mortgageSummary) {
         mortgageBalance = mortgageSummary.endingBalance;
-      } else if (mortgageBalance > 0 && monthlyMortgagePayment > 0) {
+      } else if (mortgageBalance > 0 && monthlyMortgagePayment > 0 && hasMortgage) {
         const annualMortgagePayment = monthlyMortgagePayment * 12;
-        const estimatedAnnualInterest = mortgageBalance * (assumptions.futureInterestRate || property.mortgage.interestRate) / 100;
+        const mortgageInterestRate = property.mortgage?.interestRate || 0;
+        const estimatedAnnualInterest = mortgageBalance * (assumptions.futureInterestRate || mortgageInterestRate) / 100;
         const annualPrincipal = Math.min(annualMortgagePayment - estimatedAnnualInterest, mortgageBalance);
         mortgageBalance = Math.max(0, mortgageBalance - annualPrincipal);
       } else {
@@ -263,9 +301,10 @@ export function generateForecast(property, assumptions = DEFAULT_ASSUMPTIONS, ye
       annualPrincipalPaid = mortgageSummary.totalPrincipal;
       annualInterestPaid = mortgageSummary.totalInterest;
       mortgageBalance = mortgageSummary.endingBalance;
-    } else if (mortgageBalance > 0 && monthlyMortgagePayment > 0) {
+    } else if (mortgageBalance > 0 && monthlyMortgagePayment > 0 && hasMortgage) {
       const annualMortgagePayment = monthlyMortgagePayment * 12;
-      const estimatedAnnualInterest = mortgageBalance * property.mortgage.interestRate;
+      const mortgageInterestRate = property.mortgage?.interestRate || 0;
+      const estimatedAnnualInterest = mortgageBalance * mortgageInterestRate;
       const annualPrincipal = Math.min(annualMortgagePayment - estimatedAnnualInterest, mortgageBalance);
       annualDebtService = annualMortgagePayment;
       annualPrincipalPaid = annualPrincipal;

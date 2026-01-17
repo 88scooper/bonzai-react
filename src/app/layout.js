@@ -28,12 +28,15 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  // Temporarily bypass providers to test if they're blocking
+  const BYPASS_PROVIDERS = process.env.NEXT_PUBLIC_BYPASS_PROVIDERS === 'true';
+  
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${plusJakartaSans.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
+        {BYPASS_PROVIDERS ? children : <Providers>{children}</Providers>}
       </body>
     </html>
   );

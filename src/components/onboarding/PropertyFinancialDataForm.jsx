@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/context/ToastContext";
 import apiClient from "@/lib/api-client";
 import { savePropertyDraft, getPropertyDraft, clearPropertyDraft } from "@/lib/onboarding-draft-storage";
+import { normalizePaymentFrequency } from "@/lib/mortgage-validation";
 import Button from "@/components/Button";
 import { 
   Home, 
@@ -51,9 +52,12 @@ const AMORTIZATION_OPTIONS = [
   { value: '30', label: '30 years' },
 ];
 const PAYMENT_FREQUENCY_OPTIONS = [
-  { value: 'MONTHLY', label: 'Monthly' },
-  { value: 'BIWEEKLY', label: 'Bi-weekly' },
-  { value: 'WEEKLY', label: 'Weekly' },
+  { value: 'MONTHLY', label: 'Monthly (12 payments/year)' },
+  { value: 'SEMI_MONTHLY', label: 'Semi-monthly (24 payments/year)' },
+  { value: 'BI_WEEKLY', label: 'Bi-weekly (26 payments/year)' },
+  { value: 'ACCELERATED_BI_WEEKLY', label: 'Accelerated Bi-weekly (26 payments/year)' },
+  { value: 'WEEKLY', label: 'Weekly (52 payments/year)' },
+  { value: 'ACCELERATED_WEEKLY', label: 'Accelerated Weekly (52 payments/year)' },
 ];
 
 export default function PropertyFinancialDataForm({
@@ -88,6 +92,7 @@ export default function PropertyFinancialDataForm({
       amortizationYears: '25',
       startDate: new Date().toISOString().split('T')[0],
       paymentFrequency: 'MONTHLY',
+      currentBalance: '', // Optional field for existing mortgages
     },
     expensesByYear: {}, // { [year]: { revenue: '', expenses: { [category]: '' } } }
   });
@@ -589,15 +594,29 @@ export default function PropertyFinancialDataForm({
 
     setLoading(true);
     try {
+      // Convert interest rate from percentage to decimal (e.g., 2.69% -> 0.0269)
+      const interestRatePercent = parseFloat(formData.mortgage.interestRate);
+      const interestRateDecimal = interestRatePercent / 100;
+      
+      // Normalize payment frequency format (e.g., BIWEEKLY -> BI_WEEKLY, BI-WEEKLY -> BI_WEEKLY)
+      const normalizedPaymentFrequency = normalizePaymentFrequency(formData.mortgage.paymentFrequency);
+      
+      // Build mortgageData object for additional fields (stored in JSONB)
+      const mortgageData = {};
+      if (formData.mortgage.currentBalance) {
+        mortgageData.currentBalance = parseFloat(formData.mortgage.currentBalance);
+      }
+
       const response = await apiClient.saveMortgage(property.id, {
         lender: formData.mortgage.lender,
         original_amount: parseFloat(formData.mortgage.originalAmount),
-        interest_rate: parseFloat(formData.mortgage.interestRate),
+        interest_rate: interestRateDecimal,
         term_months: parseInt(formData.mortgage.termMonths),
         amortization_years: parseInt(formData.mortgage.amortizationYears),
         start_date: formData.mortgage.startDate,
         rate_type: formData.mortgage.rateType,
-        payment_frequency: formData.mortgage.paymentFrequency,
+        payment_frequency: normalizedPaymentFrequency,
+        ...(Object.keys(mortgageData).length > 0 && { mortgageData }),
       });
 
       if (response.success) {
@@ -1300,6 +1319,26 @@ export default function PropertyFinancialDataForm({
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    Current Balance (Optional)
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 font-normal">For existing mortgages</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.mortgage.currentBalance || ''}
+                    onChange={(e) => updateFormData('mortgage', { currentBalance: e.target.value })}
+                    className="w-full rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 focus:border-purple-500 dark:focus:border-purple-400 transition-colors"
+                    placeholder="Leave empty for new mortgages"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                    If your mortgage has already started, enter the current outstanding balance
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                    Note: For full amortization schedule accuracy, full payment history from the lender is required
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">

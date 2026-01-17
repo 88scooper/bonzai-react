@@ -89,31 +89,47 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/demo');
-      if (!response.ok) {
-        throw new Error('Failed to load demo data');
-      }
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
       
-      const result = await response.json();
-      if (result.success && result.data) {
-        // Set demo account
-        const demoAccount: Account = {
-          id: result.data.account.id,
-          name: result.data.account.name,
-          email: result.data.account.email || '',
-          createdAt: result.data.account.createdAt,
-          isDemo: true,
-        };
+      try {
+        const response = await fetch('/api/demo', { signal: controller.signal });
+        clearTimeout(timeoutId);
         
-        setAccounts([demoAccount]);
-        setCurrentAccountId(demoAccount.id);
-        setCurrentAccount(demoAccount);
+        if (!response.ok) {
+          throw new Error('Failed to load demo data');
+        }
         
-        // Set demo properties
-        setProperties(result.data.properties || []);
-        
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('current_account_id', demoAccount.id);
+        const result = await response.json();
+        if (result.success && result.data) {
+          // Set demo account
+          const demoAccount: Account = {
+            id: result.data.account.id,
+            name: result.data.account.name,
+            email: result.data.account.email || '',
+            createdAt: result.data.account.createdAt,
+            isDemo: true,
+          };
+          
+          setAccounts([demoAccount]);
+          setCurrentAccountId(demoAccount.id);
+          setCurrentAccount(demoAccount);
+          
+          // Set demo properties
+          setProperties(result.data.properties || []);
+          
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('current_account_id', demoAccount.id);
+          }
+        }
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+          console.warn('Demo data fetch timed out');
+          setError('Request timed out');
+        } else {
+          throw fetchErr;
         }
       }
     } catch (err) {
@@ -621,8 +637,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   // Initialize accounts and load current account
   useEffect(() => {
     // Only load accounts on client side
+    // Add a small delay to ensure AuthContext has finished initializing
     if (typeof window !== 'undefined') {
-      loadAccounts();
+      // Use setTimeout to prevent blocking the initial render
+      const timeoutId = setTimeout(() => {
+        loadAccounts();
+      }, 0);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [loadAccounts]);
 

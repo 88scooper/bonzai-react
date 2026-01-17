@@ -21,14 +21,25 @@ const MortgageSummaryBanner = ({ mortgageData }) => {
     if (mortgage) {
       const schedule = calculateAmortizationSchedule(mortgage);
       const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalize to start of day
 
       // Find next payment on or after today
+      // Parse dates as local dates (not UTC) to avoid timezone shift issues
       let nextPayment =
-        schedule.payments.find(p => new Date(p.paymentDate) >= today) ||
+        schedule.payments.find(p => {
+          // Parse YYYY-MM-DD as local date to avoid UTC timezone issues
+          const [year, month, day] = p.paymentDate.split('-').map(Number);
+          const paymentDate = new Date(year, month - 1, day);
+          paymentDate.setHours(0, 0, 0, 0);
+          return paymentDate >= today;
+        }) ||
         schedule.payments[schedule.payments.length - 1];
 
       if (nextPayment) {
-        nextPaymentDate = new Date(nextPayment.paymentDate);
+        // Parse YYYY-MM-DD as local date to avoid UTC timezone shift
+        const [year, month, day] = nextPayment.paymentDate.split('-').map(Number);
+        nextPaymentDate = new Date(year, month - 1, day);
+        nextPaymentDate.setHours(0, 0, 0, 0);
         if (!paymentAmount) {
           paymentAmount = nextPayment.monthlyPayment;
         }

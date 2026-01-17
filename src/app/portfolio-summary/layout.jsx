@@ -9,6 +9,8 @@ export function generateStaticParams() {
   return [];
 }
 
+// Simple layout that just passes through children
+// No async operations to avoid fetch issues during navigation
 export default function PortfolioSummaryLayout({ children }) {
   return children;
 }

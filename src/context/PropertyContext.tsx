@@ -396,28 +396,40 @@ const PropertyContext = createContext<PropertyContextType | undefined>(undefined
 // Provider component
 export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Get account-specific properties from AccountContext
-  const { properties: accountProperties, saveProperties } = useAccount();
+  // PropertyProvider is wrapped by AccountProvider, so this should always work
+  const accountContext = useAccount();
+  const accountProperties = accountContext?.properties;
+  const saveProperties = accountContext?.saveProperties || (() => {});
   
   const [propertiesState, setPropertiesState] = useState<Property[]>(() => {
-    // Use account properties if defined (even if empty array for new accounts)
-    // Only fall back to default properties if accountProperties is undefined/null (not loaded yet)
-    const initialProperties = (accountProperties !== undefined && accountProperties !== null)
-      ? accountProperties 
-      : (getAllProperties() as unknown as Property[]);
-    return initialProperties.map((property) => preparePropertyData(property));
+    // Start with empty array to avoid blocking render
+    // Properties will be loaded asynchronously via useEffect
+    return [];
   });
-  const [calculationsComplete, setCalculationsComplete] = useState(false);
+  // Start as true to prevent blocking homepage render
+  const [calculationsComplete, setCalculationsComplete] = useState(true);
   
   // Update properties when account properties change
   useEffect(() => {
-    // Use account properties if defined (even if empty array for new accounts)
-    // Only fall back to default properties if accountProperties is undefined/null (not loaded yet)
-    const initialProperties = (accountProperties !== undefined && accountProperties !== null)
-      ? accountProperties 
-      : (getAllProperties() as unknown as Property[]);
+    // Defer property loading to prevent blocking initial render
+    const timeoutId = setTimeout(() => {
+      try {
+        // Use account properties if defined (even if empty array for new accounts)
+        // Only fall back to default properties if accountProperties is undefined/null (not loaded yet)
+        const initialProperties = (accountProperties !== undefined && accountProperties !== null)
+          ? accountProperties 
+          : (getAllProperties() as unknown as Property[]);
+        
+        const preparedProperties = initialProperties.map((property) => preparePropertyData(property));
+        setPropertiesState(preparedProperties);
+      } catch (error) {
+        console.warn('Error preparing properties:', error);
+        // Set empty array as fallback
+        setPropertiesState([]);
+      }
+    }, 0);
     
-    const preparedProperties = initialProperties.map((property) => preparePropertyData(property));
-    setPropertiesState(preparedProperties);
+    return () => clearTimeout(timeoutId);
   }, [accountProperties]);
   
   // Get all properties and portfolio metrics
@@ -462,8 +474,15 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
       });
       
       // Only save to account storage if not skipping (e.g., when already saved via API)
-      if (!skipSave) {
-        saveProperties(updated);
+      // Defer save to prevent blocking
+      if (!skipSave && saveProperties) {
+        setTimeout(() => {
+          try {
+            saveProperties(updated);
+          } catch (error) {
+            console.warn('Error saving properties:', error);
+          }
+        }, 0);
       }
       
       return updated;
@@ -474,9 +493,13 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Ensure calculations are completed before setting calculationsComplete to true
+      // Use a timeout to allow calculations to complete, but always set to true eventually
+      let fallbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
+      
       const timeoutId = setTimeout(() => {
         // Verify that calculations have been applied
-        const hasCalculations = allProperties.some(property => 
+        // If there are no properties, we can still mark as complete
+        const hasCalculations = allProperties.length === 0 || allProperties.some(property => 
           property.cashOnCashReturn !== undefined && 
           property.monthlyCashFlow !== undefined &&
           property.capRate !== undefined
@@ -485,53 +508,70 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (hasCalculations) {
           setCalculationsComplete(true);
         } else {
-          // If calculations aren't ready, try again in a bit
-          setTimeout(() => setCalculationsComplete(true), 200);
+          // If calculations aren't ready, set to true anyway after a short delay
+          // This prevents infinite loading states
+          fallbackTimeoutId = setTimeout(() => {
+            setCalculationsComplete(true);
+          }, 300);
         }
       }, 100);
       
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        if (fallbackTimeoutId) {
+          clearTimeout(fallbackTimeoutId);
+        }
+      };
     } else {
       setCalculationsComplete(true);
     }
   }, [allProperties]);
   
   // Ensure all properties have calculated financial metrics
-  const propertiesWithCalculations = allProperties.map(property => {
-    // Calculate price per square foot
-    const pricePerSquareFoot = property.squareFootage > 0 
-      ? property.purchasePrice / property.squareFootage 
-      : 0;
-    
-    // If calculations are missing, calculate them on the fly
-    if (property.cashOnCashReturn === undefined || property.monthlyCashFlow === undefined) {
-      const annualOperatingExpenses = calculateAnnualOperatingExpenses(property);
-      const noi = calculateNOI(property);
-      const capRate = calculateCapRate(property);
-      const monthlyCashFlow = calculateMonthlyCashFlow(property);
-      const annualCashFlow = calculateAnnualCashFlow(property);
-      const cashOnCashReturn = calculateCashOnCashReturn(property);
-      
-      return {
-        ...property,
-        annualOperatingExpenses,
-        netOperatingIncome: noi,
-        capRate,
-        monthlyCashFlow,
-        annualCashFlow,
-        cashOnCashReturn,
-        pricePerSquareFoot
-      };
+  // Memoize to prevent expensive recalculations on every render
+  const propertiesWithCalculations = useMemo(() => {
+    if (!allProperties || allProperties.length === 0) {
+      return [];
     }
     
-    // Always ensure pricePerSquareFoot is calculated
-    return {
-      ...property,
-      pricePerSquareFoot
-    };
-  });
+    return allProperties.map(property => {
+      // Calculate price per square foot
+      const pricePerSquareFoot = property.squareFootage > 0 
+        ? property.purchasePrice / property.squareFootage 
+        : 0;
+      
+      // If calculations are missing, calculate them on the fly
+      if (property.cashOnCashReturn === undefined || property.monthlyCashFlow === undefined) {
+        const annualOperatingExpenses = calculateAnnualOperatingExpenses(property);
+        const noi = calculateNOI(property);
+        const capRate = calculateCapRate(property);
+        const monthlyCashFlow = calculateMonthlyCashFlow(property);
+        const annualCashFlow = calculateAnnualCashFlow(property);
+        const cashOnCashReturn = calculateCashOnCashReturn(property);
+        
+        return {
+          ...property,
+          annualOperatingExpenses,
+          netOperatingIncome: noi,
+          capRate,
+          monthlyCashFlow,
+          annualCashFlow,
+          cashOnCashReturn,
+          pricePerSquareFoot
+        };
+      }
+      
+      // Always ensure pricePerSquareFoot is calculated
+      return {
+        ...property,
+        pricePerSquareFoot
+      };
+    });
+  }, [allProperties]);
   
-  const metrics = getPortfolioMetrics(allProperties as any);
+  const metrics = useMemo(() => {
+    return getPortfolioMetrics(allProperties as any);
+  }, [allProperties]);
 
   // Memoized helper functions for performance
   const contextValue = useMemo(() => ({

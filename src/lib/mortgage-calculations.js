@@ -1,6 +1,19 @@
 /**
  * Mortgage Calculation Service
  * Implements Canadian mortgage calculation standards with semi-annual compounding
+ * 
+ * ⚠️ DEPRECATED: This file is deprecated and should not be used for new code.
+ * 
+ * Please use `src/utils/mortgageCalculator.ts` instead, which is the primary
+ * and actively maintained mortgage calculation system.
+ * 
+ * This legacy file is kept for backward compatibility but may be removed in a future version.
+ * If you're writing new code or updating existing code, please migrate to mortgageCalculator.ts.
+ * 
+ * Migration guide:
+ * - Replace `calculateMortgagePayment()` with `calculatePaymentAmount()` from mortgageCalculator.ts
+ * - Replace `generateAmortizationSchedule()` with `calculateAmortizationSchedule()` from mortgageCalculator.ts
+ * - Replace `calculatePeriodicRate()` with `getPeriodicRate()` from mortgageCalculator.ts (private function, use through public APIs)
  */
 
 /**

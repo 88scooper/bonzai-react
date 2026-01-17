@@ -62,8 +62,17 @@ export function AuthProvider({ children }) {
         }
 
         // Try to fetch full user data from API (including is_admin)
+        // Add timeout to prevent hanging
         try {
-          const response = await apiClient.getUserProfile();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), 3000)
+          );
+          
+          const response = await Promise.race([
+            apiClient.getUserProfile(),
+            timeoutPromise
+          ]);
+          
           if (response.success && response.data) {
             const userData = {
               id: response.data.id,
@@ -83,7 +92,7 @@ export function AuthProvider({ children }) {
             throw new Error('API call failed, falling back to JWT decode');
           }
         } catch (apiError) {
-          // Fallback to JWT decode if API call fails
+          // Fallback to JWT decode if API call fails or times out
           console.warn('Failed to fetch user from API, using JWT decode:', apiError);
           try {
             const payload = JSON.parse(atob(token.split('.')[1]));

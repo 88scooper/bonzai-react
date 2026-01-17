@@ -11,9 +11,18 @@ export default function HomePage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
 
+  // Debug: Log when component mounts
+  useEffect(() => {
+    console.log('[HomePage] Component mounted');
+    return () => {
+      console.log('[HomePage] Component unmounting');
+    };
+  }, []);
+
   // Clear logout flag when homepage loads
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      console.log('[HomePage] Clearing logout flag');
       sessionStorage.removeItem('isLoggingOut');
     }
   }, []);
@@ -41,24 +50,40 @@ export default function HomePage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100">
-      <Header onLoginClick={openLogin} onSignupClick={openSignup} />
-      <main>
-        <HeroSection onGetStarted={openSignup} onDemoPortfolio={handleDemoPortfolio} />
-        <FeaturesSection />
-        <CtaSection onGetStarted={openSignup} />
-      </main>
+  // Debug: Log before render
+  console.log('[HomePage] Rendering component');
 
-      {isLoginOpen && (
-        <LoginModal onClose={closeModals} onSwitchToSignup={openSignup} />
-      )}
-      {isSignupOpen && (
-        <SignupModal onClose={closeModals} onSwitchToLogin={openLogin} />
-      )}
-      <Footer />
-    </div>
-  );
+  try {
+    return (
+      <div className="min-h-screen bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100">
+        <Header onLoginClick={openLogin} onSignupClick={openSignup} />
+        <main>
+          <HeroSection onGetStarted={openSignup} onDemoPortfolio={handleDemoPortfolio} />
+          <FeaturesSection />
+          <CtaSection onGetStarted={openSignup} />
+        </main>
+
+        {isLoginOpen && (
+          <LoginModal onClose={closeModals} onSwitchToSignup={openSignup} />
+        )}
+        {isSignupOpen && (
+          <SignupModal onClose={closeModals} onSwitchToLogin={openLogin} />
+        )}
+        <Footer />
+      </div>
+    );
+  } catch (error) {
+    console.error('[HomePage] Error during render:', error);
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Error loading homepage</h1>
+          <p className="mt-2 text-gray-600">{error.message}</p>
+          <pre className="mt-4 text-xs text-left bg-gray-100 p-4 rounded">{error.stack}</pre>
+        </div>
+      </div>
+    );
+  }
 }
 
 function Header({ onLoginClick, onSignupClick }) {

@@ -287,6 +287,15 @@ function PortfolioSummaryContent() {
   const properties = useProperties();
   const portfolioMetrics = usePortfolioMetrics();
   
+  // Timeout fallback - force show content after 1.5 seconds to prevent infinite loading
+  const [forceShow, setForceShow] = useState(false);
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setForceShow(true);
+    }, 1500);
+    return () => clearTimeout(timeout);
+  }, []);
+  
   // State for settings dropdown visibility
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef(null);
@@ -838,7 +847,10 @@ function PortfolioSummaryContent() {
   const visibleMetricCount = metrics.filter((metric) => metric.isVisible).length;
 
   // Show loading state until calculations are complete to prevent hydration mismatch
-  if (!calculationsComplete) {
+  // Show content if calculations are complete OR if we have properties OR if timeout elapsed
+  const shouldShowContent = calculationsComplete || forceShow || (properties && Array.isArray(properties));
+  
+  if (!shouldShowContent) {
     return (
       <RequireAuth>
         <Layout>
@@ -1060,7 +1072,7 @@ function PortfolioSummaryContent() {
                         accent="emerald"
                         supporting={
                           <>
-                            <div>
+                            <div className="whitespace-nowrap overflow-hidden">
                               {new Intl.NumberFormat('en-CA', {
                                 style: 'currency',
                                 currency: 'CAD',
@@ -1107,16 +1119,13 @@ function PortfolioSummaryContent() {
                         iconBadgePosition="top-center"
                         supporting={
                           <>
-                            <div>
+                            <div className="whitespace-nowrap overflow-hidden">
                               Current total equity: {new Intl.NumberFormat('en-CA', {
                                 style: 'currency',
                                 currency: 'CAD',
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 0,
-                              }).format(Math.floor(totalEquity))}
-                            </div>
-                            <div className="mt-1">
-                              Year Over Year: {yoyEquityIncrease >= 0 ? '+' : ''}{yoyEquityIncrease.toFixed(1)}% increase
+                              }).format(Math.floor(totalEquity))}, Year Over Year: {yoyEquityIncrease >= 0 ? '+' : ''}{yoyEquityIncrease.toFixed(1)}% increase
                             </div>
                             <div className="mt-1 text-xs opacity-90">
                               Includes principal payments + estimated appreciation
@@ -1143,7 +1152,7 @@ function PortfolioSummaryContent() {
                         accent="amber"
                         supporting={
                           <>
-                            <div>
+                            <div className="whitespace-nowrap overflow-hidden">
                               Monthly debt service: {new Intl.NumberFormat('en-CA', {
                                 style: 'currency',
                                 currency: 'CAD',
@@ -1692,7 +1701,7 @@ function TopMetricCard({
               : 'border-gray-300 dark:border-gray-600'
           }`} />
           {supportingSize === 'dynamic' ? (
-            <div className="mt-3 w-full">
+            <div className="mt-3 w-full min-w-0">
               <div 
                 className={`font-bold break-words ${
                   accent === 'emerald' 
@@ -1704,7 +1713,7 @@ function TopMetricCard({
                     : 'text-gray-900 dark:text-gray-100'
                 }`}
                 style={{ 
-                  fontSize: 'clamp(0.625rem, 1.5vw, 1.25rem)',
+                  fontSize: 'clamp(0.625rem, 1.2vw, 1rem)',
                   lineHeight: '1.3'
                 }}
               >

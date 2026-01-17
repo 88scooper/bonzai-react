@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { ChevronDown, ChevronUp, Calendar, Edit2 } from 'lucide-react';
 import { formatCurrency, formatPercentage } from '@/utils/formatting';
 import { calculateAmortizationSchedule } from '@/utils/mortgageCalculator';
@@ -11,6 +11,7 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
   const [showAmortizationSchedule, setShowAmortizationSchedule] = useState(false);
   const [showMortgageDetails, setShowMortgageDetails] = useState(false);
   const [showCompleteScheduleModal, setShowCompleteScheduleModal] = useState(false);
+  const [showMortgageChart, setShowMortgageChart] = useState(false);
   // Calculate mortgage data
   const mortgageData = useMemo(() => {
     if (!mortgage) return null;
@@ -23,9 +24,16 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
       const startDate = new Date(mortgageObj.startDate);
 
       // Find the next payment in the schedule based on today's date
+      // Parse dates as local dates (not UTC) to avoid timezone shift issues
+      const todayNormalized = new Date(now);
+      todayNormalized.setHours(0, 0, 0, 0);
+      
       let nextPaymentIndex = schedule.payments.findIndex(payment => {
-        const paymentDate = new Date(payment.paymentDate);
-        return paymentDate >= now;
+        // Parse YYYY-MM-DD as local date to avoid UTC timezone issues
+        const [year, month, day] = payment.paymentDate.split('-').map(Number);
+        const paymentDate = new Date(year, month - 1, day);
+        paymentDate.setHours(0, 0, 0, 0);
+        return paymentDate >= todayNormalized;
       });
 
       if (nextPaymentIndex === -1) {
@@ -72,8 +80,14 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
       const termRemainingMonths = Math.floor((termRemainingMs % (365.25 * 24 * 60 * 60 * 1000)) / (30.44 * 24 * 60 * 60 * 1000));
       
       // Use the schedule's payment date for the next payment
+      // Parse YYYY-MM-DD as local date to avoid UTC timezone shift
       const nextPaymentDate = currentPayment
-        ? new Date(currentPayment.paymentDate)
+        ? (() => {
+            const [year, month, day] = currentPayment.paymentDate.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })()
         : new Date(now);
       
       const daysUntilPayment = Math.ceil((nextPaymentDate - now) / (1000 * 60 * 60 * 24));
@@ -127,6 +141,73 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
     { name: 'Interest', value: interestAmount, color: '#F3F4F6' }
   ];
 
+  // Calculate yearly mortgage chart data for bar chart (scoped to term period only)
+  const yearlyChartData = useMemo(() => {
+    if (!mortgageData || !mortgageData.schedule || mortgageData.schedule.length === 0) return [];
+    
+    const mortgageObj = mortgage.mortgage || mortgage;
+    const startDate = new Date(mortgageObj.startDate);
+    const startYear = startDate.getFullYear();
+    
+    // Get term end date (renewal date)
+    const termEndDate = mortgageData.renewalDate ? new Date(mortgageData.renewalDate) : null;
+    if (!termEndDate) return [];
+    
+    // Group payments by year and get the last payment of each year
+    // Only include payments within the term period
+    const yearData = {};
+    
+    let cumulativeInterest = 0;
+    let cumulativePrincipal = 0;
+    
+    // Process all payments and track cumulative values
+    // Filter to only include payments within the term period
+    mortgageData.schedule.forEach(payment => {
+      const paymentDate = new Date(payment.paymentDate);
+      
+      // Only process payments up to and including the term end date
+      if (paymentDate > termEndDate) {
+        return;
+      }
+      
+      const paymentYear = paymentDate.getFullYear();
+      
+      cumulativeInterest += payment.interest || 0;
+      cumulativePrincipal += payment.principal || 0;
+      
+      // Store/update the year's data with the latest payment's values
+      // This ensures we capture the last payment of each year
+      yearData[paymentYear] = {
+        year: paymentYear,
+        balance: payment.remainingBalance || 0,
+        totalInterestPaid: cumulativeInterest,
+        totalPrincipalPaid: cumulativePrincipal,
+        totalCost: startingBalance + cumulativeInterest
+      };
+    });
+    
+    // Ensure we have the starting year with initial values
+    if (!yearData[startYear]) {
+      yearData[startYear] = {
+        year: startYear,
+        balance: startingBalance,
+        totalInterestPaid: 0,
+        totalPrincipalPaid: 0,
+        totalCost: startingBalance
+      };
+    }
+    
+    // Sort years and create array
+    const sortedYears = Object.keys(yearData).map(Number).sort((a, b) => a - b);
+    
+    // Filter out years beyond term end
+    const termEndYear = termEndDate.getFullYear();
+    const filteredYears = sortedYears.filter(year => year <= termEndYear);
+    
+    // Convert to array - show all years within the term period
+    return filteredYears.map(year => yearData[year]);
+  }, [mortgageData, mortgage, startingBalance]);
+
   const InfoIcon = () => (
     <svg className="w-4 h-4 text-[#205A3E] dark:text-[#4ade80]" fill="currentColor" viewBox="0 0 20 20">
       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
@@ -153,20 +234,20 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
       </div>
 
       {/* Top Summary Banner - Green Background */}
-      <div className="bg-gradient-to-r from-[#205A3E] to-[#2d7a5a] text-white p-4 sm:p-6 rounded-xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 items-center">
+      <div className="bg-gradient-to-r from-[#205A3E] to-[#2d7a5a] text-white p-2 sm:p-3 rounded-xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-4 items-center">
           
           {/* Left Section - Balance Overview with Donut Chart */}
-          <div className="flex items-center gap-4 sm:gap-6">
-            <div className="w-36 h-36 sm:w-52 sm:h-52 relative flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-20 h-20 sm:w-[120px] sm:h-[120px] relative flex-shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={balanceChartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={75}
+                    innerRadius={28}
+                    outerRadius={42}
                     dataKey="value"
                     startAngle={90}
                     endAngle={450}
@@ -184,35 +265,35 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center px-2">
-                  <div className="text-xs font-medium text-white/90">Starting Balance</div>
-                  <div className="text-sm font-bold text-white">{formatCurrency(startingBalance)}</div>
+                <div className="text-center px-1">
+                  <div className="text-[10px] font-medium text-white/90">Starting Balance</div>
+                  <div className="text-xs font-bold text-white">{formatCurrency(startingBalance)}</div>
                 </div>
               </div>
             </div>
-              <div className="space-y-3 sm:space-y-4 flex-1">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-gray-500 shadow-sm flex-shrink-0"></div>
+              <div className="space-y-2 flex-1">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-gray-500 shadow-sm flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-white/80 uppercase tracking-wide">Current Balance</div>
-                  <div className="font-bold text-white text-xs sm:text-sm mt-1">{formatCurrency(currentBalance)}</div>
+                  <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide">Current Balance</div>
+                  <div className="font-bold text-white text-[11px] sm:text-xs">{formatCurrency(currentBalance)}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-white shadow-sm flex-shrink-0"></div>
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white shadow-sm flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-white/80 uppercase tracking-wide">Balance Paid</div>
-                  <div className="font-bold text-white text-xs sm:text-sm mt-1">{formatCurrency(balancePaid)}</div>
+                  <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide">Balance Paid</div>
+                  <div className="font-bold text-white text-[11px] sm:text-xs">{formatCurrency(balancePaid)}</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Middle Section - Next Payment with Amount */}
-          <div className="space-y-4 text-center">
+          <div className="space-y-2 text-center">
             <div>
-              <div className="text-xs font-medium text-white/80 uppercase tracking-wide mb-2">Next Payment</div>
-              <div className="text-xl font-bold text-white mb-1">
+              <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide mb-1">Next Payment</div>
+              <div className="text-base font-bold text-white mb-0.5">
                 {mortgageData.nextPaymentDate.toLocaleDateString('en-US', { 
                   weekday: 'short', 
                   month: 'short', 
@@ -220,51 +301,51 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
                   year: 'numeric'
                 })}
               </div>
-              <div className="text-sm font-medium text-white/90 mb-2">{mortgageData.daysUntilPayment} days remaining</div>
-              <div className="text-lg font-bold text-white">
+              <div className="text-xs font-medium text-white/90 mb-1">{mortgageData.daysUntilPayment} days remaining</div>
+              <div className="text-sm font-bold text-white">
                 {formatCurrency(mortgageData.monthlyPayment)}
               </div>
             </div>
           </div>
 
           {/* Right Section - Payment Breakdown */}
-          <div className="space-y-4">
+          <div className="space-y-2">
           <div className="text-left">
-            <div className="text-xs font-medium text-white/80 uppercase tracking-wide mb-2">
+            <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide mb-1">
               Total Monthly Payment
             </div>
-            <div className="text-xl font-bold text-white">
+            <div className="text-base font-bold text-white">
               {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
                 ? formatCurrency(monthlyPayment * 26 / 12)
                 : formatCurrency(monthlyPayment)}
             </div>
             {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly' && (
-              <div className="text-xs font-medium text-white/70 mt-1">
+              <div className="text-[10px] font-medium text-white/70 mt-0.5">
                 Bi-weekly
               </div>
             )}
           </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-[#205A3E] flex-shrink-0"></div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#205A3E] flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-white/80 uppercase tracking-wide">
+                  <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide">
                     {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
                       ? 'Principal (bi-weekly)'
                       : 'Principal'}
                   </div>
-                  <div className="font-bold text-white text-sm">{formatCurrency(principalAmount)}</div>
+                  <div className="font-bold text-white text-xs">{formatCurrency(principalAmount)}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-white/20 flex-shrink-0"></div>
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-white/20 flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-white/80 uppercase tracking-wide">
+                  <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide">
                     {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
                       ? 'Interest (bi-weekly)'
                       : 'Interest'}
                   </div>
-                  <div className="font-bold text-white text-sm">{formatCurrency(interestAmount)}</div>
+                  <div className="font-bold text-white text-xs">{formatCurrency(interestAmount)}</div>
                 </div>
               </div>
             </div>
@@ -483,6 +564,99 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
                 )}
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mortgage Chart Dropdown */}
+      <div className="mt-6">
+        <button
+          onClick={() => setShowMortgageChart(!showMortgageChart)}
+          className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 rounded-xl border border-black/10 dark:border-white/10"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Year Over Year Payment Chart
+          </h3>
+          {showMortgageChart ? (
+            <ChevronUp className="w-5 h-5 text-gray-500" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-500" />
+          )}
+        </button>
+        
+        {showMortgageChart && (
+          <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden p-6">
+            {yearlyChartData.length > 0 ? (
+              <>
+                <div className="mb-4">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                    {mortgage.termYears || (mortgageObj.termMonths ? Math.round(mortgageObj.termMonths / 12) : 5)} Year Term Mortgage Numbers
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {mortgageObj.interestRate ? (mortgageObj.interestRate * 100).toFixed(2) : mortgage.interestRate?.toFixed(2) || 0}% Interest on {formatCurrency(startingBalance)} loan (no Escrows)
+                  </p>
+                </div>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={yearlyChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="year" 
+                      stroke="#6b7280"
+                      tick={{ fill: '#6b7280' }}
+                    />
+                    <YAxis 
+                      stroke="#6b7280"
+                      tick={{ fill: '#6b7280' }}
+                      tickFormatter={(value) => {
+                        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+                        if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+                        return `$${value}`;
+                      }}
+                    />
+                    <Tooltip 
+                      formatter={(value) => formatCurrency(value)}
+                      contentStyle={{
+                        backgroundColor: '#fff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '12px'
+                      }}
+                    />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                    />
+                    <Bar 
+                      dataKey="balance" 
+                      fill="#93c5fd" 
+                      name="Balance"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="totalInterestPaid" 
+                      fill="#ef4444" 
+                      name="Total Interest Paid"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="totalPrincipalPaid" 
+                      fill="#1e40af" 
+                      name="Total Principal Paid"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="totalCost" 
+                      fill="#fbbf24" 
+                      name="Total Cost"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </>
+            ) : (
+              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+                <p>No chart data available for this mortgage.</p>
+              </div>
+            )}
           </div>
         )}
       </div>
