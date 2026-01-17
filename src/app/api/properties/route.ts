@@ -147,13 +147,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Validate request body using shared validation utility
     const validationResult = validateRequest(createPropertySchema, body);
-    if (!validationResult.success) {
+    if (validationResult.success === false) {
       return NextResponse.json(
         createErrorResponse(validationResult.error, validationResult.statusCode || 400),
         { status: validationResult.statusCode || 400 }
       );
     }
 
+    // TypeScript now knows validationResult.success === true here
     const {
       accountId,
       nickname,

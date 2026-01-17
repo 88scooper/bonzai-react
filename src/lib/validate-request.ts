@@ -73,7 +73,7 @@ export function validateRequestOrError<T>(
 ): T | NextResponse {
   const result = validateRequest(schema, data);
   
-  if (!result.success) {
+  if (result.success === false) {
     return NextResponse.json(
       createErrorResponse(result.error, result.statusCode || 400),
       { status: result.statusCode || 400 }
