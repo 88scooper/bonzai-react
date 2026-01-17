@@ -314,7 +314,7 @@ function PortfolioSummaryContent() {
 
   // Default metrics configuration - Reordered according to new layout
   const defaultMetrics = [
-    { id: 'portfolioValue', name: 'Total Estimated Portfolio Value', isVisible: true },
+    { id: 'portfolioValue', name: 'Estimated Portfolio Value', isVisible: true },
     { id: 'equity', name: 'Forecasted Annual Equity', isVisible: true },
     { id: 'mortgageDebt', name: 'Annual Debt Service', isVisible: true },
     { id: 'netOperatingIncome', name: 'Annual Net Operating Income', isVisible: true },
@@ -695,7 +695,7 @@ function PortfolioSummaryContent() {
   const totalTrackedDeductibleExpenses = deductibleExpenseCategoryList.reduce((sum, category) => sum + category.value, 0);
 
   // Calculate new KPIs
-  // 1. Overall Cap Rate = Total Annual NOI / Total Estimated Portfolio Value
+  // 1. Overall Cap Rate = Total Annual NOI / Estimated Portfolio Value
   // Calculate NOI from actual + forecast for each property
   const totalAnnualNOI = (properties || []).reduce((sum, property) => {
     const { annual } = calculateActualPlusForecast(property);
@@ -703,7 +703,7 @@ function PortfolioSummaryContent() {
   }, 0);
   const overallCapRate = totalPortfolioValue > 0 ? (totalAnnualNOI / totalPortfolioValue) * 100 : 0;
 
-  // 2. Portfolio LTV = Total Mortgage Debt / Total Estimated Portfolio Value
+  // 2. Portfolio LTV = Total Mortgage Debt / Estimated Portfolio Value
   const portfolioLTV = totalPortfolioValue > 0 ? (totalMortgageDebt / totalPortfolioValue) * 100 : 0;
 
   // 3. Blended Cash on Cash Return = Total Annual Cash Flow Before Tax / Total Initial Cash Invested
@@ -1061,7 +1061,7 @@ function PortfolioSummaryContent() {
                     return (
                       <TopMetricCard
                         key={metric.id}
-                        title="Total Estimated Portfolio Value"
+                        title="Estimated Portfolio Value"
                         value={new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
@@ -1229,7 +1229,7 @@ function PortfolioSummaryContent() {
                     return (
                       <MetricCard
                         key={metric.id}
-                        title="Total Estimated Portfolio Value"
+                        title="Estimated Portfolio Value"
                         value={formatCurrency(totalPortfolioValue || 0)}
                         showInfoIcon={true}
                         tooltipText="The estimated current market value of all properties in your portfolio. LTV (Loan-to-Value) shows the percentage of your portfolio that is financed."
@@ -1341,7 +1341,7 @@ function PortfolioSummaryContent() {
                             : 'N/A'
                         }
                         showInfoIcon={true}
-                        tooltipText="The portfolio's capitalization rate calculated as total annual NOI divided by total estimated portfolio value. A 'strong' cap rate for a rental property in the Toronto area is typically considered to be in the 5% to 7% range for suburban and high-demand areas, while downtown core properties often have lower cap rates of 3.75% to 4.25% due to higher property values and demand."
+                        tooltipText="The portfolio's capitalization rate calculated as total annual NOI divided by estimated portfolio value. A 'strong' cap rate for a rental property in the Toronto area is typically considered to be in the 5% to 7% range for suburban and high-demand areas, while downtown core properties often have lower cap rates of 3.75% to 4.25% due to higher property values and demand."
                         statusMessage={capRateMessage}
                         statusTone={capRateTone}
                       />
@@ -1618,31 +1618,11 @@ function TopMetricCard({
     }
   }, [isHovered, updateTooltipPosition]);
 
-  const accentConfig = {
-    emerald: {
-      border: 'border-[#205A3E]/30 dark:border-[#1C4F39]/40',
-      gradient: 'from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent',
-      icon: 'text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70',
-    },
-    teal: {
-      border: 'border-[#1A4A5A]/25 dark:border-[#123640]/40',
-      gradient: 'from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent',
-      icon: 'text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70',
-    },
-    amber: {
-      border: 'border-[#B57A33]/25 dark:border-[#8C5D24]/35',
-      gradient: 'from-[#F3E6D4] via-[#FBF6EE] to-transparent dark:from-[#2A2014] dark:via-[#1B140C] dark:to-transparent',
-      icon: 'text-[#B57A33] dark:text-[#E9C08A] bg-white/90 dark:bg-[#2D2115]/70',
-    },
-  };
-
-  const config = accentConfig[accent] || accentConfig.emerald;
-
   return (
-    <div className={`relative rounded-2xl border ${config.border} bg-gradient-to-br ${config.gradient} p-5`}>
+    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-5">
       <div className="flex items-start justify-between gap-3.5">
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
             {title}
           </h3>
         </div>
@@ -1652,7 +1632,7 @@ function TopMetricCard({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <div ref={iconRef} className={`relative rounded-full p-2.5 ${config.icon} cursor-help flex-shrink-0 flex items-center justify-center`}>
+            <div ref={iconRef} className="relative rounded-full p-2.5 text-[#205A3E] dark:text-[#66B894] bg-white dark:bg-gray-900 cursor-help flex-shrink-0 flex items-center justify-center">
               <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
               {iconBadge && (
                 <span
@@ -1686,20 +1666,12 @@ function TopMetricCard({
           </div>
         )}
       </div>
-      <div className="mt-5 text-3xl font-bold text-gray-900 dark:text-white">
+      <div className="mt-5 text-3xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
         {value}
       </div>
       {supporting && (
         <>
-          <div className={`mt-4 border-t-[3px] ${
-            accent === 'emerald' 
-              ? 'border-[#205A3E]/30 dark:border-[#66B894]/30' 
-              : accent === 'teal'
-              ? 'border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30'
-              : accent === 'amber'
-              ? 'border-[#B57A33]/30 dark:border-[#E9C08A]/30'
-              : 'border-gray-300 dark:border-gray-600'
-          }`} />
+          <div className="mt-4 border-t border-gray-100 dark:border-gray-800" />
           {supportingSize === 'dynamic' ? (
             <div className="mt-3 w-full min-w-0">
               <div 
@@ -2640,7 +2612,7 @@ function MetricCard({
   const statusStyles = statusToneConfig[statusTone] || statusToneConfig.neutral;
 
   return (
-    <div className="rounded-lg border border-black/10 dark:border-white/10 p-6 hover:bg-black/5 dark:hover:bg-white/5 transition">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-3">
@@ -2668,7 +2640,7 @@ function MetricCard({
               ))}
             </div>
           ) : (
-            <p className={`text-3xl font-bold ${getValueColor()}`}>{value}</p>
+            <p className={`text-3xl font-semibold tabular-nums ${getValueColor()}`}>{value}</p>
           )}
 
           {subtitle && (

@@ -16,6 +16,7 @@ import { useProperties, usePropertyContext } from "@/context/PropertyContext";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
 import { calculateAmortizationSchedule } from "@/utils/mortgageCalculator";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart } from "recharts";
+import { ListPageHeader } from "@/components/shared";
 
 export default function MortgagesPage() {
   const { data: apiMortgages = [], isLoading: apiLoading, error, refetch: refetchMortgages } = useMortgages();
@@ -463,25 +464,14 @@ export default function MortgagesPage() {
   return (
       <Layout>
         <div className="space-y-6">
-        {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Mortgages</h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-300">
-              Manage and analyze your mortgage portfolio
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <button
-                onClick={() => setShowForm(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-[#205A3E] text-white rounded-lg hover:bg-[#1a4a32] transition-colors text-sm sm:text-base"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Mortgage</span>
-                <span className="sm:hidden">Add</span>
-              </button>
-            </div>
-          </div>
+          {/* Header */}
+          <ListPageHeader
+            title="Mortgages"
+            description="Manage and analyze your mortgage portfolio"
+            actionLabel="Add Mortgage"
+            onAction={() => setShowForm(true)}
+            actionIcon={Plus}
+          />
 
         {/* View Mode Selector */}
         <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
@@ -692,33 +682,33 @@ export default function MortgagesPage() {
                   <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lender</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Original Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Interest Rate</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monthly Payment</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Interest</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Cost</th>
+                        <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">Lender</th>
+                        <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">Original Amount</th>
+                        <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">Interest Rate</th>
+                        <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">Monthly Payment</th>
+                        <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">Total Interest</th>
+                        <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">Total Cost</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
                       {comparisonData.map((mortgage, index) => (
-                        <tr key={mortgage.id} className={index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        <tr key={mortgage.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-300">
                             {mortgage.lenderName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-300">
                             {formatCurrency(mortgage.originalAmount)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-300">
                             {mortgage.interestRate}%
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-300">
                             {formatCurrency(mortgage.monthlyPayment)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
                             {formatCurrency(mortgage.totalInterest)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                             {formatCurrency(mortgage.totalCost)}
                           </td>
                         </tr>

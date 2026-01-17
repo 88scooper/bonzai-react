@@ -11,6 +11,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, L
 import AnnualExpenseChart from '@/components/charts/AnnualExpenseChart';
 import { useToast } from "@/context/ToastContext";
 import { X, ChevronDown, ChevronUp, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar, Plus, Edit2, Trash2, Check } from "lucide-react";
+import PropertyHeader from "@/components/shared/PropertyHeader";
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import { DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
 import { getPropertyNotes, savePropertyNotes } from "@/lib/property-notes-storage";
@@ -727,22 +728,11 @@ export default function PropertyDetailPage() {
     <RequireAuth>
       <Layout>
         <div className="space-y-6">
-          {/* Header with Edit buttons */}
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">{property.name || property.nickname}</h1>
-              <p className="mt-1 text-gray-600 dark:text-gray-300">{property.address}</p>
-            </div>
-            <div className="flex gap-3">
-              <Button 
-                variant="secondary" 
-                onClick={() => window.location.href = '/data'}
-                title="Edit property data on the Data page"
-              >
-                Edit Property Data
-              </Button>
-            </div>
-          </div>
+          {/* Property Header with Bonzai Green Banner */}
+          <PropertyHeader 
+            property={property}
+            onEdit={() => window.location.href = '/data'}
+          />
 
           {/* Purchase Summary & Property Details with Image */}
           <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">

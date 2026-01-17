@@ -75,8 +75,40 @@
   --spacing-32: 8rem; /* 128px */
 }
 
+/* Dark mode via class selector (for manual dark mode toggle) */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+
+  --brand-primary: #2F7E57;
+  --brand-primary-hover: #205A3E;
+  --brand-primary-light: #4ade80;
+  --brand-primary-lighter: #66B894;
+  --brand-primary-dark: #1D3A2C;
+  --brand-primary-darker: #0F1F17;
+
+  --success: #34d399;
+  --success-dark: #10b981;
+  --success-bg: #064e3b;
+
+  --warning: #fbbf24;
+  --warning-dark: #f59e0b;
+  --warning-bg: #78350f;
+
+  --error: #f87171;
+  --error-dark: #ef4444;
+  --error-bg: #7f1d1d;
+
+  --info: #60a5fa;
+  --info-dark: #3b82f6;
+  --info-bg: #1e3a8a;
+
+  --surface-elevated: #171717;
+  --surface-subtle: #0f0f0f;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --background: #0a0a0a;
     --foreground: #ededed;
 
@@ -114,6 +146,11 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-jakarta: var(--font-plus-jakarta-sans);
+  
+  /* Fluid typography for hero metrics using clamp() */
+  --font-size-4xl: clamp(1.875rem, 1.5rem + 1.5vw, 2.25rem); /* 30px → 36px */
+  --font-size-5xl: clamp(2.25rem, 1.75rem + 2vw, 3rem);      /* 36px → 48px */
+  --font-size-6xl: clamp(3rem, 2rem + 3vw, 3.75rem);         /* 48px → 60px */
 
   /* Brand colors */
   --color-brand-primary: var(--brand-primary);
@@ -160,12 +197,75 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: #F9FAFB; /* gray-50 - Mercury aesthetic */
+  color: #0F172A; /* slate-900 for better legibility */
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum"; /* tnum for tabular numbers */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode body styles */
+.dark body {
+  background-color: #030712; /* gray-950 */
+  color: #F9FAFB; /* gray-50 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) body {
+    background-color: #030712; /* gray-950 */
+    color: #F9FAFB; /* gray-50 */
+  }
+}
+
+/* Bonzai Green Focus Rings for Keyboard Navigation */
+:focus-visible {
+  outline: 2px solid #205A3E;
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Remove default browser outline for mouse users, keep for keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Apply focus rings to all interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #205A3E;
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Dark mode focus rings */
+.dark :focus-visible {
+  outline-color: #66B894;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) :focus-visible {
+    outline-color: #66B894;
+  }
+}
+
+/* Utility classes for hero metrics with clamp() */
+.text-hero-4xl {
+  font-size: clamp(1.875rem, 1.5rem + 1.5vw, 2.25rem);
+  line-height: 1.2;
+}
+
+.text-hero-5xl {
+  font-size: clamp(2.25rem, 1.75rem + 2vw, 3rem);
+  line-height: 1.1;
+}
+
+.text-hero-6xl {
+  font-size: clamp(3rem, 2rem + 3vw, 3.75rem);
+  line-height: 1.1;
 }
 
 /* Typography Scale */
@@ -310,4 +410,18 @@ h6, .h6 {
   transform: scale(var(--portfolio-page-scale));
   transform-origin: top left;
   width: calc(100% / var(--portfolio-page-scale));
+}
+
+/* Shimmer animation for skeleton states */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
 }

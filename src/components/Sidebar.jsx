@@ -129,10 +129,10 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
         fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
         md:sticky md:top-0 md:translate-x-0 md:z-auto
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        w-64 bg-white dark:bg-neutral-950 border-r border-black/10 dark:border-white/10
+        w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
         flex flex-col shadow-lg h-screen
       `}>
-        <div className="px-6 py-6 border-b border-black/10 dark:border-white/10">
+        <div className="px-6 py-6 border-b border-gray-200 dark:border-gray-800">
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Bonzai</h1>
           
           {/* Close Button - Mobile Only */}
@@ -157,10 +157,10 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
                     href={item.href}
                     prefetch={false}
                     onClick={handleNavClick}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors relative border-l-4 ${
                       isActive
-                        ? "text-[#205A3E] dark:text-[#4ade80] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                        : "text-[#205A3E] dark:text-[#4ade80] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
+                        ? "bg-[#205A3E]/10 dark:bg-[#205A3E]/20 text-[#205A3E] dark:text-[#66B894] border-[#205A3E] dark:border-[#66B894]"
+                        : "border-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                     }`}
                   >
                     {item.icon}
@@ -175,10 +175,10 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
                   href={adminNavItem.href}
                   prefetch={false}
                   onClick={handleNavClick}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors relative border-l-4 ${
                     pathname === adminNavItem.href || pathname?.startsWith(adminNavItem.href + "/")
-                      ? "text-[#205A3E] dark:text-[#4ade80] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                      : "text-[#205A3E] dark:text-[#4ade80] hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
+                      ? "bg-[#205A3E]/10 dark:bg-[#205A3E]/20 text-[#205A3E] dark:text-[#66B894] border-[#205A3E] dark:border-[#66B894]"
+                      : "border-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   }`}
                 >
                   {adminNavItem.icon}

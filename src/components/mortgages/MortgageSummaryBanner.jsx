@@ -100,7 +100,7 @@ const MortgageSummaryBanner = ({ mortgageData }) => {
   const lumpSumProgress = (lumpSumUsed / lumpSumPrivilege) * 100;
 
   return (
-    <div className="bg-gradient-to-r from-[#205A3E] to-[#2d7a5a] text-white p-6 rounded-xl">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-6">
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
         
         {/* Starting Balance Donut Chart */}
@@ -126,17 +126,17 @@ const MortgageSummaryBanner = ({ mortgageData }) => {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <div className="text-xs font-medium">Starting Balance</div>
-                <div className="text-sm font-bold">{formatCurrency(startingBalance)}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Starting Balance</div>
+                <div className="text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatCurrency(startingBalance)}</div>
               </div>
             </div>
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
               <div className="w-3 h-3 rounded-full bg-[#205A3E]"></div>
               <span>Current Balance</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
               <div className="w-3 h-3 rounded-full bg-gray-400"></div>
               <span>Balance Paid</span>
             </div>
@@ -146,20 +146,20 @@ const MortgageSummaryBanner = ({ mortgageData }) => {
         {/* Current & Paid Balance */}
         <div className="space-y-3">
           <div className="text-center">
-            <div className="text-sm text-white/80">Current Balance</div>
-            <div className="text-xl font-bold">{formatCurrency(currentBalance)}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Current Balance</div>
+            <div className="text-xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatCurrency(currentBalance)}</div>
           </div>
           <div className="text-center">
-            <div className="text-sm text-white/80">Balance Paid</div>
-            <div className="text-xl font-bold">{formatCurrency(balancePaid)}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Balance Paid</div>
+            <div className="text-xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatCurrency(balancePaid)}</div>
           </div>
         </div>
 
         {/* Payment Date & Amount */}
         <div className="space-y-3">
           <div className="text-center">
-            <div className="text-sm text-white/80">Payment Date</div>
-            <div className="text-lg font-bold">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Payment Date</div>
+            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {nextPaymentDate.toLocaleDateString('en-US', { 
                 weekday: 'short', 
                 month: 'short', 
@@ -167,7 +167,7 @@ const MortgageSummaryBanner = ({ mortgageData }) => {
                 year: 'numeric' 
               })}
             </div>
-            <div className="text-sm text-white/80">{daysUntilPayment} days</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">{daysUntilPayment} days</div>
             <div className="w-full bg-gray-600 rounded-full h-2 mt-1">
               <div 
                 className="bg-orange-500 h-2 rounded-full transition-all duration-300" 
@@ -176,22 +176,22 @@ const MortgageSummaryBanner = ({ mortgageData }) => {
             </div>
           </div>
           <div className="text-center">
-            <div className="text-sm text-white/80">Payment Amount</div>
-            <div className="text-xl font-bold">{formatCurrency(paymentAmount)}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Payment Amount</div>
+            <div className="text-xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatCurrency(paymentAmount)}</div>
           </div>
         </div>
 
         {/* Lump Sum Privilege */}
         <div className="space-y-3">
           <div className="text-center">
-            <div className="flex items-center justify-center gap-1 text-sm text-white/80">
+            <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               <span>Remaining Lump Sum Privilege Payment</span>
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
             </div>
-            <div className="text-xl font-bold">{formatCurrency(lumpSumPrivilege)}</div>
-            <div className="text-sm text-white/80">Used {formatCurrency(lumpSumUsed)}</div>
+            <div className="text-xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatCurrency(lumpSumPrivilege)}</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Used {formatCurrency(lumpSumUsed)}</div>
             <div className="w-full bg-gray-600 rounded-full h-2 mt-1">
               <div 
                 className="bg-orange-500 h-2 rounded-full transition-all duration-300" 

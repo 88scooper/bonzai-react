@@ -5,10 +5,10 @@ import Layout from "@/components/Layout";
 import { RequireAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
 import { useToast } from "@/context/ToastContext";
-import { Settings, TrendingUp } from "lucide-react";
+import { Settings, TrendingUp, Moon, Sun, Monitor } from "lucide-react";
 
 export default function SettingsPage() {
-  const { settings, updateSetting, currencyDecimals, percentageDecimals } = useSettings();
+  const { settings, updateSetting, currencyDecimals, percentageDecimals, darkMode } = useSettings();
   const { addToast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -18,9 +18,28 @@ export default function SettingsPage() {
     expenseChange: ''
   });
   const [assumptionsLoading, setAssumptionsLoading] = useState(false);
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    return false;
+  });
 
   useEffect(() => {
     setIsClient(true);
+  }, []);
+
+  // Listen for system preference changes
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e) => {
+      setSystemPrefersDark(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
   // Load annual assumptions when component mounts
@@ -48,6 +67,20 @@ export default function SettingsPage() {
 
   const handlePercentageDecimalsToggle = (enabled) => {
     updateSetting('percentageDecimals', enabled);
+  };
+
+  const handleDarkModeChange = (mode) => {
+    updateSetting('darkMode', mode);
+  };
+
+  const getDarkModeLabel = () => {
+    if (darkMode === null) return 'System';
+    return darkMode ? 'Dark' : 'Light';
+  };
+
+  const getDarkModeIcon = () => {
+    if (darkMode === null) return <Monitor className="w-4 h-4" />;
+    return darkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />;
   };
 
   const handleAssumptionsChange = (field, value) => {
@@ -137,6 +170,65 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-6">
+            {/* Appearance Section */}
+            <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 p-6 shadow-sm">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Appearance
+              </h2>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+                      {getDarkModeIcon()}
+                      Theme
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Choose your preferred theme: System, Dark, or Light
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleDarkModeChange(null)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        darkMode === null
+                          ? 'bg-[#205A3E] text-white'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                      title="System"
+                    >
+                      <Monitor className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleDarkModeChange(false)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        darkMode === false
+                          ? 'bg-[#205A3E] text-white'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                      title="Light"
+                    >
+                      <Sun className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleDarkModeChange(true)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        darkMode === true
+                          ? 'bg-[#205A3E] text-white'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                      title="Dark"
+                    >
+                      <Moon className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 pl-1">
+                  Current: {getDarkModeLabel()} {darkMode === null && `(${systemPrefersDark ? 'Dark' : 'Light'})`}
+                </div>
+              </div>
+            </div>
+
             {/* Currency Formatting Section */}
             <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 p-6 shadow-sm">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">

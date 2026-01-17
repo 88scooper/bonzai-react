@@ -1,16 +1,29 @@
 "use client";
 
+/**
+ * ChartSkeleton Component
+ * Shimmer effect skeleton for charts - makes app feel faster than it is
+ * Shows grey "ghost" version of chart that shimmers during loading
+ */
 export default function ChartSkeleton() {
   return (
-    <div className="animate-pulse space-y-4">
+    <div className="space-y-4 relative overflow-hidden">
       {/* Chart Header */}
-      <div className="flex items-center justify-between">
-        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded"></div>
-        <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
       </div>
       
-      {/* Chart Area */}
-      <div className="h-96 bg-gray-100 dark:bg-gray-800 rounded-lg relative overflow-hidden">
+      {/* Chart Area with shimmer */}
+      <div className="h-96 bg-gray-100 dark:bg-gray-800 rounded-xl relative overflow-hidden">
+        {/* Shimmer overlay */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent dark:via-white/5 pointer-events-none"
+          style={{
+            animation: 'shimmer 2s infinite',
+            transform: 'translateX(-100%)'
+          }}
+        ></div>
         {/* Simulated chart lines */}
         <svg className="w-full h-full" viewBox="0 0 800 400" preserveAspectRatio="none">
           {/* Grid lines */}

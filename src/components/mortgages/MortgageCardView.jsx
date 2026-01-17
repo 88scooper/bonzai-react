@@ -216,25 +216,8 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
 
   return (
     <div className="space-y-6">
-      {/* Property Address with Edit Button */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {mortgage.property?.address || mortgage.propertyName || 'Property Address'}
-        </h2>
-        {onEdit && (
-          <button
-            onClick={() => onEdit(mortgage)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#205A3E] text-white rounded-lg hover:bg-[#1a4a32] transition-colors"
-            title="Edit mortgage"
-          >
-            <Edit2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Edit</span>
-          </button>
-        )}
-      </div>
-
-      {/* Top Summary Banner - Green Background */}
-      <div className="bg-gradient-to-r from-[#205A3E] to-[#2d7a5a] text-white p-2 sm:p-3 rounded-xl">
+      {/* Top Summary Banner - Bonzai Green (Financial Summary) */}
+      <div className="bg-[#205A3E] dark:bg-[#1a4932] rounded-xl p-2 sm:p-3">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-4 items-center">
           
           {/* Left Section - Balance Overview with Donut Chart */}
@@ -266,24 +249,24 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
               </ResponsiveContainer>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center px-1">
-                  <div className="text-[10px] font-medium text-white/90">Starting Balance</div>
-                  <div className="text-xs font-bold text-white">{formatCurrency(startingBalance)}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">Starting Balance</div>
+                  <div className="text-xs font-semibold tabular-nums text-white">{formatCurrency(startingBalance)}</div>
                 </div>
               </div>
             </div>
               <div className="space-y-2 flex-1">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-gray-500 shadow-sm flex-shrink-0"></div>
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-gray-400 shadow-sm flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide">Current Balance</div>
-                  <div className="font-bold text-white text-[11px] sm:text-xs">{formatCurrency(currentBalance)}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">Current Balance</div>
+                  <div className="font-semibold tabular-nums text-white text-[11px] sm:text-xs">{formatCurrency(currentBalance)}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white shadow-sm flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide">Balance Paid</div>
-                  <div className="font-bold text-white text-[11px] sm:text-xs">{formatCurrency(balancePaid)}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">Balance Paid</div>
+                  <div className="font-semibold tabular-nums text-white text-[11px] sm:text-xs">{formatCurrency(balancePaid)}</div>
                 </div>
               </div>
             </div>
@@ -292,8 +275,8 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
           {/* Middle Section - Next Payment with Amount */}
           <div className="space-y-2 text-center">
             <div>
-              <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide mb-1">Next Payment</div>
-              <div className="text-base font-bold text-white mb-0.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90 mb-1">Next Payment</div>
+              <div className="text-base font-semibold text-white mb-0.5">
                 {mortgageData.nextPaymentDate.toLocaleDateString('en-US', { 
                   weekday: 'short', 
                   month: 'short', 
@@ -301,8 +284,8 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
                   year: 'numeric'
                 })}
               </div>
-              <div className="text-xs font-medium text-white/90 mb-1">{mortgageData.daysUntilPayment} days remaining</div>
-              <div className="text-sm font-bold text-white">
+              <div className="text-sm text-white/80 mb-1">{mortgageData.daysUntilPayment} days remaining</div>
+              <div className="text-sm font-semibold tabular-nums text-white">
                 {formatCurrency(mortgageData.monthlyPayment)}
               </div>
             </div>
@@ -311,41 +294,41 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
           {/* Right Section - Payment Breakdown */}
           <div className="space-y-2">
           <div className="text-left">
-            <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide mb-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90 mb-1">
               Total Monthly Payment
             </div>
-            <div className="text-base font-bold text-white">
+            <div className="text-base font-semibold tabular-nums text-white">
               {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
                 ? formatCurrency(monthlyPayment * 26 / 12)
                 : formatCurrency(monthlyPayment)}
             </div>
             {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly' && (
-              <div className="text-[10px] font-medium text-white/70 mt-0.5">
+              <div className="text-[10px] font-medium text-white/80 mt-0.5">
                 Bi-weekly
               </div>
             )}
           </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#205A3E] flex-shrink-0"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-white flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">
                     {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
                       ? 'Principal (bi-weekly)'
                       : 'Principal'}
                   </div>
-                  <div className="font-bold text-white text-xs">{formatCurrency(principalAmount)}</div>
+                  <div className="font-semibold tabular-nums text-white text-xs">{formatCurrency(principalAmount)}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-white/20 flex-shrink-0"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-white/30 flex-shrink-0"></div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">
                     {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
                       ? 'Interest (bi-weekly)'
                       : 'Interest'}
                   </div>
-                  <div className="font-bold text-white text-xs">{formatCurrency(interestAmount)}</div>
+                  <div className="font-semibold tabular-nums text-white text-xs">{formatCurrency(interestAmount)}</div>
                 </div>
               </div>
             </div>

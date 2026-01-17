@@ -11,6 +11,7 @@ import { useProperties, usePropertyContext } from "@/context/PropertyContext";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
 import { Building2, PiggyBank, FileSpreadsheet, Plus } from "lucide-react";
 import { getCurrentMortgageBalance, getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from "@/utils/mortgageCalculator";
+import { ListPageHeader } from "@/components/shared";
 import { calculateIRR as calculateIRRProper } from "@/utils/financialCalculations";
 
 // Calculate YoY change percentage
@@ -235,22 +236,13 @@ export default function MyPropertiesPage() {
     <RequireAuth>
       <Layout>
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold">My Investment Properties</h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-300">
-                Overview of your real estate investment performance and key metrics for {new Date().getFullYear()}.
-              </p>
-            </div>
-            <button
-              onClick={() => setIsAddPropertyModalOpen(true)}
-              className="group relative inline-flex items-center gap-2 px-6 py-3 bg-[#205A3E] hover:bg-[#1a4730] dark:bg-[#2F7E57] dark:hover:bg-[#205A3E] text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-100"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add New Property</span>
-              <div className="absolute inset-0 rounded-lg bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-            </button>
-          </div>
+          <ListPageHeader
+            title="My Investment Properties"
+            description={`Overview of your real estate investment performance and key metrics for ${new Date().getFullYear()}.`}
+            actionLabel="Add New Property"
+            onAction={() => setIsAddPropertyModalOpen(true)}
+            actionIcon={Plus}
+          />
 
           {/* Debug info */}
           <div className="text-xs text-gray-500 mb-2">
@@ -835,40 +827,14 @@ IRR is your property's "all-in" annual growth rate. Unlike simple cash flow, it 
   }
 }
 
-// Financial Overview Card Component (similar to TopMetricCard)
+// Financial Overview Card Component (Mercury style - no gradients)
 function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 'emerald', tooltipText }) {
   const [showTooltip, setShowTooltip] = useState(false);
   
-  const accentConfig = {
-    emerald: {
-      border: 'border-[#205A3E]/30 dark:border-[#1C4F39]/40',
-      gradient: 'from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent',
-      icon: 'text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70',
-      supporting: 'text-[#205A3E] dark:text-[#66B894]',
-      separator: 'border-[#205A3E]/30 dark:border-[#66B894]/30',
-    },
-    teal: {
-      border: 'border-[#1A4A5A]/25 dark:border-[#123640]/40',
-      gradient: 'from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent',
-      icon: 'text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70',
-      supporting: 'text-[#1A4A5A] dark:text-[#7AC0CF]',
-      separator: 'border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30',
-    },
-    amber: {
-      border: 'border-[#B57A33]/25 dark:border-[#8C5D24]/35',
-      gradient: 'from-[#F3E6D4] via-[#FBF6EE] to-transparent dark:from-[#2A2014] dark:via-[#1B140C] dark:to-transparent',
-      icon: 'text-[#B57A33] dark:text-[#E9C08A] bg-white/90 dark:bg-[#2D2115]/70',
-      supporting: 'text-[#B57A33] dark:text-[#E9C08A]',
-      separator: 'border-[#B57A33]/30 dark:border-[#E9C08A]/30',
-    },
-  };
-  
-  const config = accentConfig[accent] || accentConfig.emerald;
-  
   return (
-    <div className={`relative rounded-lg border ${config.border} bg-gradient-to-br ${config.gradient} p-2 md:p-2.5`}>
+    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2 md:p-2.5">
       <div className="flex items-start justify-between gap-1">
-        <h3 className="text-xs md:text-sm font-semibold text-gray-900 dark:text-white flex-1 leading-tight line-clamp-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex-1 leading-tight line-clamp-2">
           {title}
         </h3>
         {Icon && (
@@ -877,7 +843,7 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
           >
-            <div className={`relative rounded-full p-1 ${config.icon} cursor-help flex items-center justify-center`}>
+            <div className="relative rounded-full p-1 text-[#205A3E] dark:text-[#66B894] bg-white dark:bg-gray-900 cursor-help flex items-center justify-center">
               <Icon className="h-2.5 w-2.5 md:h-3 md:w-3 flex-shrink-0" aria-hidden="true" />
             </div>
             {tooltipText && showTooltip && (
@@ -889,13 +855,13 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
           </div>
         )}
       </div>
-      <div className="mt-1 md:mt-1.5 text-base md:text-lg font-bold text-gray-900 dark:text-white">
+      <div className="mt-1 md:mt-1.5 text-base md:text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-100">
         {value}
       </div>
       {supporting && (
         <>
-          <div className={`mt-1 md:mt-1.5 border-t-[2px] ${config.separator}`} />
-          <div className={`mt-0.5 md:mt-1 text-[10px] md:text-xs font-bold ${config.supporting} leading-tight`} suppressHydrationWarning>
+          <div className="mt-1 md:mt-1.5 border-t border-gray-100 dark:border-gray-800" />
+          <div className="mt-0.5 md:mt-1 text-[10px] md:text-xs font-semibold text-gray-600 dark:text-gray-400 leading-tight" suppressHydrationWarning>
             {typeof supporting === 'string' ? supporting : supporting}
           </div>
         </>
@@ -950,7 +916,7 @@ function IncomeExpensesSection({
   };
   
   return (
-    <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-2.5 md:p-3">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2.5 md:p-3">
       <div className="mb-2.5">
         <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
           Income & Expenses
@@ -974,7 +940,7 @@ function IncomeExpensesSection({
             <p className="text-sm md:text-base opacity-80">After operating expenses and debt service</p>
           </div>
           <div className="text-right">
-            <p className="text-lg md:text-2xl font-bold">{formatCurrency(netCashFlow)}</p>
+            <p className="text-lg md:text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatCurrency(netCashFlow)}</p>
             {expenseShare !== null && Number.isFinite(expenseShare) && (
               <p className="text-sm md:text-base font-medium opacity-80">
                 {percentFormatter.format(expenseShare)} of revenue consumed
@@ -996,7 +962,7 @@ function IncomeExpensesSection({
               <span>
                 {step.label}
               </span>
-              <span className="text-gray-900 dark:text-gray-100">
+              <span className="text-slate-900 dark:text-slate-100 font-semibold tabular-nums">
                 {step.type === 'subtract' ? `-${formatCurrency(step.value)}` : formatCurrency(step.value)}
               </span>
             </div>
@@ -1024,42 +990,20 @@ function MetricDisplayCard({ label, value, subvalue, isPositive, accent = 'emera
   // Consistent font sizes across all metric cards
   const valueSize = size === 'large' ? 'text-xl' : 'text-lg';
   
-  // Sophisticated tinted backgrounds matching Bonzai TopMetricCard style
-  const accentConfig = {
-    emerald: {
-      border: 'border-[#205A3E]/30 dark:border-[#1C4F39]/40',
-      gradient: 'from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent',
-    },
-    teal: {
-      border: 'border-[#1A4A5A]/25 dark:border-[#123640]/40',
-      gradient: 'from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent',
-    },
-    amber: {
-      border: 'border-[#B57A33]/25 dark:border-[#8C5D24]/35',
-      gradient: 'from-[#F3E6D4] via-[#FBF6EE] to-transparent dark:from-[#2A2014] dark:via-[#1B140C] dark:to-transparent',
-    },
-    red: {
-      border: 'border-red-200/30 dark:border-red-800/40',
-      gradient: 'from-red-50/50 via-red-25/30 to-transparent dark:from-red-950/30 dark:via-red-900/20 dark:to-transparent',
-    },
-  };
-
-  const config = isPositive === false ? accentConfig.red : accentConfig[accent] || accentConfig.emerald;
-  
   const getValueColor = () => {
     if (isPositive === false) {
       return 'text-red-600 dark:text-red-400';
     }
-    return 'text-gray-900 dark:text-gray-100';
+    return 'text-slate-900 dark:text-slate-100';
   };
 
   return (
-    <div className={`relative overflow-hidden rounded-lg border ${config.border} bg-gradient-to-br ${config.gradient} p-2.5 hover:opacity-95 transition-opacity`}>
+    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2.5 hover:opacity-95 transition-opacity">
       <div className="text-center">
-        <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
           {label}
         </div>
-        <div className={`${valueSize} font-bold ${getValueColor()} mb-0.5`}>
+        <div className={`${valueSize} font-semibold tabular-nums ${getValueColor()} mb-0.5`}>
           {value}
         </div>
         {subvalue && (
@@ -1084,32 +1028,6 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
     setShowTooltip(false);
     if (onHover) onHover(false);
   };
-  
-  // Sophisticated tinted backgrounds matching Bonzai TopMetricCard style
-  const getCardStyles = () => {
-    switch (statusTone) {
-      case 'positive':
-        return {
-          border: 'border-[#205A3E]/30 dark:border-[#1C4F39]/40',
-          gradient: 'from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent',
-        };
-      case 'neutral':
-        return {
-          border: 'border-[#1A4A5A]/25 dark:border-[#123640]/40',
-          gradient: 'from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent',
-        };
-      case 'warning':
-        return {
-          border: 'border-[#B57A33]/25 dark:border-[#8C5D24]/35',
-          gradient: 'from-[#F3E6D4] via-[#FBF6EE] to-transparent dark:from-[#2A2014] dark:via-[#1B140C] dark:to-transparent',
-        };
-      default:
-        return {
-          border: 'border-black/10 dark:border-white/10',
-          gradient: 'from-transparent via-transparent to-transparent',
-        };
-    }
-  };
 
   const statusToneConfig = {
     positive: {
@@ -1129,29 +1047,28 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
     },
   };
 
-  const cardStyles = getCardStyles();
   const statusStyles = statusToneConfig[statusTone] || statusToneConfig.neutral;
 
-  // Minimal design - neutral text colors matching Bonzai aesthetic
+  // Mercury aesthetic - neutral text colors
   const getValueColor = () => {
-    return 'text-gray-900 dark:text-gray-100';
+    return 'text-slate-900 dark:text-slate-100';
   };
 
   return (
     <div 
-      className={`relative overflow-hidden rounded-lg border ${cardStyles.border} bg-gradient-to-br ${cardStyles.gradient} p-1.5 md:p-2 hover:opacity-95 transition-opacity`}
+      className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-1.5 md:p-2 hover:opacity-95 transition-opacity"
       onMouseLeave={handleMouseLeave}
     >
       <div className="flex items-start justify-between gap-1 mb-1">
         <div className="flex items-center gap-1 flex-1 min-w-0">
-          <h5 className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide truncate">{title}</h5>
+          <h5 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 truncate">{title}</h5>
           {tooltipText && (
             <div 
               className="relative flex-shrink-0 group"
               onMouseEnter={handleMouseEnter}
             >
-              <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-white dark:bg-gray-100 border-2 border-[#205A3E] dark:border-[#4ade80] flex items-center justify-center cursor-help transition-all duration-200 hover:scale-110 hover:bg-[#205A3E] dark:hover:bg-[#4ade80] group/icon">
-                <span className="text-[#205A3E] dark:text-[#4ade80] text-[8px] md:text-[10px] font-bold leading-none transition-colors duration-200 group-hover/icon:text-white dark:group-hover/icon:text-[#1D3A2C]">i</span>
+              <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-white dark:bg-gray-100 border-2 border-[#205A3E] dark:border-[#66B894] flex items-center justify-center cursor-help transition-all duration-200 hover:scale-110 hover:bg-[#205A3E] dark:hover:bg-[#66B894] group/icon">
+                <span className="text-[#205A3E] dark:text-[#66B894] text-[8px] md:text-[10px] font-bold leading-none transition-colors duration-200 group-hover/icon:text-white dark:group-hover/icon:text-[#1D3A2C]">i</span>
               </div>
             </div>
           )}
@@ -1159,7 +1076,7 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
       </div>
       
       <div className="mb-0.5">
-        <p className={`text-sm md:text-base font-bold ${getValueColor()}`}>
+        <p className={`text-sm md:text-base font-semibold tabular-nums ${getValueColor()}`}>
           {value}
         </p>
       </div>
