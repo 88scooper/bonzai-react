@@ -450,6 +450,12 @@ function PortfolioSummaryContent() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
+    // Don't show in demo mode
+    if (isDemoMode) {
+      setShowAnnualAssumptionsModal(false);
+      return;
+    }
+    
     // Don't show if onboarding modal is showing
     if (showOnboardingModal) return;
     
@@ -468,7 +474,7 @@ function PortfolioSummaryContent() {
     if (!hasReviewedThisYear) {
       setShowAnnualAssumptionsModal(true);
     }
-  }, [showOnboardingModal]);
+  }, [showOnboardingModal, isDemoMode]);
 
   // Initialize metrics from localStorage or use default
   useEffect(() => {

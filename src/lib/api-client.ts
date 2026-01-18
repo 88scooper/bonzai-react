@@ -164,6 +164,15 @@ class ApiClient {
 
     if (response.data?.token) {
       this.setToken(response.data.token);
+      // Verify token was saved
+      const savedToken = this.getToken();
+      if (!savedToken || savedToken !== response.data.token) {
+        console.error('API Client: Failed to save token to localStorage');
+        throw new Error('Failed to save authentication token');
+      }
+      console.log('API Client: Token saved successfully to localStorage');
+    } else {
+      console.warn('API Client: No token in login response');
     }
 
     return response;

@@ -181,62 +181,75 @@ export function AuthProvider({ children }) {
         throw new Error('No response received from login API');
       }
       
-      if (response.success && response.data) {
-        // Fetch full user data including is_admin
-        try {
-          console.log('AuthContext: Fetching user profile...');
-          const userResponse = await apiClient.getUserProfile();
-          if (userResponse.success && userResponse.data) {
-            const userData = {
-              id: userResponse.data.id,
-              email: userResponse.data.email,
-              displayName: userResponse.data.name || null,
-              isAdmin: userResponse.data.is_admin || false,
-            };
-            
-            console.log('AuthContext: User profile loaded successfully:', userData);
-            setUser(userData);
-            
-            // Check if new user
-            setTimeout(async () => {
-              await checkIsNewUser();
-            }, 100);
-            
-            return userData;
-          }
-        } catch (e) {
-          // Fallback to response data if getUserProfile fails
-          console.warn('AuthContext: getUserProfile failed, using login response data:', e.message);
-        }
-        
-        // Ensure response.data.user exists before accessing properties
-        if (!response.data.user) {
-          throw new Error('Login response missing user data');
-        }
-        
-        const userData = {
-          id: response.data.user.id,
-          email: response.data.user.email,
-          displayName: response.data.user.name || null,
-          isAdmin: false, // Default to false if we can't fetch from API
-        };
-        
-        console.log('AuthContext: Using login response data (fallback):', userData);
-        setUser(userData);
-        
-        // Check if new user
-        setTimeout(async () => {
-          await checkIsNewUser();
-        }, 100);
-        
-        return userData;
-      } else {
+      if (!response.success) {
         const errorMsg = response.error || 'Login failed';
         console.error('AuthContext: Login failed:', errorMsg, response);
         throw new Error(errorMsg);
       }
+      
+      if (!response.data || !response.data.user) {
+        throw new Error('Login response missing user data');
+      }
+      
+      // Token should be saved by apiClient.login()
+      if (!response.data.token) {
+        console.warn('AuthContext: No token in login response');
+      }
+      
+      // Fetch full user data including is_admin
+      // This is important for admin users to get redirected correctly
+      let userData = {
+        id: response.data.user.id,
+        email: response.data.user.email,
+        displayName: response.data.user.name || null,
+        isAdmin: false, // Default to false, will be updated if getUserProfile succeeds
+      };
+      
+      try {
+        console.log('AuthContext: Fetching user profile...');
+        // Add a small delay to ensure token is saved
+        await new Promise(resolve => setTimeout(resolve, 50));
+        const userResponse = await apiClient.getUserProfile();
+        
+        if (userResponse && userResponse.success && userResponse.data) {
+          userData = {
+            id: userResponse.data.id,
+            email: userResponse.data.email,
+            displayName: userResponse.data.name || null,
+            isAdmin: userResponse.data.is_admin || false,
+          };
+          console.log('AuthContext: User profile loaded successfully:', userData);
+        } else {
+          console.warn('AuthContext: getUserProfile returned unsuccessful response:', userResponse);
+        }
+      } catch (e) {
+        // Fallback to response data if getUserProfile fails
+        // This allows login to succeed even if profile fetch fails
+        console.warn('AuthContext: getUserProfile failed, using login response data:', e.message);
+        console.warn('AuthContext: Error details:', {
+          message: e?.message,
+          name: e?.name,
+          stack: e?.stack
+        });
+        // Continue with fallback data (isAdmin will be false)
+      }
+      
+      console.log('AuthContext: Setting user data:', userData);
+      setUser(userData);
+      
+      // Check if new user
+      setTimeout(async () => {
+        await checkIsNewUser();
+      }, 100);
+      
+      return userData;
     } catch (error) {
       console.error('AuthContext: Login error:', error);
+      console.error('AuthContext: Error details:', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack
+      });
       // Re-throw with more context if needed
       if (error instanceof Error) {
         throw error;

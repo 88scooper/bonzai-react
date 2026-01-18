@@ -30,16 +30,34 @@ export default function LoginPage() {
         return;
       }
       
-      console.log("Attempting login with email:", email);
+      console.log("LoginPage: Attempting login with email:", email);
       const userData = await logIn(email, password);
-      console.log("Login successful, userData:", userData);
+      console.log("LoginPage: Login successful, userData:", userData);
+      
+      // Verify token was saved
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.error("LoginPage: Token not found in localStorage after login!");
+        throw new Error("Login failed: Authentication token not saved");
+      }
+      console.log("LoginPage: Token saved successfully");
+      
+      if (!userData || !userData.id) {
+        console.error("LoginPage: Invalid userData returned:", userData);
+        throw new Error("Login failed: Invalid user data received");
+      }
       
       addToast("Logged in successfully!", { type: "success" });
+      
+      // Wait a bit for state to propagate, then redirect
       // Redirect based on user role - admins go to admin page, others to portfolio summary
+      const redirectPath = userData?.isAdmin ? "/admin" : "/portfolio-summary";
+      console.log("LoginPage: Redirecting to:", redirectPath);
+      
+      // Use window.location.replace to avoid back button issues
       setTimeout(() => {
-        const redirectPath = userData?.isAdmin ? "/admin" : "/portfolio-summary";
-        window.location.href = redirectPath;
-      }, 100);
+        window.location.replace(redirectPath);
+      }, 200);
     } catch (error) {
       console.error("Login error:", error);
       console.error("Error details:", {
