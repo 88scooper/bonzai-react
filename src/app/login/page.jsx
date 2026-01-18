@@ -20,10 +20,20 @@ export default function LoginPage() {
     
     try {
       const form = new FormData(e.currentTarget);
-      const email = String(form.get("email") || "");
+      const email = String(form.get("email") || "").trim();
       const password = String(form.get("password") || "");
       
+      // Basic email validation feedback
+      if (email && !email.includes("@")) {
+        setError("Please enter a valid email address.");
+        setLoading(false);
+        return;
+      }
+      
+      console.log("Attempting login with email:", email);
       const userData = await logIn(email, password);
+      console.log("Login successful, userData:", userData);
+      
       addToast("Logged in successfully!", { type: "success" });
       // Redirect based on user role - admins go to admin page, others to portfolio summary
       setTimeout(() => {
@@ -32,13 +42,23 @@ export default function LoginPage() {
       }, 100);
     } catch (error) {
       console.error("Login error:", error);
+      console.error("Error details:", {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack
+      });
+      
       let errorMessage = "Login failed. Please try again.";
       
-      if (error.message) {
+      if (error?.message) {
         if (error.message.includes("Invalid email or password") || error.message.includes("401")) {
-          errorMessage = "Invalid email or password.";
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
         } else if (error.message.includes("Validation failed")) {
           errorMessage = error.message.replace("Validation failed: ", "");
+        } else if (error.message.includes("Network error") || error.message.includes("Failed to fetch")) {
+          errorMessage = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
+        } else if (error.message.includes("Too many login attempts")) {
+          errorMessage = "Too many login attempts. Please wait a few minutes before trying again.";
         } else {
           errorMessage = error.message;
         }

@@ -174,11 +174,17 @@ export function AuthProvider({ children }) {
 
   const logIn = useCallback(async (email, password) => {
     try {
+      console.log('AuthContext: Attempting login for:', email);
       const response = await apiClient.login(email, password);
+      
+      if (!response) {
+        throw new Error('No response received from login API');
+      }
       
       if (response.success && response.data) {
         // Fetch full user data including is_admin
         try {
+          console.log('AuthContext: Fetching user profile...');
           const userResponse = await apiClient.getUserProfile();
           if (userResponse.success && userResponse.data) {
             const userData = {
@@ -188,6 +194,7 @@ export function AuthProvider({ children }) {
               isAdmin: userResponse.data.is_admin || false,
             };
             
+            console.log('AuthContext: User profile loaded successfully:', userData);
             setUser(userData);
             
             // Check if new user
@@ -199,6 +206,12 @@ export function AuthProvider({ children }) {
           }
         } catch (e) {
           // Fallback to response data if getUserProfile fails
+          console.warn('AuthContext: getUserProfile failed, using login response data:', e.message);
+        }
+        
+        // Ensure response.data.user exists before accessing properties
+        if (!response.data.user) {
+          throw new Error('Login response missing user data');
         }
         
         const userData = {
@@ -208,6 +221,7 @@ export function AuthProvider({ children }) {
           isAdmin: false, // Default to false if we can't fetch from API
         };
         
+        console.log('AuthContext: Using login response data (fallback):', userData);
         setUser(userData);
         
         // Check if new user
@@ -217,11 +231,17 @@ export function AuthProvider({ children }) {
         
         return userData;
       } else {
-        throw new Error(response.error || 'Login failed');
+        const errorMsg = response.error || 'Login failed';
+        console.error('AuthContext: Login failed:', errorMsg, response);
+        throw new Error(errorMsg);
       }
     } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      console.error('AuthContext: Login error:', error);
+      // Re-throw with more context if needed
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(String(error));
     }
   }, [checkIsNewUser]);
 
