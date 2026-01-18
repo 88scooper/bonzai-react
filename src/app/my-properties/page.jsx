@@ -693,7 +693,7 @@ function PropertyCard({ property }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {/* Property Value */}
               <FinancialOverviewCard
-                title="Property Value"
+                title="Estimated Property Value"
                 value={formatCurrencyRounded(currentValue)}
                 supporting={
                   <>
@@ -737,10 +737,10 @@ function PropertyCard({ property }) {
                 onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ESTIMATED EQUITY', text: `Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.` } : null)}
               />
               
-              {/* Mortgage Debt */}
+              {/* Annual Debt Service */}
               <FinancialOverviewCard
-                title="Mortgage Debt"
-                value={formatCurrencyRounded(mortgageDebt)}
+                title="Annual Debt Service"
+                value={formatCurrencyRounded(annualDebtService)}
                 supporting={
                   <>
                     <div>
@@ -753,8 +753,8 @@ function PropertyCard({ property }) {
                 }
                 icon={FileSpreadsheet}
                 accent="amber"
-                tooltipText={`The remaining mortgage balance on this property. LTV (Loan-to-Value) ratio shows what percentage of the property's value is financed through debt.`}
-                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'MORTGAGE DEBT', text: `The remaining mortgage balance on this property. LTV (Loan-to-Value) ratio shows what percentage of the property's value is financed through debt.` } : null)}
+                tooltipText={`Your total annual mortgage payments (principal and interest) for this property. This represents your annual debt obligations and helps you understand cash flow requirements.`}
+                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ANNUAL DEBT SERVICE', text: `Your total annual mortgage payments (principal and interest) for this property. This represents your annual debt obligations and helps you understand cash flow requirements.` } : null)}
               />
             </div>
 
