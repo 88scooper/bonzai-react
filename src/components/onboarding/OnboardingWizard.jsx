@@ -303,7 +303,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
           {currentStep === 1 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold mb-2">Create Your Account</h2>
+                <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Create Your Account</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Create an account to organize your properties
                 </p>
@@ -311,7 +311,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="accountName" className="block text-sm font-medium mb-1">
+                  <label htmlFor="accountName" className="block text-sm font-medium mb-1 text-gray-900 dark:text-white">
                     Account Name *
                   </label>
                   <input
@@ -326,7 +326,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                 </div>
 
                 <div>
-                  <label htmlFor="accountEmail" className="block text-sm font-medium mb-1">
+                  <label htmlFor="accountEmail" className="block text-sm font-medium mb-1 text-gray-900 dark:text-white">
                     Email *
                   </label>
                   <input
