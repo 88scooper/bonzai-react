@@ -6,6 +6,7 @@ import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
 import { ChevronDown, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 
 export default function HomePage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -120,7 +121,16 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
             <Button onClick={onDemoPortfolio} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 dark:bg-emerald-500 dark:hover:bg-emerald-600 !px-8 !py-4 !text-lg">View the Demo Portfolio</Button>
           </div>
         </div>
-        <div className="h-64 md:h-80 rounded-xl bg-gradient-to-br from-emerald-300/40 to-teal-300/30 dark:from-emerald-500/10 dark:to-teal-500/10 border border-black/10 dark:border-white/10" />
+        <div className="h-64 md:h-80 rounded-xl overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 flex items-center justify-center">
+          <Image
+            src="/bonzai-logo.png"
+            alt="Bonzai - Real Estate Investment Management"
+            width={720}
+            height={480}
+            className="w-full h-full object-contain p-4 scale-110"
+            priority
+          />
+        </div>
       </div>
     </section>
   );
