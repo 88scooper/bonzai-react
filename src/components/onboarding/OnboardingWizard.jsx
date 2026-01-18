@@ -19,7 +19,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   const { createNewAccount, currentAccountId, accounts } = useAccount();
   const { addToast } = useToast();
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   // Mark onboarding as in progress when wizard mounts
   useEffect(() => {
@@ -33,11 +33,11 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
           setCurrentStep(step);
         }
       }
-      // Check if we should show step 4 (when coming from portfolio page)
-      const shouldShowStep4 = sessionStorage.getItem('onboarding_step_4') === 'true';
-      if (shouldShowStep4) {
-        setCurrentStep(4);
-        sessionStorage.removeItem('onboarding_step_4');
+      // Check if we should show step 5 (when coming from portfolio page)
+      const shouldShowStep5 = sessionStorage.getItem('onboarding_step_5') === 'true';
+      if (shouldShowStep5) {
+        setCurrentStep(5);
+        sessionStorage.removeItem('onboarding_step_5');
       }
     }
   }, [totalSteps]);
@@ -48,7 +48,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
       const savedStep = sessionStorage.getItem('onboarding_current_step');
       if (savedStep) {
         const step = parseInt(savedStep, 10);
-        if (step > 1 && step <= 4) {
+        if (step > 1 && step <= 5) {
           return step;
         }
       }
@@ -66,9 +66,9 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   const [loading, setLoading] = useState(false);
   const [accountId, setAccountId] = useState(null);
 
-  // Load account ID when resuming onboarding (if we're past step 1 and have a current account)
+  // Load account ID when resuming onboarding (if we're past step 2 and have a current account)
   useEffect(() => {
-    if (currentStep > 1 && currentAccountId && !accountId) {
+    if (currentStep > 2 && currentAccountId && !accountId) {
       setAccountId(currentAccountId);
     }
   }, [currentStep, currentAccountId, accountId]);
@@ -84,8 +84,18 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   const [mortgageAdded, setMortgageAdded] = useState(false);
   const [tenantAdded, setTenantAdded] = useState(false);
   const [expenseAdded, setExpenseAdded] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
 
-  // Step 1: Create Account
+  // Step 1: Privacy Agreement - Advance to next step
+  const handlePrivacyAgree = () => {
+    // Save step to sessionStorage
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('onboarding_current_step', '2');
+    }
+    setCurrentStep(2);
+  };
+
+  // Step 2: Create Account
   const handleCreateAccount = async () => {
     if (!accountName.trim()) {
       addToast("Account name is required", { type: "error" });
@@ -104,13 +114,13 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
         setAccountId(account.id);
         // Save step to sessionStorage immediately to prevent reset on remount
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('onboarding_current_step', '2');
+          sessionStorage.setItem('onboarding_current_step', '3');
         }
         // Use setTimeout to ensure state updates complete before changing step
         // This prevents race conditions with the onboarding page re-rendering
         setTimeout(() => {
-          setCurrentStep(2);
-          console.log('Advanced to step 2');
+          setCurrentStep(3);
+          console.log('Advanced to step 3');
         }, 0);
         addToast("Account created successfully!", { type: "success" });
       } else {
@@ -126,7 +136,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     }
   };
 
-  // Step 2: Directly shows property form (no method selection needed)
+  // Step 3: Directly shows property form (no method selection needed)
 
 
   // Handle property form submission - show confirmation first
@@ -170,7 +180,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
         if (response.success) {
           const newProperty = response.data;
           setProperties(prev => [...prev, newProperty]);
-          // Set the first property as selected for step 4 (Financial Data)
+          // Set the first property as selected for step 5 (Financial Data)
           if (!selectedPropertyId) {
             setSelectedPropertyId(newProperty.id);
           }
@@ -247,17 +257,17 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     setShowAddPropertyForm(false);
   };
 
-  // Step 3: Advance to step 4 (financial data)
-  const handleContinueToStep4 = () => {
+  // Step 4: Advance to step 5 (financial data)
+  const handleContinueToStep5 = () => {
     // Save step to sessionStorage
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('onboarding_current_step', '4');
+      sessionStorage.setItem('onboarding_current_step', '5');
     }
-    // Advance to step 4 directly
-    setCurrentStep(4);
+    // Advance to step 5 directly
+    setCurrentStep(5);
   };
 
-  // Step 3: Complete onboarding (skip financial data)
+  // Step 4: Complete onboarding (skip financial data)
   const handleComplete = () => {
     // Clear saved step when completing
     if (typeof window !== 'undefined') {
@@ -279,8 +289,8 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     router.push("/portfolio-summary");
   };
 
-  // If step 4, show as modal overlay
-  const isModalMode = modal || currentStep === 4;
+  // If step 5, show as modal overlay
+  const isModalMode = modal || currentStep === 5;
   
   const wizardContent = (
     <>
@@ -299,8 +309,98 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
       </div>
 
       <div className={`bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10 rounded-xl p-8 ${isModalMode ? 'max-h-[90vh] overflow-y-auto' : ''}`}>
-          {/* Step 1: Create Account */}
+          {/* Step 1: Privacy Agreement */}
           {currentStep === 1 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold mb-2 text-black dark:text-white">Data Privacy & Usage Agreement</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Please review and accept our privacy agreement to continue
+                </p>
+              </div>
+
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                  <div>
+                    <h3 className="font-semibold mb-2 text-black dark:text-white">1. Scope & Accountability</h3>
+                    <p className="pl-4">
+                      Bonzai ("we," "us") is committed to protecting the personal information of our users across all Canadian provinces and territories. We adhere to the Personal Information Protection and Electronic Documents Act (PIPEDA) and applicable provincial legislation, including Quebec's Law 25.
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold mb-2 text-black dark:text-white">2. Collection for Specific Purposes</h3>
+                    <p className="pl-4 mb-2">
+                      We collect data (including property addresses, tenant names, financial metrics, and mortgage details) solely to:
+                    </p>
+                    <ul className="pl-8 list-disc space-y-1">
+                      <li>Provide personalized real estate investment analysis.</li>
+                      <li>Facilitate portfolio tracking and expense logging.</li>
+                      <li>Communicate essential account updates.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold mb-2 text-black dark:text-white">3. Explicit Consent for De-identified & Aggregated Data</h3>
+                    <p className="pl-4 mb-2">
+                      By clicking "I Agree," you provide express consent for Bonzai to de-identify your data.
+                    </p>
+                    <ul className="pl-8 list-disc space-y-1 mb-2">
+                      <li><strong>De-identification:</strong> We remove "Direct Identifiers" (e.g., your name, specific property addresses) to ensure the data can no longer directly identify you.</li>
+                      <li><strong>Aggregation:</strong> This de-identified data may be combined with data from other users to create "Market Benchmarks" and "Investment Trends."</li>
+                      <li><strong>Withdrawal:</strong> You may withdraw your consent for future data aggregation at any time by contacting our Privacy Officer, though this may limit your access to benchmarking features.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold mb-2 text-black dark:text-white">4. Your Rights (Access, Portability, and Erasure)</h3>
+                    <p className="pl-4 mb-2">
+                      Regardless of your province, you have the right to:
+                    </p>
+                    <ul className="pl-8 list-disc space-y-1">
+                      <li><strong>Access:</strong> Request a copy of the personal data we hold about you.</li>
+                      <li><strong>Portability:</strong> Receive your data in a structured, commonly used technological format.</li>
+                      <li><strong>Erasure (Right to be Forgotten):</strong> Request the permanent deletion of your personal information, subject to legal or contractual retention requirements.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold mb-2 text-black dark:text-white">5. Data Sovereignty & Security</h3>
+                    <p className="pl-4">
+                      Your data is stored securely. If we transfer data across provincial or national borders for processing, we ensure it receives a level of protection equivalent to Canadian standards through rigorous Privacy Impact Assessments (PIAs).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={privacyConsent}
+                    onChange={(e) => setPrivacyConsent(e.target.checked)}
+                    className="mt-1 w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#205A3E] focus:ring-[#205A3E] dark:bg-gray-800"
+                    required
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    I have read and agree to the Data Privacy & Usage Agreement *
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex justify-end">
+                <Button 
+                  onClick={handlePrivacyAgree} 
+                  disabled={!privacyConsent}
+                >
+                  I Agree & Continue
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Create Account */}
+          {currentStep === 2 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-semibold mb-2 text-black dark:text-white">Create Your Account</h2>
@@ -359,8 +459,8 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
             </div>
           )}
 
-          {/* Step 2: Add Another Property (Manual Entry Only) */}
-          {currentStep === 2 && (
+          {/* Step 3: Add Another Property (Manual Entry Only) */}
+          {currentStep === 3 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-semibold mb-2">Add Your Investment Properties</h2>
@@ -461,7 +561,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                     <div className="pt-3">
                       <Button
                         onClick={() => {
-                          setCurrentStep(3);
+                          setCurrentStep(4);
                         }}
                         className="w-full"
                       >
@@ -527,10 +627,10 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                   accountId={accountId}
                   initialData={editingPropertyId ? properties.find(p => p.id === editingPropertyId) : {}}
                   onSubmit={handlePropertyFormSubmit}
-                  onCancel={editingPropertyId ? handleCancelEdit : (properties.length > 0 ? () => setShowAddPropertyForm(false) : () => setCurrentStep(1))}
+                  onCancel={editingPropertyId ? handleCancelEdit : (properties.length > 0 ? () => setShowAddPropertyForm(false) : () => setCurrentStep(2))}
                   onContinue={() => {
                     if (properties.length > 0) {
-                      setCurrentStep(3);
+                      setCurrentStep(4);
                     } else {
                       handleSkip();
                     }
@@ -542,8 +642,8 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
           )}
 
 
-          {/* Step 3: Properties Added */}
-          {currentStep === 3 && (
+          {/* Step 4: Properties Added */}
+          {currentStep === 4 && (
             <div className="space-y-6 text-center">
               <div className="flex justify-center">
                 <CheckCircle2 className="w-16 h-16 text-emerald-500" />
@@ -557,21 +657,21 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
               </div>
 
               <div className="flex justify-center gap-3">
-                <Button variant="secondary" onClick={() => setCurrentStep(2)}>
-                  Back
-                </Button>
+                  <Button variant="secondary" onClick={() => setCurrentStep(3)}>
+                    Back
+                  </Button>
                 <Button variant="secondary" onClick={handleComplete}>
                   Skip for now
                 </Button>
-                <Button onClick={handleContinueToStep4}>
+                <Button onClick={handleContinueToStep5}>
                   Add Financial Data
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 4: Add Financial Data */}
-          {currentStep === 4 && (
+          {/* Step 5: Add Financial Data */}
+          {currentStep === 5 && (
             <FinancialDataStep
               propertyId={selectedPropertyId}
               properties={properties}
@@ -583,14 +683,14 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
               onTenantAdded={() => setTenantAdded(true)}
               onExpenseAdded={() => setExpenseAdded(true)}
               onComplete={handleComplete}
-              onBack={() => setCurrentStep(3)}
+              onBack={() => setCurrentStep(4)}
             />
           )}
         </div>
     </>
   );
 
-  // Render as modal for step 4
+  // Render as modal for step 5
   if (isModalMode) {
     // If modal prop is true, render without the fixed overlay (parent handles it)
     if (modal) {
@@ -618,7 +718,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
       );
     }
     
-    // Original modal mode for step 4 when not called from portfolio page
+    // Original modal mode for step 5 when not called from portfolio page
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div 

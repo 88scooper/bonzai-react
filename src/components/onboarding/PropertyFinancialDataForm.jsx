@@ -77,7 +77,7 @@ export default function PropertyFinancialDataForm({
   // Form state structure
   const [formData, setFormData] = useState({
     income: {
-      tenantNames: [''], // Array of tenant names
+      tenants: [{ firstInitial: '', lastName: '' }], // Array of tenant objects with firstInitial and lastName
       monthlyRent: '',
       leaseStartDate: new Date().toISOString().split('T')[0],
       leaseEndDate: '',
@@ -133,15 +133,43 @@ export default function PropertyFinancialDataForm({
     if (propertyId) {
       const draft = getPropertyDraft(propertyId);
       if (draft) {
-        // Migrate old tenantName to tenantNames array if needed
+        // Migrate old tenantName/tenantNames to tenants array if needed
         if (draft.income) {
-          if (draft.income.tenantName && !draft.income.tenantNames) {
-            draft.income.tenantNames = [draft.income.tenantName];
+          // Migrate from old tenantName/tenantNames format to new tenants format
+          if (!draft.income.tenants) {
+            let tenantArray = [];
+            if (draft.income.tenantName) {
+              // Single tenant name - try to split into first initial and last name
+              const nameParts = String(draft.income.tenantName).trim().split(/\s+/);
+              if (nameParts.length > 0) {
+                const firstInitial = nameParts[0].charAt(0).toUpperCase();
+                const lastName = nameParts.slice(1).join(' ') || nameParts[0].substring(1) || '';
+                tenantArray.push({ firstInitial, lastName });
+              }
+            } else if (draft.income.tenantNames && Array.isArray(draft.income.tenantNames)) {
+              // Array of tenant names - convert each
+              tenantArray = draft.income.tenantNames.map(name => {
+                const nameParts = String(name || '').trim().split(/\s+/);
+                if (nameParts.length > 0) {
+                  const firstInitial = nameParts[0].charAt(0).toUpperCase();
+                  const lastName = nameParts.slice(1).join(' ') || nameParts[0].substring(1) || '';
+                  return { firstInitial, lastName };
+                }
+                return { firstInitial: '', lastName: '' };
+              }).filter(t => t.firstInitial || t.lastName);
+            }
+            if (tenantArray.length > 0) {
+              draft.income.tenants = tenantArray;
+            } else {
+              draft.income.tenants = [{ firstInitial: '', lastName: '' }];
+            }
+            // Clean up old fields
             delete draft.income.tenantName;
+            delete draft.income.tenantNames;
           }
-          // Ensure tenantNames is always an array
-          if (!draft.income.tenantNames || !Array.isArray(draft.income.tenantNames)) {
-            draft.income.tenantNames = [''];
+          // Ensure tenants is always an array with at least one entry
+          if (!draft.income.tenants || !Array.isArray(draft.income.tenants)) {
+            draft.income.tenants = [{ firstInitial: '', lastName: '' }];
           }
         }
         
@@ -264,35 +292,52 @@ export default function PropertyFinancialDataForm({
     }));
   };
 
-  // Add tenant name field
-  const addTenantName = () => {
+  // Add tenant field
+  const addTenant = () => {
     setFormData(prev => ({
       ...prev,
       income: {
         ...prev.income,
-        tenantNames: [...prev.income.tenantNames, '']
+        tenants: [...prev.income.tenants, { firstInitial: '', lastName: '' }]
       }
     }));
   };
 
-  // Remove tenant name field
-  const removeTenantName = (index) => {
+  // Remove tenant field
+  const removeTenant = (index) => {
     setFormData(prev => ({
       ...prev,
       income: {
         ...prev.income,
-        tenantNames: prev.income.tenantNames.filter((_, i) => i !== index)
+        tenants: prev.income.tenants.filter((_, i) => i !== index)
       }
     }));
   };
 
-  // Update tenant name at specific index
-  const updateTenantName = (index, value) => {
+  // Update tenant first initial at specific index
+  const updateTenantFirstInitial = (index, value) => {
+    // Only allow 1 character
+    const trimmedValue = value.length > 1 ? value.charAt(0).toUpperCase() : value.toUpperCase();
     setFormData(prev => ({
       ...prev,
       income: {
         ...prev.income,
-        tenantNames: prev.income.tenantNames.map((name, i) => i === index ? value : name)
+        tenants: prev.income.tenants.map((tenant, i) => 
+          i === index ? { ...tenant, firstInitial: trimmedValue } : tenant
+        )
+      }
+    }));
+  };
+
+  // Update tenant last name at specific index
+  const updateTenantLastName = (index, value) => {
+    setFormData(prev => ({
+      ...prev,
+      income: {
+        ...prev.income,
+        tenants: prev.income.tenants.map((tenant, i) => 
+          i === index ? { ...tenant, lastName: value } : tenant
+        )
       }
     }));
   };
@@ -420,26 +465,37 @@ export default function PropertyFinancialDataForm({
   // Validation helpers
   const validateIncome = () => {
     const incomeErrors = {};
-    // Ensure tenantNames is an array
-    const tenantNames = formData.income?.tenantNames || [];
-    if (!Array.isArray(tenantNames)) {
-      incomeErrors.tenantNames = 'Invalid tenant names data';
+    // Ensure tenants is an array
+    const tenants = formData.income?.tenants || [];
+    if (!Array.isArray(tenants)) {
+      incomeErrors.tenants = 'Invalid tenant data';
       return incomeErrors;
     }
     
-    // Validate tenant names - at least one must be filled
-    const hasValidTenant = tenantNames.some(name => name && name.trim());
+    // Validate tenants - at least one must have both first initial and last name
+    const hasValidTenant = tenants.some(tenant => 
+      tenant?.firstInitial?.trim() && tenant?.lastName?.trim()
+    );
     if (!hasValidTenant) {
-      incomeErrors.tenantNames = 'At least one tenant name is required';
+      incomeErrors.tenants = 'At least one tenant with first initial and last name is required';
     }
-    // Validate individual tenant names
-    tenantNames.forEach((name, index) => {
-      if (name && name.trim() === '' && tenantNames.length > 1) {
-        // Empty tenant names are only invalid if there are multiple fields
-        if (!incomeErrors.tenantNames || typeof incomeErrors.tenantNames === 'string') {
-          incomeErrors.tenantNames = {};
+    // Validate individual tenants
+    tenants.forEach((tenant, index) => {
+      if (tenants.length > 1) {
+        // If multiple tenants, validate each has both fields or is empty
+        const hasFirstInitial = tenant?.firstInitial?.trim();
+        const hasLastName = tenant?.lastName?.trim();
+        if ((hasFirstInitial && !hasLastName) || (!hasFirstInitial && hasLastName)) {
+          if (!incomeErrors.tenants || typeof incomeErrors.tenants === 'string') {
+            incomeErrors.tenants = {};
+          }
+          incomeErrors.tenants[index] = 'Both first initial and last name are required';
         }
-        incomeErrors.tenantNames[index] = 'Tenant name cannot be empty';
+      } else {
+        // Single tenant must have both fields
+        if (!tenant?.firstInitial?.trim() || !tenant?.lastName?.trim()) {
+          incomeErrors.tenants = 'First initial and last name are required';
+        }
       }
     });
     if (!formData.income.monthlyRent || parseFloat(formData.income.monthlyRent) <= 0) {
@@ -504,8 +560,10 @@ export default function PropertyFinancialDataForm({
   // Check section completion
   const isIncomeComplete = () => {
     const errors = validateIncome();
-    const tenantNames = formData.income?.tenantNames || [];
-    const hasValidTenant = Array.isArray(tenantNames) && tenantNames.some(name => name && name.trim());
+    const tenants = formData.income?.tenants || [];
+    const hasValidTenant = Array.isArray(tenants) && tenants.some(tenant => 
+      tenant?.firstInitial?.trim() && tenant?.lastName?.trim()
+    );
     return Object.keys(errors).length === 0 && 
            hasValidTenant && 
            formData.income.monthlyRent;
@@ -542,11 +600,14 @@ export default function PropertyFinancialDataForm({
     setLoading(true);
     try {
       const tenants = property.tenants || [];
-      // Create tenant entries for each tenant name
-      const tenantNames = formData.income?.tenantNames || [];
-      const validTenantNames = Array.isArray(tenantNames) ? tenantNames.filter(name => name && name.trim()) : [];
-      const newTenants = validTenantNames.map(tenantName => ({
-        name: tenantName.trim(),
+      // Create tenant entries for each tenant (firstInitial and lastName)
+      const tenantData = formData.income?.tenants || [];
+      const validTenants = Array.isArray(tenantData) ? tenantData.filter(tenant => 
+        tenant?.firstInitial?.trim() && tenant?.lastName?.trim()
+      ) : [];
+      const newTenants = validTenants.map(tenant => ({
+        firstInitial: tenant.firstInitial.trim().charAt(0).toUpperCase(),
+        lastName: tenant.lastName.trim(),
         rent: parseFloat(formData.income.monthlyRent),
         leaseStart: formData.income.leaseStartDate,
         leaseEnd: formData.income.leaseEndDate || null,
@@ -860,33 +921,45 @@ export default function PropertyFinancialDataForm({
                     Tenant Name(s) <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-2">
-                    {(formData.income?.tenantNames || ['']).map((tenantName, index) => (
+                    {(formData.income?.tenants || [{ firstInitial: '', lastName: '' }]).map((tenant, index) => (
                       <div key={index} className="flex items-center gap-2">
                         <input
                           type="text"
-                          value={tenantName}
-                          onChange={(e) => updateTenantName(index, e.target.value)}
+                          value={tenant?.firstInitial || ''}
+                          onChange={(e) => updateTenantFirstInitial(index, e.target.value)}
+                          maxLength={1}
+                          className={`w-12 rounded-lg border ${
+                            (errors.income.tenants && (typeof errors.income.tenants === 'string' || errors.income.tenants[index]))
+                              ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
+                              : 'border-black/15 dark:border-white/15'
+                          } bg-white dark:bg-gray-800 px-3 py-2.5 text-center outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors uppercase`}
+                          placeholder={index === 0 ? "A" : "I"}
+                        />
+                        <input
+                          type="text"
+                          value={tenant?.lastName || ''}
+                          onChange={(e) => updateTenantLastName(index, e.target.value)}
                           className={`flex-1 rounded-lg border ${
-                            (errors.income.tenantNames && (typeof errors.income.tenantNames === 'string' || errors.income.tenantNames[index]))
+                            (errors.income.tenants && (typeof errors.income.tenants === 'string' || errors.income.tenants[index]))
                               ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
                               : 'border-black/15 dark:border-white/15'
                           } bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
-                          placeholder={index === 0 ? "e.g., John Smith" : "Additional tenant name"}
+                          placeholder={index === 0 ? "e.g., Smith" : "Last name"}
                         />
-                        {(formData.income?.tenantNames || []).length > 1 && (
+                        {(formData.income?.tenants || []).length > 1 && (
                           <button
                             type="button"
-                            onClick={() => removeTenantName(index)}
+                            onClick={() => removeTenant(index)}
                             className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors group flex-shrink-0"
                             title="Remove tenant"
                           >
                             <X className="w-4 h-4 text-gray-500 group-hover:text-red-500" />
                           </button>
                         )}
-                        {index === (formData.income?.tenantNames || []).length - 1 && (
+                        {index === (formData.income?.tenants || []).length - 1 && (
                           <button
                             type="button"
-                            onClick={addTenantName}
+                            onClick={addTenant}
                             className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors group flex-shrink-0 border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400"
                             title="Add another tenant"
                           >
@@ -896,10 +969,10 @@ export default function PropertyFinancialDataForm({
                       </div>
                     ))}
                   </div>
-                  {errors.income.tenantNames && (
+                  {errors.income.tenants && (
                     <p className="text-xs text-red-500 mt-1.5 font-medium">
-                      {typeof errors.income.tenantNames === 'string' 
-                        ? errors.income.tenantNames 
+                      {typeof errors.income.tenants === 'string' 
+                        ? errors.income.tenants 
                         : 'Please fill in all tenant names'}
                     </p>
                   )}

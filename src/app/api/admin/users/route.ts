@@ -13,6 +13,8 @@ interface UserWithCounts {
   account_count: number;
   property_count: number;
   total_hours: number;
+  has_demo_account: boolean;
+  demo_account_id: string | null;
 }
 
 /**
@@ -68,7 +70,9 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
           u.is_admin,
           COALESCE(u.total_hours, 0)::numeric as total_hours,
           COALESCE(COUNT(DISTINCT a.id), 0)::int as account_count,
-          COALESCE(COUNT(DISTINCT p.id), 0)::int as property_count
+          COALESCE(COUNT(DISTINCT p.id), 0)::int as property_count,
+          BOOL_OR(a.is_demo) as has_demo_account,
+          (ARRAY_AGG(a.id) FILTER (WHERE a.is_demo))[1] as demo_account_id
         FROM users u
         LEFT JOIN accounts a ON a.user_id = u.id
         LEFT JOIN properties p ON p.account_id = a.id
@@ -86,6 +90,8 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
         total_hours: number;
         account_count: number;
         property_count: number;
+        has_demo_account: boolean;
+        demo_account_id: string | null;
       }>;
     } else {
       users = await sql`
@@ -97,7 +103,9 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
           u.is_admin,
           COALESCE(u.total_hours, 0)::numeric as total_hours,
           COALESCE(COUNT(DISTINCT a.id), 0)::int as account_count,
-          COALESCE(COUNT(DISTINCT p.id), 0)::int as property_count
+          COALESCE(COUNT(DISTINCT p.id), 0)::int as property_count,
+          BOOL_OR(a.is_demo) as has_demo_account,
+          (ARRAY_AGG(a.id) FILTER (WHERE a.is_demo))[1] as demo_account_id
         FROM users u
         LEFT JOIN accounts a ON a.user_id = u.id
         LEFT JOIN properties p ON p.account_id = a.id
@@ -114,6 +122,8 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
         total_hours: number;
         account_count: number;
         property_count: number;
+        has_demo_account: boolean;
+        demo_account_id: string | null;
       }>;
     }
 
@@ -126,6 +136,8 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
       account_count: user.account_count,
       property_count: user.property_count,
       total_hours: Number(user.total_hours) || 0,
+      has_demo_account: user.has_demo_account || false,
+      demo_account_id: user.demo_account_id || null,
     }));
 
     const paginatedResponse = createPaginatedResponse(usersWithCounts, total, page, limit);

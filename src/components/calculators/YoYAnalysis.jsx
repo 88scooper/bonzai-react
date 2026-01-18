@@ -30,7 +30,6 @@ export default function YoYAnalysis({ property, assumptions, baselineAssumptions
           disabled
         >
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             <div className="flex flex-col items-start">
               <span className="font-semibold text-gray-900 dark:text-white">
                 Year-over-Year Analysis

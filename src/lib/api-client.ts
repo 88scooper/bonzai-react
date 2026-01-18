@@ -263,6 +263,8 @@ class ApiClient {
         account_count: number;
         property_count: number;
         total_hours: number;
+        has_demo_account: boolean;
+        demo_account_id: string | null;
       }>;
       pagination: any;
     }>(`/admin/users?${params.toString()}`);
@@ -271,6 +273,17 @@ class ApiClient {
   async deleteAdminUser(userId: string) {
     return this.request<{ message: string }>(`/admin/users/${userId}`, {
       method: 'DELETE',
+    });
+  }
+
+  async toggleUserDemoStatus(userId: string) {
+    return this.request<{
+      message: string;
+      user_id: string;
+      demo_status: boolean;
+      accounts_updated: number;
+    }>(`/admin/users/${userId}/toggle-demo`, {
+      method: 'PATCH',
     });
   }
 

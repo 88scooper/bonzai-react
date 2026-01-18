@@ -99,7 +99,8 @@ export interface Property {
   squareFootage: number;
   currentValue: number;
   tenants: Array<{
-    name: string;
+    firstInitial: string;
+    lastName: string;
     unit: string;
     rent: number;
     leaseStart: string;
@@ -470,6 +471,11 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
           },
           tenants: updatedProperty.tenants || property.tenants,
           expenseHistory: updatedProperty.expenseHistory || property.expenseHistory,
+          // Properly merge propertyData to preserve imageUrls
+          propertyData: {
+            ...property.propertyData,
+            ...(updatedProperty.propertyData || {}),
+          },
         } as Property;
 
         return preparePropertyData(mergedProperty);

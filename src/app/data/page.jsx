@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, memo } from "react";
 import Layout from "@/components/Layout";
 import { RequireAuth } from "@/context/AuthContext";
 import { useAuth } from "@/context/AuthContext";
@@ -1470,6 +1470,180 @@ function HistoricalDataDisplay({ property, expenseView, selectedYear: externalSe
   );
 }
 
+// Helper function to get value at path
+const getValueAtPath = (obj, path) => {
+  if (!path) return undefined;
+  return path.split('.').reduce((acc, key) => {
+    if (acc === null || acc === undefined) return undefined;
+    return acc[key];
+  }, obj);
+};
+
+// Helper function to set value at path
+const setValueAtPath = (obj, path, value) => {
+  if (!path) return obj;
+  const keys = path.split('.');
+  const base = Array.isArray(obj) ? [...obj] : { ...(obj || {}) };
+  let current = base;
+
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
+    const next = current[key];
+    if (Array.isArray(next)) {
+      current[key] = [...next];
+    } else if (next && typeof next === 'object') {
+      current[key] = { ...next };
+    } else {
+      current[key] = {};
+    }
+    current = current[key];
+  }
+
+  current[keys[keys.length - 1]] = value;
+  return base;
+};
+
+// Helper function to format tenant name for display
+const formatTenantName = (tenant) => {
+  if (!tenant) return 'N/A';
+  // Support both old format (name) and new format (firstInitial + lastName)
+  if (tenant.name) {
+    return tenant.name;
+  }
+  if (tenant.firstInitial && tenant.lastName) {
+    return `${tenant.firstInitial}. ${tenant.lastName}`;
+  }
+  if (tenant.firstInitial) {
+    return `${tenant.firstInitial}.`;
+  }
+  if (tenant.lastName) {
+    return tenant.lastName;
+  }
+  return 'N/A';
+};
+
+// Editable DataRow component (moved outside to prevent recreation on every render)
+// Uses local state to prevent focus loss during typing
+const EditableDataRow = memo(({ label, value, editable = false, field = "", type = "text", isBold = false, options = [], isEditing = false, editedData = {}, onUpdateField, maxLength }) => {
+  // Get the current value from editedData
+  const rawInputValue = field ? getValueAtPath(editedData, field) : undefined;
+  const externalValue = rawInputValue === undefined || rawInputValue === null 
+    ? (type === "checkbox" ? false : "") 
+    : rawInputValue;
+  
+  // Use local state to maintain input value during typing
+  const [localValue, setLocalValue] = useState(() => externalValue);
+  const inputRef = useRef(null);
+  const isFocusedRef = useRef(false);
+  const lastExternalValueRef = useRef(externalValue);
+  
+  // Initialize local state when editing starts
+  useEffect(() => {
+    if (isEditing) {
+      const initValue = externalValue === undefined || externalValue === null 
+        ? (type === "checkbox" ? false : "") 
+        : externalValue;
+      setLocalValue(initValue);
+      lastExternalValueRef.current = initValue;
+    }
+  }, [isEditing]);
+  
+  // Sync with external value only when it changes from outside and we're not focused
+  useEffect(() => {
+    if (!isFocusedRef.current && externalValue !== lastExternalValueRef.current) {
+      const extStr = String(externalValue || "");
+      const locStr = String(localValue || "");
+      // Only update if external changed and differs from local (but not if it's our own change)
+      if (extStr !== locStr) {
+        setLocalValue(externalValue);
+      }
+      lastExternalValueRef.current = externalValue;
+    }
+  }, [externalValue]);
+  
+  const handleChange = useCallback((newValue) => {
+    // For firstInitial, limit to 1 character and uppercase
+    if (field.includes('firstInitial')) {
+      const trimmedValue = newValue.length > 1 ? newValue.charAt(0).toUpperCase() : newValue.toUpperCase();
+      setLocalValue(trimmedValue);
+      // Update parent immediately for firstInitial to enforce 1 character limit
+      if (trimmedValue.length <= 1) {
+        onUpdateField(field, trimmedValue, type);
+      }
+    } else {
+      setLocalValue(newValue);
+    }
+    // Don't update parent immediately - only on blur (except for firstInitial)
+    // This prevents re-renders during typing
+  }, [field, type, onUpdateField]);
+  
+  const handleFocus = useCallback(() => {
+    isFocusedRef.current = true;
+  }, []);
+  
+  const handleBlur = useCallback(() => {
+    isFocusedRef.current = false;
+    // Update parent state on blur
+    onUpdateField(field, localValue, type);
+    lastExternalValueRef.current = localValue;
+  }, [localValue, field, type, onUpdateField]);
+  
+  // For checkboxes and selects, update immediately (they don't have typing issues)
+  const handleImmediateChange = useCallback((newValue) => {
+    setLocalValue(newValue);
+    onUpdateField(field, newValue, type);
+  }, [field, type, onUpdateField]);
+  
+  const inputString = localValue === "" ? "" : String(localValue);
+  const inputValue = type === "checkbox" 
+    ? (localValue === true || localValue === "true" || localValue === 1)
+    : inputString;
+
+  return (
+    <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+      <span className={`text-sm font-medium text-gray-600 dark:text-gray-400 ${isBold ? 'font-bold' : ''}`}>{label}</span>
+      {isEditing && editable ? (
+        type === "checkbox" ? (
+          <input
+            ref={inputRef}
+            type="checkbox"
+            checked={inputValue}
+            onChange={(e) => handleImmediateChange(e.target.checked)}
+            className="w-4 h-4 text-[#205A3E] border-gray-300 rounded focus:ring-[#205A3E]"
+          />
+        ) : type === "select" ? (
+          <select
+            ref={inputRef}
+            value={inputString}
+            onChange={(e) => handleImmediateChange(e.target.value)}
+            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
+          >
+            <option value="">Select...</option>
+            {options.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            ref={inputRef}
+            type={type}
+            value={inputString}
+            onChange={(e) => handleChange(e.target.value)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            maxLength={maxLength}
+            className={`px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E] ${field.includes('firstInitial') ? 'w-16 text-center uppercase' : ''}`}
+          />
+        )
+      ) : (
+        <span className={`text-sm text-gray-900 dark:text-gray-100 ${isBold ? 'font-bold' : ''}`}>
+          {type === "checkbox" ? (value ? "Yes" : "No") : (value || "N/A")}
+        </span>
+      )}
+    </div>
+  );
+});
+
 // PropertyCard component with collapsible sections
 function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
   const [expandedSections, setExpandedSections] = useState({});
@@ -1484,37 +1658,6 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
       return structuredCloneFn(value);
     }
     return JSON.parse(JSON.stringify(value));
-  };
-
-  const getValueAtPath = (obj, path) => {
-    if (!path) return undefined;
-    return path.split('.').reduce((acc, key) => {
-      if (acc === null || acc === undefined) return undefined;
-      return acc[key];
-    }, obj);
-  };
-
-  const setValueAtPath = (obj, path, value) => {
-    if (!path) return obj;
-    const keys = path.split('.');
-    const base = Array.isArray(obj) ? [...obj] : { ...(obj || {}) };
-    let current = base;
-
-    for (let i = 0; i < keys.length - 1; i++) {
-      const key = keys[i];
-      const next = current[key];
-      if (Array.isArray(next)) {
-        current[key] = [...next];
-      } else if (next && typeof next === 'object') {
-        current[key] = { ...next };
-      } else {
-        current[key] = {};
-      }
-      current = current[key];
-    }
-
-    current[keys[keys.length - 1]] = value;
-    return base;
   };
 
   const toggleSection = (section) => {
@@ -1594,7 +1737,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
     setEditedData({});
   };
 
-  const updateField = (path, value, type = "text") => {
+  const updateField = useCallback((path, value, type = "text") => {
     if (!path) return;
     setEditedData(prev => {
       const base =
@@ -1609,7 +1752,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
       }
       return setValueAtPath(base, path, parsedValue);
     });
-  };
+  }, [property]);
 
   // Function to update expense amount for a category/year combination
   const updateExpense = (category, year, annualAmount) => {
@@ -1904,52 +2047,6 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
     );
   };
 
-  // Editable DataRow component for PropertyCard (with editing capabilities)
-  const EditableDataRow = ({ label, value, editable = false, field = "", type = "text", isBold = false, options = [] }) => {
-    const rawInputValue = field ? getValueAtPath(editedData, field) : undefined;
-    const inputValue = rawInputValue === undefined || rawInputValue === null 
-      ? (type === "checkbox" ? false : "") 
-      : rawInputValue;
-    const inputString = inputValue === "" ? "" : String(inputValue);
-
-    return (
-    <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
-      <span className={`text-sm font-medium text-gray-600 dark:text-gray-400 ${isBold ? 'font-bold' : ''}`}>{label}</span>
-      {isEditing && editable ? (
-        type === "checkbox" ? (
-          <input
-            type="checkbox"
-            checked={inputValue === true || inputValue === "true" || inputValue === 1}
-            onChange={(e) => updateField(field, e.target.checked, type)}
-            className="w-4 h-4 text-[#205A3E] border-gray-300 rounded focus:ring-[#205A3E]"
-          />
-        ) : type === "select" ? (
-          <select
-            value={inputString}
-            onChange={(e) => updateField(field, e.target.value, type)}
-            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
-          >
-            <option value="">Select...</option>
-            {options.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        ) : (
-          <input
-            type={type}
-            value={type === "number" ? inputString : inputString}
-            onChange={(e) => updateField(field, e.target.value, type)}
-            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#205A3E]"
-          />
-        )
-      ) : (
-        <span className={`text-sm text-gray-900 dark:text-gray-100 ${isBold ? 'font-bold' : ''}`}>
-          {type === "checkbox" ? (value ? "Yes" : "No") : (value || "N/A")}
-        </span>
-      )}
-    </div>
-  );
-  };
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
@@ -1960,19 +2057,24 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
             {/* Thumbnail Image */}
             <div className="flex-shrink-0">
               <div className="w-20 h-20 rounded-lg border-2 border-white/20 overflow-hidden shadow-lg bg-white/10">
-                {property.imageUrl ? (
-                  <img 
-                    src={`${property.imageUrl}?v=3`}
-                    alt={property.name || property.nickname || 'Property image'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-white/20 to-white/10 flex items-center justify-center">
-                    <div className="text-white/60 text-xs text-center px-1">
-                      No Image
+                {(() => {
+                  // Check propertyData.imageUrls first (uploaded photos), then fall back to imageUrl
+                  const imageUrls = property.propertyData?.imageUrls || [];
+                  const imageUrl = imageUrls.length > 0 ? imageUrls[0] : (property.imageUrl || null);
+                  return imageUrl ? (
+                    <img 
+                      src={`${imageUrl}?v=3`}
+                      alt={property.name || property.nickname || 'Property image'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-white/20 to-white/10 flex items-center justify-center">
+                      <div className="text-white/60 text-xs text-center px-1">
+                        No Image
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
             {/* Property Name and Address */}
@@ -1987,76 +2089,103 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
       {/* Collapsible Sections */}
       <Section title="Property Details" sectionKey="propertyDetails" showEditButton={true}>
         <div className="space-y-1">
-          <EditableDataRow label="Property Name" value={property.name || property.nickname} editable field="name" />
-          <EditableDataRow label="Address" value={property.address} editable field="address" />
-          <EditableDataRow label="Property Type" value={property.propertyType || property.type} editable field="propertyType" />
-          <EditableDataRow label="Year Built" value={property.yearBuilt} editable field="yearBuilt" type="number" />
-          <EditableDataRow label="Square Footage" value={property.size || property.squareFootage} editable field="size" type="number" />
-          <EditableDataRow label="Bedrooms" value={property.bedrooms?.[0] || property.bedrooms} editable field="bedrooms" type="number" />
-          <EditableDataRow label="Bathrooms" value={property.bathrooms?.[0] || property.bathrooms} editable field="bathrooms" type="number" />
-          <EditableDataRow label="Dens" value={property.dens?.[0] || property.dens} editable field="dens" type="number" />
-          <EditableDataRow label="Units" value={property.units || 1} editable field="units" type="number" />
-          <EditableDataRow label="Principal Residence" value={property.isPrincipalResidence || false} editable field="isPrincipalResidence" type="checkbox" />
+          <EditableDataRow label="Property Name" value={property.name || property.nickname} editable field="name" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Address" value={property.address} editable field="address" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Property Type" value={property.propertyType || property.type} editable field="propertyType" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Year Built" value={property.yearBuilt} editable field="yearBuilt" type="number" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Square Footage" value={property.size || property.squareFootage} editable field="size" type="number" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Bedrooms" value={property.bedrooms?.[0] || property.bedrooms} editable field="bedrooms" type="number" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Bathrooms" value={property.bathrooms?.[0] || property.bathrooms} editable field="bathrooms" type="number" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Dens" value={property.dens?.[0] || property.dens} editable field="dens" type="number" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Units" value={property.units || 1} editable field="units" type="number" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Principal Residence" value={property.isPrincipalResidence || false} editable field="isPrincipalResidence" type="checkbox" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
           <EditableDataRow 
             label="Ownership" 
             value={property.ownership || property.propertyData?.ownership || ""} 
             editable 
             field="ownership" 
             type="select" 
-            options={["Personal", "Incorporated"]} 
+            options={["Personal", "Incorporated"]}
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
         </div>
       </Section>
 
       <Section title="Purchase Information" sectionKey="purchaseInfo" showEditButton={true}>
         <div className="space-y-1">
-          <EditableDataRow label="Purchase Date" value={formatDateOnly(property.purchaseDate)} editable field="purchaseDate" type="date" />
+          <EditableDataRow label="Purchase Date" value={formatDateOnly(property.purchaseDate)} editable field="purchaseDate" type="date" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
           <EditableDataRow 
             label="Purchase Price" 
             value={`$${(property.purchasePrice || 0).toLocaleString()}`} 
             editable 
             field="purchasePrice" 
-            type="number" 
+            type="number"
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
           <EditableDataRow 
             label="Original Mortgage" 
             value={`$${(property.mortgage?.originalAmount || 0).toLocaleString()}`} 
             editable 
             field="mortgage.originalAmount" 
-            type="number" 
+            type="number"
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
           <EditableDataRow 
             label="Down Payment" 
-            value={`$${((property.purchasePrice || 0) - (property.mortgage?.originalAmount || 0)).toLocaleString()}`} 
+            value={`$${((property.purchasePrice || 0) - (property.mortgage?.originalAmount || 0)).toLocaleString()}`}
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
           <EditableDataRow 
             label="Closing Costs" 
             value={`$${(property.closingCosts || 0).toLocaleString()}`} 
             editable 
             field="closingCosts" 
-            type="number" 
+            type="number"
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
           <EditableDataRow 
             label="Initial Renovations" 
             value={`$${(property.initialRenovations || 0).toLocaleString()}`} 
             editable 
             field="initialRenovations" 
-            type="number" 
+            type="number"
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
           <EditableDataRow 
             label="Total Purchase Cost" 
-            value={`$${(((property.purchasePrice || 0) - (property.mortgage?.originalAmount || 0)) + (property.closingCosts || 0) + (property.initialRenovations || 0)).toLocaleString()}`} 
+            value={`$${(((property.purchasePrice || 0) - (property.mortgage?.originalAmount || 0)) + (property.closingCosts || 0) + (property.initialRenovations || 0)).toLocaleString()}`}
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
           <EditableDataRow 
             label="Current Market Value" 
             value={`$${(property.currentMarketValue || property.currentValue || 0).toLocaleString()}`} 
             editable 
             field="currentMarketValue" 
-            type="number" 
+            type="number"
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
           <EditableDataRow 
             label="Appreciation" 
-            value={`$${(property.appreciation || 0).toLocaleString()}`} 
+            value={`$${(property.appreciation || 0).toLocaleString()}`}
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
         </div>
       </Section>
@@ -2075,23 +2204,32 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
               .
             </p>
           </div>
-          <EditableDataRow label="Lender" value={property.mortgage?.lender} />
+          <EditableDataRow label="Lender" value={property.mortgage?.lender} isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
           <EditableDataRow 
             label="Original Amount" 
-            value={`$${(property.mortgage?.originalAmount || 0).toLocaleString()}`} 
+            value={`$${(property.mortgage?.originalAmount || 0).toLocaleString()}`}
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
           <EditableDataRow 
             label="Interest Rate" 
-            value={`${((property.mortgage?.interestRate || 0) * 100).toFixed(2)}%`} 
+            value={`${((property.mortgage?.interestRate || 0) * 100).toFixed(2)}%`}
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
-          <EditableDataRow label="Rate Type" value={property.mortgage?.rateType} />
+          <EditableDataRow label="Rate Type" value={property.mortgage?.rateType} isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
           <EditableDataRow 
             label="Amortization (Years)" 
-            value={property.mortgage?.amortizationYears?.toFixed(1)} 
+            value={property.mortgage?.amortizationYears?.toFixed(1)}
+            isEditing={isEditing} 
+            editedData={editedData} 
+            onUpdateField={updateField}
           />
-          <EditableDataRow label="Term (Months)" value={property.mortgage?.termMonths} />
-          <EditableDataRow label="Payment Frequency" value={property.mortgage?.paymentFrequency} />
-          <EditableDataRow label="Start Date" value={formatDateOnly(property.mortgage?.startDate)} />
+          <EditableDataRow label="Term (Months)" value={property.mortgage?.termMonths} isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Payment Frequency" value={property.mortgage?.paymentFrequency} isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
+          <EditableDataRow label="Start Date" value={formatDateOnly(property.mortgage?.startDate)} isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
         </div>
       </Section>
 
@@ -2169,16 +2307,32 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                 return (
                   <>
                     <EditableDataRow 
-                      label="Tenant Name" 
-                      value={activeTenant?.name || 'N/A'} 
+                      label="First Initial" 
+                      value={activeTenant?.firstInitial || (activeTenant?.name ? activeTenant.name.charAt(0).toUpperCase() : '')} 
                       editable 
-                      field={`tenants.${tenantIndex}.name`}
+                      field={`tenants.${tenantIndex}.firstInitial`}
+                      isEditing={isEditing} 
+                      editedData={editedData} 
+                      onUpdateField={updateField}
+                      maxLength={1}
+                    />
+                    <EditableDataRow 
+                      label="Last Name" 
+                      value={activeTenant?.lastName || (activeTenant?.name ? activeTenant.name.substring(1).trim() : '')} 
+                      editable 
+                      field={`tenants.${tenantIndex}.lastName`}
+                      isEditing={isEditing} 
+                      editedData={editedData} 
+                      onUpdateField={updateField}
                     />
                     <EditableDataRow 
                       label="Unit" 
                       value={activeTenant?.unit || 'N/A'} 
                       editable 
                       field={`tenants.${tenantIndex}.unit`}
+                      isEditing={isEditing} 
+                      editedData={editedData} 
+                      onUpdateField={updateField}
                     />
                     <EditableDataRow 
                       label="Lease Start Date" 
@@ -2186,6 +2340,9 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                       editable 
                       field={`tenants.${tenantIndex}.leaseStart`}
                       type="date"
+                      isEditing={isEditing} 
+                      editedData={editedData} 
+                      onUpdateField={updateField}
                     />
                     <EditableDataRow 
                       label="Lease End Date" 
@@ -2193,6 +2350,9 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                       editable 
                       field={`tenants.${tenantIndex}.leaseEnd`}
                       type="date"
+                      isEditing={isEditing} 
+                      editedData={editedData} 
+                      onUpdateField={updateField}
                     />
                     <EditableDataRow 
                       label="Monthly Rent" 
@@ -2200,13 +2360,19 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                       editable 
                       field={`tenants.${tenantIndex}.rent`}
                       type="number"
+                      isEditing={isEditing} 
+                      editedData={editedData} 
+                      onUpdateField={updateField}
                     />
-                    <EditableDataRow label="Key Deposit" value="" />
+                    <EditableDataRow label="Key Deposit" value="" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
                     <EditableDataRow 
                       label="Status" 
                       value={activeTenant?.status || 'N/A'} 
                       editable 
                       field={`tenants.${tenantIndex}.status`}
+                      isEditing={isEditing} 
+                      editedData={editedData} 
+                      onUpdateField={updateField}
                     />
                   </>
                 );
@@ -2230,16 +2396,32 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                         </span>
                       </div>
                       <EditableDataRow 
-                        label="Name" 
-                        value={tenant.name} 
+                        label="First Initial" 
+                        value={tenant.firstInitial || (tenant.name ? tenant.name.charAt(0).toUpperCase() : '')} 
                         editable 
-                        field={`tenants.${index}.name`}
+                        field={`tenants.${index}.firstInitial`}
+                        isEditing={isEditing} 
+                        editedData={editedData} 
+                        onUpdateField={updateField}
+                        maxLength={1}
+                      />
+                      <EditableDataRow 
+                        label="Last Name" 
+                        value={tenant.lastName || (tenant.name ? tenant.name.substring(1).trim() : '')} 
+                        editable 
+                        field={`tenants.${index}.lastName`}
+                        isEditing={isEditing} 
+                        editedData={editedData} 
+                        onUpdateField={updateField}
                       />
                       <EditableDataRow 
                         label="Unit" 
                         value={tenant.unit} 
                         editable 
                         field={`tenants.${index}.unit`}
+                        isEditing={isEditing} 
+                        editedData={editedData} 
+                        onUpdateField={updateField}
                       />
                       <EditableDataRow 
                         label="Lease Start" 
@@ -2247,6 +2429,9 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                         editable 
                         field={`tenants.${index}.leaseStart`}
                         type="date"
+                        isEditing={isEditing} 
+                        editedData={editedData} 
+                        onUpdateField={updateField}
                       />
                       <EditableDataRow 
                         label="Lease End" 
@@ -2254,6 +2439,9 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                         editable 
                         field={`tenants.${index}.leaseEnd`}
                         type="date"
+                        isEditing={isEditing} 
+                        editedData={editedData} 
+                        onUpdateField={updateField}
                       />
                       <EditableDataRow 
                         label="Monthly Rent" 
@@ -2261,12 +2449,15 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                         editable 
                         field={`tenants.${index}.rent`}
                         type="number"
+                        isEditing={isEditing} 
+                        editedData={editedData} 
+                        onUpdateField={updateField}
                       />
-                      <EditableDataRow label="Key Deposit" value="" />
+                      <EditableDataRow label="Key Deposit" value="" isEditing={isEditing} editedData={editedData} onUpdateField={updateField} />
                       <div className="flex justify-end mt-2">
                         <button
                           onClick={() => {
-                            if (confirm(`Are you sure you want to remove ${tenant.name || 'this tenant'}?`)) {
+                            if (confirm(`Are you sure you want to remove ${formatTenantName(tenant) || 'this tenant'}?`)) {
                               const updatedTenants = property.tenants.filter((_, idx) => idx !== index);
                               const updatedProperty = {
                                 ...property,
@@ -2390,7 +2581,8 @@ export default function DataPage() {
           units: apiPropertyData.units,
           isPrincipalResidence: apiPropertyData.isPrincipalResidence,
           ownership: apiPropertyData.ownership,
-          imageUrl: apiPropertyData.imageUrl || (apiProperty.nickname ? `/images/${apiProperty.nickname}.png` : null),
+          // Preserve existing imageUrl from propertyData, or use first imageUrls entry, or fallback to nickname-based
+          imageUrl: apiPropertyData.imageUrl || (apiPropertyData.imageUrls && apiPropertyData.imageUrls.length > 0 ? apiPropertyData.imageUrls[0] : null) || (apiProperty.nickname ? `/images/${apiProperty.nickname}.png` : null),
           rent: apiPropertyData.rent || updatedData.rent,
           mortgage: apiPropertyData.mortgage || updatedData.mortgage,
           monthlyExpenses: apiPropertyData.monthlyExpenses || updatedData.monthlyExpenses,
@@ -2746,7 +2938,8 @@ function AddExpenseModal({ property, onClose, onSave }) {
 // Add Tenant Modal Component
 function AddTenantModal({ property, onClose, onSave }) {
   const [formData, setFormData] = useState({
-    name: '',
+    firstInitial: '',
+    lastName: '',
     unit: '',
     leaseStart: new Date().toISOString().split('T')[0],
     leaseEnd: '',
@@ -2756,11 +2949,12 @@ function AddTenantModal({ property, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.rent) {
+    if (!formData.firstInitial || !formData.lastName || !formData.rent) {
       return;
     }
     onSave({
-      name: formData.name,
+      firstInitial: formData.firstInitial.trim().charAt(0).toUpperCase(),
+      lastName: formData.lastName.trim(),
       unit: formData.unit || null,
       leaseStart: formData.leaseStart,
       leaseEnd: formData.leaseEnd || 'Active',
@@ -2785,17 +2979,35 @@ function AddTenantModal({ property, onClose, onSave }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Tenant Name *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                First Initial *
+              </label>
+              <input
+                type="text"
+                value={formData.firstInitial}
+                onChange={(e) => {
+                  const value = e.target.value.length > 1 ? e.target.value.charAt(0).toUpperCase() : e.target.value.toUpperCase();
+                  setFormData(prev => ({ ...prev, firstInitial: value }));
+                }}
+                maxLength={1}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center uppercase"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                required
+              />
+            </div>
           </div>
 
           <div>

@@ -5,7 +5,7 @@
 import Layout from "@/components/Layout.jsx";
 import { RequireAuth, useAuth } from "@/context/AuthContext";
 import { useAccount } from "@/context/AccountContext";
-import { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import AnnualAssumptionsModal from "@/components/AnnualAssumptionsModal";
 import { Settings, GripVertical, Building2, PiggyBank, FileSpreadsheet, BarChart3, PieChart as PieChartIcon, X } from "lucide-react";
@@ -29,6 +29,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useProperties, usePortfolioMetrics, usePropertyContext } from "@/context/PropertyContext";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
+import { orderProperties } from "@/utils/propertyOrder";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 
@@ -287,6 +288,11 @@ function PortfolioSummaryContent() {
   const properties = useProperties();
   const portfolioMetrics = usePortfolioMetrics();
   
+  // Order properties based on saved order from My Properties page
+  const orderedProperties = useMemo(() => {
+    return orderProperties(properties || [], currentAccount?.id);
+  }, [properties, currentAccount?.id]);
+  
   // Track if component has mounted to prevent hydration mismatch
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -359,7 +365,7 @@ function PortfolioSummaryContent() {
     };
   }, [isSettingsOpen]);
 
-  // Check for onboarding step 4 on mount
+  // Check for onboarding step 5 on mount
   useEffect(() => {
     // Don't show onboarding modal in demo mode
     if (isDemoMode) {
@@ -367,13 +373,13 @@ function PortfolioSummaryContent() {
       return;
     }
     
-    // Check if onboarding is in progress and we should show step 4
+    // Check if onboarding is in progress and we should show step 5
     const onboardingInProgress = typeof window !== 'undefined' && 
       sessionStorage.getItem('onboarding_in_progress') === 'true';
-    const shouldShowStep4 = typeof window !== 'undefined' && 
-      sessionStorage.getItem('onboarding_step_4') === 'true';
+    const shouldShowStep5 = typeof window !== 'undefined' && 
+      sessionStorage.getItem('onboarding_step_5') === 'true';
     
-    if (onboardingInProgress && shouldShowStep4) {
+    if (onboardingInProgress && shouldShowStep5) {
       setShowOnboardingModal(true);
     }
   }, [isDemoMode]);
@@ -399,10 +405,10 @@ function PortfolioSummaryContent() {
     const hasIncompleteProperties = properties && properties.length > 0 && properties.some(property => {
       // Check if property is missing mortgage, tenant, or expenses
       const hasMortgage = property.mortgage && property.mortgage.lender && property.mortgage.originalAmount > 0;
-      // Check for tenant - support both old format (tenant.name) and new format (tenantNames array)
+      // Check for tenant - support both old format (tenant.name) and new format (firstInitial/lastName)
       const hasTenant = property.tenant && (
         (property.tenant.name && property.tenant.rent > 0) ||
-        (property.tenant.tenantNames && Array.isArray(property.tenant.tenantNames) && property.tenant.tenantNames.length > 0 && property.tenant.rent > 0)
+        (property.tenant.firstInitial && property.tenant.lastName && property.tenant.rent > 0)
       );
       const hasExpenses = property.monthlyExpenses && (
         property.monthlyExpenses.propertyTax > 0 ||
@@ -608,7 +614,22 @@ function PortfolioSummaryContent() {
   const averageOccupancyRate = portfolioMetrics.averageOccupancy || 0;
   const averageCapRate = portfolioMetrics.averageCapRate || 0;
 
-  const occupiedPropertiesCount = (properties || []).filter((property) => Boolean(property?.tenant?.name)).length;
+  // Helper function to format tenant name for display
+  const formatTenantName = (tenant) => {
+    if (!tenant) return null;
+    if (tenant.name) return tenant.name; // Support old format
+    if (tenant.firstInitial && tenant.lastName) {
+      return `${tenant.firstInitial}. ${tenant.lastName}`;
+    }
+    if (tenant.firstInitial) return `${tenant.firstInitial}.`;
+    if (tenant.lastName) return tenant.lastName;
+    return null;
+  };
+  
+  const occupiedPropertiesCount = (properties || []).filter((property) => {
+    const tenant = property?.tenant;
+    return Boolean(tenant?.name || (tenant?.firstInitial && tenant?.lastName));
+  }).length;
   const occupancyRate = (properties || []).length > 0 ? occupiedPropertiesCount / (properties || []).length : 0;
 
   const expenseAggregates = (properties || []).reduce(
@@ -1197,19 +1218,19 @@ function PortfolioSummaryContent() {
           />
           <div className="mt-6 grid gap-6 grid-cols-1 md:grid-cols-3">
             <AnnualRentalIncomeCard
-              properties={properties}
+              properties={orderedProperties}
               totalMonthlyRent={portfolioMetrics.totalMonthlyRent || 0}
             />
             <AnnualExpensesCard
               totalAnnualOperatingExpenses={totalAnnualOperatingExpenses}
               totalAnnualDebtService={totalAnnualDebtService}
-              properties={properties}
+              properties={orderedProperties}
               expenseCategoryList={expenseCategoryList}
               totalTrackedExpenses={totalTrackedExpenses}
             />
             <AnnualDeductibleExpensesCard
               totalAnnualDeductibleExpenses={portfolioMetrics?.totalAnnualDeductibleExpenses || 0}
-              properties={properties}
+              properties={orderedProperties}
               deductibleExpenseCategoryList={deductibleExpenseCategoryList}
               totalTrackedDeductibleExpenses={totalTrackedDeductibleExpenses}
             />
@@ -1401,9 +1422,10 @@ function PortfolioSummaryContent() {
 
                 <div className="space-y-4">
                       {properties.map((property) => {
-                        const isOccupied = Boolean(property.tenant?.name);
-                        const leaseStart = property.tenant?.leaseStartDate;
-                        const leaseEnd = property.tenant?.leaseEndDate;
+                        const tenant = property.tenant;
+                        const isOccupied = Boolean(tenant?.name || (tenant?.firstInitial && tenant?.lastName));
+                        const leaseStart = tenant?.leaseStartDate;
+                        const leaseEnd = tenant?.leaseEndDate;
                         const monthlyRent = property.rent?.monthlyRent || 0;
 
                         let leaseSummary = "No lease details on file";
@@ -1464,7 +1486,7 @@ function PortfolioSummaryContent() {
                             <div className="mt-3 flex items-start justify-between gap-4">
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-300">
-                                  {isOccupied ? property.tenant?.name : 'No tenant assigned'}
+                                  {isOccupied ? (formatTenantName(property.tenant) || 'Tenant') : 'No tenant assigned'}
                           </p>
                                 <p className={leaseTone}>
                                   {leaseSummary}

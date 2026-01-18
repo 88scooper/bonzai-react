@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Layout from "@/components/Layout";
@@ -8,12 +8,30 @@ import { RequireAuth } from "@/context/AuthContext";
 import Button from "@/components/Button";
 import AddPropertyModal from "@/components/AddPropertyModal";
 import { useProperties, usePropertyContext } from "@/context/PropertyContext";
+import { useAccount } from "@/context/AccountContext";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
 import { getPropertySlug } from "@/utils/slug";
-import { Building2, PiggyBank, FileSpreadsheet, Plus } from "lucide-react";
+import { orderProperties, getPropertyOrder } from "@/utils/propertyOrder";
+import { Building2, PiggyBank, FileSpreadsheet, Plus, Settings, GripVertical, X } from "lucide-react";
 import { getCurrentMortgageBalance, getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from "@/utils/mortgageCalculator";
 import { ListPageHeader } from "@/components/shared";
 import { calculateIRR as calculateIRRProper } from "@/utils/financialCalculations";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Calculate YoY change percentage
 function calculateYoYChange(currentValue, previousValue) {
@@ -190,8 +208,45 @@ function calculateYoYChanges(property) {
 export default function MyPropertiesPage() {
   const { calculationsComplete } = usePropertyContext();
   const properties = useProperties();
+  const { currentAccountId } = useAccount();
   const [forceShow, setForceShow] = useState(false);
   const [isAddPropertyModalOpen, setIsAddPropertyModalOpen] = useState(false);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [propertyOrder, setPropertyOrder] = useState([]);
+  
+  // Get localStorage key for property order
+  const getStorageKey = useCallback(() => {
+    return currentAccountId ? `property-order-${currentAccountId}` : 'property-order-default';
+  }, [currentAccountId]);
+  
+  // Load property order from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined' || !properties || properties.length === 0) return;
+    
+    const savedOrder = getPropertyOrder(currentAccountId);
+    
+    if (savedOrder && savedOrder.length > 0) {
+      setPropertyOrder(savedOrder);
+    } else {
+      // Initialize order from current properties
+      const defaultOrder = properties.map(p => p.id);
+      setPropertyOrder(defaultOrder);
+    }
+  }, [properties, currentAccountId]);
+  
+  // Apply property order to display properties in correct sequence
+  const orderedProperties = useMemo(() => {
+    return orderProperties(properties || [], currentAccountId);
+  }, [properties, currentAccountId]);
+  
+  // Save property order to localStorage
+  const savePropertyOrder = useCallback((newOrder) => {
+    if (typeof window === 'undefined') return;
+    
+    const storageKey = getStorageKey();
+    localStorage.setItem(storageKey, JSON.stringify(newOrder));
+    setPropertyOrder(newOrder);
+  }, [getStorageKey]);
   
   // Debug logging
   console.log('MyPropertiesPage - calculationsComplete:', calculationsComplete);
@@ -237,22 +292,36 @@ export default function MyPropertiesPage() {
     <RequireAuth>
       <Layout>
         <div className="space-y-6">
-          <ListPageHeader
-            title="My Investment Properties"
-            description={`Overview of your real estate investment performance and key metrics for ${new Date().getFullYear()}.`}
-            actionLabel="Add New Property"
-            onAction={() => setIsAddPropertyModalOpen(true)}
-            actionIcon={Plus}
-          />
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <ListPageHeader
+                title="My Investment Properties"
+                description={`Overview of your real estate investment performance and key metrics for ${new Date().getFullYear()}.`}
+                actionLabel="Add New Property"
+                onAction={() => setIsAddPropertyModalOpen(true)}
+                actionIcon={Plus}
+              />
+            </div>
+            {properties && Array.isArray(properties) && properties.length > 1 && (
+              <button
+                onClick={() => setIsOrderModalOpen(true)}
+                className="flex-shrink-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors self-start mt-6"
+                title="Reorder properties"
+                aria-label="Reorder properties"
+              >
+                <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+            )}
+          </div>
 
           {/* Debug info */}
           <div className="text-xs text-gray-500 mb-2">
             Properties: {properties ? properties.length : 'null'}
           </div>
 
-          {properties && Array.isArray(properties) && properties.length > 0 ? (
+          {orderedProperties && Array.isArray(orderedProperties) && orderedProperties.length > 0 ? (
             <div className="grid gap-4 sm:gap-6 grid-cols-1">
-              {properties.map((property, index) => {
+              {orderedProperties.map((property, index) => {
                 if (!property || !property.id) {
                   console.warn(`Property at index ${index} is missing or has no id:`, property);
                   return (
@@ -298,6 +367,14 @@ export default function MyPropertiesPage() {
           isOpen={isAddPropertyModalOpen} 
           onClose={() => setIsAddPropertyModalOpen(false)} 
         />
+        {isOrderModalOpen && (
+          <PropertyOrderModal
+            properties={properties}
+            currentOrder={propertyOrder}
+            onSave={savePropertyOrder}
+            onClose={() => setIsOrderModalOpen(false)}
+          />
+        )}
       </Layout>
     </RequireAuth>
   );
@@ -1143,6 +1220,173 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
           {statusMessage}
         </div>
       )}
+    </div>
+  );
+}
+
+// Property Order Modal Component
+function PropertyOrderModal({ properties, currentOrder, onSave, onClose }) {
+  const [orderedProperties, setOrderedProperties] = useState([]);
+  
+  // Initialize order from currentOrder or properties
+  useEffect(() => {
+    if (!properties || properties.length === 0) return;
+    
+    if (currentOrder && currentOrder.length > 0) {
+      // Use saved order
+      const propertyMap = new Map(properties.map(p => [p.id, p]));
+      const ordered = currentOrder
+        .map(id => propertyMap.get(id))
+        .filter(Boolean);
+      // Add any new properties
+      const orderedIds = new Set(ordered.map(p => p.id));
+      properties.forEach(p => {
+        if (!orderedIds.has(p.id)) {
+          ordered.push(p);
+        }
+      });
+      setOrderedProperties(ordered);
+    } else {
+      // Use current property order
+      setOrderedProperties([...properties]);
+    }
+  }, [properties, currentOrder]);
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+  
+  // Handle drag end
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      setOrderedProperties((items) => {
+        const oldIndex = items.findIndex(item => item.id === active.id);
+        const newIndex = items.findIndex(item => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+  
+  // Handle save
+  const handleSave = () => {
+    const newOrder = orderedProperties.map(p => p.id);
+    onSave(newOrder);
+    onClose();
+  };
+  
+  if (orderedProperties.length === 0) {
+    return null;
+  }
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Reorder Properties
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Drag properties to reorder them. The first property will be shown at the top.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          </button>
+        </div>
+        
+        {/* Sortable List */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={orderedProperties.map(p => p.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {orderedProperties.map((property) => (
+                  <SortablePropertyItem
+                    key={property.id}
+                    property={property}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+        
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-800">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#205A3E] hover:bg-[#1a4730] dark:bg-[#2F7E57] dark:hover:bg-[#205A3E] rounded-lg transition-colors"
+          >
+            Save Order
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Sortable Property Item Component
+function SortablePropertyItem({ property }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: property.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+      >
+        <GripVertical className="w-5 h-5 text-gray-400" />
+      </div>
+      <div className="flex-1">
+        <h3 className="font-semibold text-gray-900 dark:text-white">
+          {property.nickname || property.name || 'Unnamed Property'}
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {property.address || 'No address'}
+        </p>
+      </div>
     </div>
   );
 }

@@ -530,6 +530,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       monthlyExpenses: {},
       expenseHistory: propertyData.expenseHistory || [],
       incomeHistory: propertyData.incomeHistory || [],
+      // Preserve the full propertyData object (includes imageUrls array)
+      propertyData: propertyData,
     };
   }
 
@@ -831,9 +833,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Refresh accounts
   const refreshAccounts = useCallback(async () => {
+    console.log('AccountContext: refreshAccounts called, currentAccountId:', currentAccountId);
     setLoading(true);
     await loadAccounts();
-  }, [loadAccounts]);
+    // Also reload properties for current account if it exists
+    if (currentAccountId) {
+      console.log('AccountContext: Loading properties for account:', currentAccountId);
+      await loadProperties(currentAccountId);
+      console.log('AccountContext: Properties loaded');
+    }
+    setLoading(false);
+  }, [loadAccounts, currentAccountId, loadProperties]);
 
   // Switch to a different account
   const switchAccount = useCallback(async (accountId: string, account?: Account) => {

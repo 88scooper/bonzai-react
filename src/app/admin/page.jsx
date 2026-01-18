@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [togglingDemo, setTogglingDemo] = useState(null);
 
   const usersPerPage = 10;
 
@@ -116,6 +117,34 @@ export default function AdminDashboard() {
       addToast(err.message || "Failed to delete user", { type: "error" });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleToggleDemoStatus = async (userId, userEmail, currentDemoStatus) => {
+    if (togglingDemo === userId) return;
+    
+    try {
+      setTogglingDemo(userId);
+      const response = await apiClient.toggleUserDemoStatus(userId);
+      if (response.success) {
+        const newStatus = response.data?.demo_status;
+        addToast(
+          `Demo account status ${newStatus ? 'enabled' : 'disabled'} for ${userEmail}`, 
+          { type: "success" }
+        );
+        // Refresh users list
+        const refreshResponse = await apiClient.getAdminUsers(currentPage, usersPerPage, searchQuery);
+        if (refreshResponse.success) {
+          setUsersData(refreshResponse.data);
+        }
+      } else {
+        addToast(response.error || "Failed to toggle demo status", { type: "error" });
+      }
+    } catch (err) {
+      console.error("Error toggling demo status:", err);
+      addToast(err.message || "Failed to toggle demo status", { type: "error" });
+    } finally {
+      setTogglingDemo(null);
     }
   };
 
@@ -336,6 +365,7 @@ export default function AdminDashboard() {
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Properties</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">User Hours</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Created</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Read-Only (Demo)</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Actions</th>
                       </tr>
                     </thead>
@@ -350,6 +380,30 @@ export default function AdminDashboard() {
                             {userItem.total_hours ? userItem.total_hours.toFixed(2) : '0.00'} hrs
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{formatDate(userItem.created_at)}</td>
+                          <td className="py-3 px-4">
+                            {userItem.has_demo_account !== undefined && (
+                              <button
+                                onClick={() => handleToggleDemoStatus(userItem.id, userItem.email, userItem.has_demo_account)}
+                                disabled={togglingDemo === userItem.id}
+                                className={`
+                                  relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                                  ${userItem.has_demo_account 
+                                    ? 'bg-green-600 dark:bg-green-500' 
+                                    : 'bg-gray-300 dark:bg-gray-600'
+                                  }
+                                  ${togglingDemo === userItem.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                `}
+                                title={userItem.has_demo_account ? 'Disable read-only (demo) status' : 'Enable read-only (demo) status'}
+                              >
+                                <span
+                                  className={`
+                                    inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                                    ${userItem.has_demo_account ? 'translate-x-6' : 'translate-x-1'}
+                                  `}
+                                />
+                              </button>
+                            )}
+                          </td>
                           <td className="py-3 px-4">
                             <button
                               onClick={() => setDeleteConfirm(userItem)}

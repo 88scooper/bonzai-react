@@ -1,10 +1,11 @@
 "use client";
 
 const STEP_LABELS = {
-  1: 'Account',
-  2: 'Properties',
-  3: 'Review',
-  4: 'Financial Data'
+  1: 'Privacy',
+  2: 'Account',
+  3: 'Properties',
+  4: 'Review',
+  5: 'Financial Data'
 };
 
 export default function StepIndicator({ currentStep, totalSteps }) {

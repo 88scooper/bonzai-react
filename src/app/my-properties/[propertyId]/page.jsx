@@ -11,6 +11,7 @@ import { formatCurrency, formatPercentage, formatNumber } from "@/utils/formatti
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import AnnualExpenseChart from '@/components/charts/AnnualExpenseChart';
 import { useToast } from "@/context/ToastContext";
+import { useAccount } from "@/context/AccountContext";
 import { X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar, Plus, Edit2, Trash2, Check, Building2, PiggyBank, FileSpreadsheet } from "lucide-react";
 import PropertyHeader from "@/components/shared/PropertyHeader";
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
@@ -38,6 +39,25 @@ const formatCurrencyNoDecimals = (value) => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(Math.floor(value || 0));
+};
+
+// Helper function to format tenant name for display
+const formatTenantName = (tenant) => {
+  if (!tenant) return 'Vacant';
+  // Support both old format (name) and new format (firstInitial + lastName)
+  if (tenant.name) {
+    return tenant.name;
+  }
+  if (tenant.firstInitial && tenant.lastName) {
+    return `${tenant.firstInitial}. ${tenant.lastName}`;
+  }
+  if (tenant.firstInitial) {
+    return `${tenant.firstInitial}.`;
+  }
+  if (tenant.lastName) {
+    return tenant.lastName;
+  }
+  return 'Vacant';
 };
 
 // TopMetricCard component (matching Portfolio Summary format)
@@ -249,7 +269,8 @@ export default function PropertyDetailPage() {
   const slugOrId = Array.isArray(params?.propertyId) ? params.propertyId[0] : params?.propertyId;
   const [isHydrated, setIsHydrated] = useState(false);
   const { addToast } = useToast();
-  const { getPropertyById, getPropertyBySlug } = usePropertyContext();
+  const { refreshAccounts } = useAccount();
+  const { getPropertyById, getPropertyBySlug, updateProperty: updatePropertyInContext } = usePropertyContext();
   const router = useRouter();
   
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
@@ -283,6 +304,7 @@ export default function PropertyDetailPage() {
   const [showAddPhotosModal, setShowAddPhotosModal] = useState(false);
   const [showAddPhotosTooltip, setShowAddPhotosTooltip] = useState(false);
   const [failedImageUrls, setFailedImageUrls] = useState(new Set());
+  const [selectedUnitType, setSelectedUnitType] = useState('');
   
   // Get property data - try slug first, then fall back to ID (for backward compatibility)
   const property = useMemo(() => {
@@ -290,10 +312,14 @@ export default function PropertyDetailPage() {
     
     // Check if it looks like a UUID
     if (isUUID(slugOrId)) {
-      return getPropertyById(slugOrId);
+      const found = getPropertyById(slugOrId);
+      console.log('PropertyDetailsPage: getPropertyById result:', found?.id, 'imageUrls:', found?.propertyData?.imageUrls);
+      return found;
     } else {
       // Try to find by slug
-      return getPropertyBySlug(slugOrId);
+      const found = getPropertyBySlug(slugOrId);
+      console.log('PropertyDetailsPage: getPropertyBySlug result:', found?.id, 'imageUrls:', found?.propertyData?.imageUrls);
+      return found;
     }
   }, [slugOrId, getPropertyById, getPropertyBySlug]);
   
@@ -598,7 +624,7 @@ export default function PropertyDetailPage() {
         date: new Date(currentDate),
         rent: activeRent,
         change,
-        tenantName: activeTenant?.name || 'Vacant',
+        tenantName: formatTenantName(activeTenant),
         isIncrease: change > 0,
         isDecrease: change < 0,
         isChange
@@ -704,27 +730,40 @@ export default function PropertyDetailPage() {
     // First, check if property_data has imageUrls array (new way)
     // Only use images from propertyData.imageUrls (these should be validated/existing images)
     const propertyDataImageUrls = property?.propertyData?.imageUrls || [];
+    console.log('getPropertyImages: propertyDataImageUrls:', propertyDataImageUrls, 'property:', property?.id);
+    
     if (propertyDataImageUrls.length > 0) {
       // Filter out any failed images
-      return propertyDataImageUrls.filter(url => !failedImageUrls.has(url));
+      const filtered = propertyDataImageUrls.filter(url => !failedImageUrls.has(url));
+      console.log('getPropertyImages: Returning filtered imageUrls:', filtered);
+      return filtered;
     }
     
     // Fallback to legacy method: ONLY use the base imageUrl (don't generate variations)
     // Variations don't exist and will show as blank white images
-    if (!property?.imageUrl) return [];
+    if (!property?.imageUrl) {
+      console.log('getPropertyImages: No imageUrl found, returning empty array');
+      return [];
+    }
     
     // Only include base imageUrl if it hasn't failed to load
     if (!failedImageUrls.has(property.imageUrl)) {
       images.push(property.imageUrl);
     }
     
+    console.log('getPropertyImages: Returning legacy imageUrl:', images);
     return images;
-  }, [property?.imageUrl, property?.propertyData?.imageUrls, failedImageUrls]);
+  }, [property?.imageUrl, property?.propertyData?.imageUrls, failedImageUrls, property?.id]);
 
-  // Reset image index when property changes
+  // Reset image index when property or images change
   useEffect(() => {
     setCurrentImageIndex(0);
-  }, [property?.imageUrl]);
+  }, [property?.imageUrl, property?.propertyData?.imageUrls]);
+
+  // Reset selected unit type when property changes
+  useEffect(() => {
+    setSelectedUnitType('');
+  }, [propertyId]);
 
   // NOW we can do conditional returns after all hooks are declared
   // Early return if slugOrId is not available
@@ -970,7 +1009,6 @@ export default function PropertyDetailPage() {
           {/* Purchase Summary & Property Details with Image */}
           <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <Home className="w-5 h-5 text-[#205A3E]" />
               <h2 className="text-xl font-semibold">Purchase Summary & Property Details</h2>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1037,24 +1075,42 @@ export default function PropertyDetailPage() {
                         : 'N/A'}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-start">
                   <span className="text-gray-600 dark:text-gray-400">Unit Type</span>
-                  <span className="font-medium text-gray-900 dark:text-white text-right">
+                  <div className="font-medium text-gray-900 dark:text-white text-right">
                     {property.units > 1 && property.bedrooms && property.bathrooms && property.bedrooms.length > 0 ? (
-                      <div className="space-y-0.5">
-                        {property.bedrooms.map((beds, index) => {
-                          const baths = property.bathrooms && property.bathrooms[index] !== undefined ? property.bathrooms[index] : (property.bathrooms && property.bathrooms[0] ? property.bathrooms[0] : 0);
-                          return (
-                            <div key={index} className="text-xs">
-                              Unit {index + 1}: {beds} Bed, {baths} Bath
-                            </div>
-                          );
-                        })}
+                      <div className="relative">
+                        <select
+                          value={selectedUnitType ?? ''}
+                          onChange={(e) => setSelectedUnitType(e.target.value)}
+                          className="appearance-none bg-white dark:bg-neutral-800 border border-black/15 dark:border-white/15 rounded-md px-3 py-1.5 pr-8 text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 cursor-pointer"
+                        >
+                          <option value="">Select Unit</option>
+                          {property.bedrooms.map((beds, index) => {
+                            const baths = property.bathrooms && property.bathrooms[index] !== undefined ? property.bathrooms[index] : (property.bathrooms && property.bathrooms[0] ? property.bathrooms[0] : 0);
+                            return (
+                              <option key={index} value={index}>
+                                Unit {index + 1}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
+                        {selectedUnitType !== '' && (
+                          <div className="mt-2 text-sm">
+                            {(() => {
+                              const unitIndex = parseInt(selectedUnitType);
+                              const beds = property.bedrooms[unitIndex];
+                              const baths = property.bathrooms && property.bathrooms[unitIndex] !== undefined ? property.bathrooms[unitIndex] : (property.bathrooms && property.bathrooms[0] ? property.bathrooms[0] : 0);
+                              return `${beds} Bed, ${baths} Bath`;
+                            })()}
+                          </div>
+                        )}
                       </div>
                     ) : property.unitConfig || (property.bedrooms && property.bedrooms[0] !== undefined && property.bathrooms && property.bathrooms[0] !== undefined
                       ? `${property.bedrooms[0]} Bed, ${property.bathrooms[0]} Bath`
                       : property.unitConfig || 'N/A')}
-                  </span>
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Ownership</span>
@@ -1171,7 +1227,6 @@ export default function PropertyDetailPage() {
                 onClick={() => toggleSection('generalNotes')}
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
-                <FileText className="w-4 h-4 text-[#205A3E]" />
                 <h2 className="text-xs font-semibold">General Notes</h2>
               </button>
               <div className="flex items-center gap-2">
@@ -1426,7 +1481,6 @@ export default function PropertyDetailPage() {
               {/* Performance Metrics Section */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-5 h-5 text-[#205A3E]" />
                   <h2 className="text-xl font-semibold">Performance Metrics</h2>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1486,7 +1540,6 @@ export default function PropertyDetailPage() {
                 <div className="flex items-start justify-between gap-2 mb-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <DollarSign className="w-5 h-5 text-[#205A3E]" />
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                         Income & Expenses
                       </h2>
@@ -1600,7 +1653,6 @@ export default function PropertyDetailPage() {
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-[#205A3E]" />
                     <h2 className="text-xl font-semibold">Expense Summary</h2>
                   </div>
                   {openSections.propertyFinancials ? (
@@ -1920,7 +1972,6 @@ export default function PropertyDetailPage() {
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
                   <div className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-[#205A3E]" />
                   <h2 className="text-xl font-semibold">Historical Performance</h2>
                   </div>
                   {openSections.historicalPerformance ? (
@@ -2125,7 +2176,6 @@ export default function PropertyDetailPage() {
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
                   <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-[#205A3E]" />
                     <h2 className="text-xl font-semibold">Tenant Details</h2>
                   </div>
                   {openSections.currentTenants ? (
@@ -2274,7 +2324,7 @@ export default function PropertyDetailPage() {
                       <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                                  <div className="font-semibold text-gray-900 dark:text-white mb-2">{tenant.name}</div>
+                                  <div className="font-semibold text-gray-900 dark:text-white mb-2">{formatTenantName(tenant)}</div>
                                   <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
                                     <div>
                                       <span className="font-medium">
@@ -2432,7 +2482,6 @@ export default function PropertyDetailPage() {
                   className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
                 >
                   <div className="flex items-center gap-2">
-                    <PieChartIcon className="w-5 h-5 text-[#205A3E]" />
                     <h2 className="text-xl font-semibold">Annual Expense History</h2>
                     <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                       Categorized expenses
@@ -2522,10 +2571,17 @@ export default function PropertyDetailPage() {
           <AddPhotosModal
             property={property}
             onClose={() => setShowAddPhotosModal(false)}
-            onSave={() => {
-              // Refresh property data by reloading the page
-              router.refresh();
+            onSave={async () => {
+              console.log('PropertyDetailsPage: onSave called, refreshing accounts...');
+              // Refresh property data from the API to show the new images
+              await refreshAccounts();
+              console.log('PropertyDetailsPage: refreshAccounts completed');
+              // Force a small delay to ensure context updates propagate
+              await new Promise(resolve => setTimeout(resolve, 500));
+              // Force re-render by updating a state variable if needed
+              // The property memo should automatically update when getPropertyById/getPropertyBySlug change
             }}
+            updatePropertyInContext={updatePropertyInContext}
           />
         )}
 
@@ -2869,7 +2925,7 @@ function AddExpenseModal({ property, onClose, onSave }) {
 }
 
 // Add Photos Modal Component
-function AddPhotosModal({ property, onClose, onSave }) {
+function AddPhotosModal({ property, onClose, onSave, updatePropertyInContext }) {
   const [imageUrls, setImageUrls] = useState(['']);
   const [uploading, setUploading] = useState(false);
   const { addToast } = useToast();
@@ -2961,13 +3017,41 @@ function AddPhotosModal({ property, onClose, onSave }) {
       };
 
       // Update property via API
+      console.log('AddPhotosModal: Saving photos, updatedPropertyData:', updatedPropertyData);
       const response = await apiClient.updateProperty(property.id, {
         propertyData: updatedPropertyData
       });
 
       if (response.success) {
+        console.log('AddPhotosModal: Photos saved successfully, API response:', response.data);
+        
+        // Immediately update local property context with the API response
+        if (response.data) {
+          const apiProperty = response.data;
+          const apiPropertyData = apiProperty.property_data || {};
+          console.log('AddPhotosModal: Updating local property context with imageUrls:', apiPropertyData.imageUrls);
+          
+          // Update property in context immediately for instant UI feedback
+          // This will be merged with the full property data from refreshAccounts
+          if (updatePropertyInContext) {
+            updatePropertyInContext(property.id, {
+              propertyData: apiPropertyData
+            }, true); // skipSave since we already saved via API
+          }
+        }
+        
         addToast(`Successfully added ${validUrls.length} photo(s)`, { type: 'success' });
-        onSave?.();
+        
+        // Wait for onSave to complete (refresh accounts) before closing
+        if (onSave) {
+          console.log('AddPhotosModal: Calling onSave to refresh accounts...');
+          await onSave();
+          console.log('AddPhotosModal: onSave completed');
+        }
+        
+        // Add a small delay to ensure context updates propagate
+        await new Promise(resolve => setTimeout(resolve, 300));
+        console.log('AddPhotosModal: Closing modal');
         onClose();
       } else {
         throw new Error(response.error || 'Failed to save photos');
@@ -2981,9 +3065,9 @@ function AddPhotosModal({ property, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
       <div 
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto border border-white/20 dark:border-gray-700/30"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
