@@ -334,6 +334,7 @@ export default function AdminDashboard() {
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Name</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Accounts</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Properties</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">User Hours</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Created</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Actions</th>
                       </tr>
@@ -345,6 +346,9 @@ export default function AdminDashboard() {
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{userItem.name || "—"}</td>
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{userItem.account_count}</td>
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{userItem.property_count}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
+                            {userItem.total_hours ? userItem.total_hours.toFixed(2) : '0.00'} hrs
+                          </td>
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{formatDate(userItem.created_at)}</td>
                           <td className="py-3 px-4">
                             <button

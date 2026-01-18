@@ -287,6 +287,12 @@ function PortfolioSummaryContent() {
   const properties = useProperties();
   const portfolioMetrics = usePortfolioMetrics();
   
+  // Track if component has mounted to prevent hydration mismatch
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   // Timeout fallback - force show content after 1.5 seconds to prevent infinite loading
   const [forceShow, setForceShow] = useState(false);
   useEffect(() => {
@@ -854,7 +860,8 @@ function PortfolioSummaryContent() {
 
   // Show loading state until calculations are complete to prevent hydration mismatch
   // Show content if calculations are complete OR if we have properties OR if timeout elapsed
-  const shouldShowContent = calculationsComplete || forceShow || (properties && Array.isArray(properties));
+  // Only check properties after mounting to prevent hydration mismatch
+  const shouldShowContent = calculationsComplete || forceShow || (mounted && properties && Array.isArray(properties));
   
   if (!shouldShowContent) {
     return (
@@ -881,7 +888,7 @@ function PortfolioSummaryContent() {
           <div className="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800 px-4 py-3">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-emerald-800 dark:text-emerald-200 font-medium">📊 Demo Mode - Read Only</span>
+                <span className="text-emerald-800 dark:text-emerald-200 font-medium">Demo Mode - Read Only</span>
                 <span className="text-sm text-emerald-700 dark:text-emerald-300">You're viewing a read-only demo portfolio. Sign up to create your own portfolio!</span>
               </div>
               <a 
@@ -1504,20 +1511,18 @@ function PortfolioSummaryContent() {
 // Wrapper component to ensure Suspense is at the top level
 function PortfolioSummaryWrapper() {
   return (
-    <Suspense fallback={
-      <RequireAuth>
-        <Layout>
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#205A3E] mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading portfolio...</p>
-            </div>
+    <RequireAuth>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-950">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#205A3E] mx-auto"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading portfolio...</p>
           </div>
-        </Layout>
-      </RequireAuth>
-    }>
-      <PortfolioSummaryContent />
-    </Suspense>
+        </div>
+      }>
+        <PortfolioSummaryContent />
+      </Suspense>
+    </RequireAuth>
   );
 }
 

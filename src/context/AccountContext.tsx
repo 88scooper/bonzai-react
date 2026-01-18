@@ -116,8 +116,172 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           setCurrentAccountId(demoAccount.id);
           setCurrentAccount(demoAccount);
           
-          // Set demo properties
-          setProperties(result.data.properties || []);
+          // Map demo properties and attach mortgages/expenses
+          const properties = (result.data.properties || []).map((property: any) => {
+            // Find mortgage for this property
+            const mortgage = (result.data.mortgages || []).find((m: any) => m.propertyId === property.id);
+            // Find expenses for this property
+            const expenses = (result.data.expenses || []).filter((e: any) => e.propertyId === property.id);
+            
+            // Map mortgage data
+            if (mortgage) {
+              property.mortgage = {
+                lender: mortgage.lenderName || '',
+                originalAmount: parseFloat(mortgage.originalAmount || 0),
+                interestRate: parseFloat(mortgage.interestRate || 0),
+                rateType: 'Fixed',
+                termMonths: mortgage.termMonths || 60,
+                amortizationYears: 25,
+                paymentFrequency: mortgage.paymentFrequency || 'Monthly',
+                startDate: mortgage.startDate || null,
+                currentBalance: mortgage.currentBalance ? parseFloat(mortgage.currentBalance) : null,
+                paymentAmount: mortgage.paymentAmount ? parseFloat(mortgage.paymentAmount) : null,
+                mortgageData: mortgage.mortgageData || {},
+              };
+            }
+            
+            // Map expense history
+            if (expenses && expenses.length > 0) {
+              property.expenseHistory = expenses.map((exp: any) => ({
+                id: exp.id,
+                date: exp.expenseDate,
+                amount: parseFloat(exp.amount || 0),
+                category: exp.category || 'Other',
+                description: exp.description || '',
+              }));
+              
+              // Calculate monthly expenses from expense history
+              const currentYear = new Date().getFullYear();
+              const currentYearExpenses = expenses.filter((e: any) => {
+                const expDate = new Date(e.expenseDate);
+                return expDate.getFullYear() === currentYear;
+              });
+              
+              const categoryTotals: Record<string, number> = {};
+              currentYearExpenses.forEach((exp: any) => {
+                const category = exp.category || 'Other';
+                const amount = parseFloat(exp.amount || 0);
+                categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+              });
+              
+              const categoryMapping: Record<string, string> = {
+                'Property Tax': 'propertyTax',
+                'Condo Fees': 'condoFees',
+                'Insurance': 'insurance',
+                'Maintenance': 'maintenance',
+                'Professional Fees': 'professionalFees',
+                'Utilities': 'utilities',
+                'Other': 'other',
+              };
+              
+              const monthlyExpenses: Record<string, number> = {
+                propertyTax: 0,
+                condoFees: 0,
+                insurance: 0,
+                maintenance: 0,
+                professionalFees: 0,
+                utilities: 0,
+                other: 0,
+                mortgagePayment: 0,
+                mortgageInterest: 0,
+                mortgagePrincipal: 0,
+                total: 0,
+              };
+              
+              Object.entries(categoryTotals).forEach(([category, annualTotal]) => {
+                const monthlyKey = categoryMapping[category] || 'other';
+                monthlyExpenses[monthlyKey] = annualTotal / 12;
+              });
+              
+              const operatingTotal = 
+                monthlyExpenses.propertyTax +
+                monthlyExpenses.condoFees +
+                monthlyExpenses.insurance +
+                monthlyExpenses.maintenance +
+                monthlyExpenses.professionalFees +
+                monthlyExpenses.utilities +
+                monthlyExpenses.other;
+              monthlyExpenses.total = operatingTotal;
+              
+              property.monthlyExpenses = monthlyExpenses;
+            } else {
+              property.expenseHistory = [];
+              property.monthlyExpenses = {
+                propertyTax: 0,
+                condoFees: 0,
+                insurance: 0,
+                maintenance: 0,
+                professionalFees: 0,
+                utilities: 0,
+                other: 0,
+                mortgagePayment: 0,
+                mortgageInterest: 0,
+                mortgagePrincipal: 0,
+                total: 0,
+              };
+            }
+            
+            // Extract tenant/rent data from propertyData
+            const propertyData = property.propertyData || {};
+            const rent = propertyData.rent || {};
+            const tenants = propertyData.tenants || [];
+            
+            // Map rent data
+            property.rent = {
+              monthlyRent: rent.monthlyRent || rent.monthly_rent || 0,
+              annualRent: rent.annualRent || rent.annual_rent || 0,
+            };
+            
+            // If we have monthly rent but no annual, calculate it
+            if (property.rent.monthlyRent && !property.rent.annualRent) {
+              property.rent.annualRent = property.rent.monthlyRent * 12;
+            }
+            
+            // Map tenant data
+            property.tenants = tenants;
+            property.tenant = tenants.length > 0 ? {
+              name: tenants[0].name || '',
+              leaseStartDate: tenants[0].leaseStart || tenants[0].lease_start || '',
+              leaseEndDate: tenants[0].leaseEnd || tenants[0].lease_end || '',
+              rent: tenants[0].rent || property.rent.monthlyRent || 0,
+              status: tenants[0].status || '',
+            } : {
+              name: '',
+              leaseStartDate: '',
+              leaseEndDate: '',
+              rent: 0,
+              status: '',
+            };
+            
+            // Ensure property has required fields
+            property.squareFootage = property.size || 0;
+            property.currentValue = property.currentMarketValue || 0;
+            property.name = property.nickname || '';
+            property.type = property.propertyType || '';
+            property.units = propertyData.units || 1;
+            property.bedrooms = propertyData.bedrooms !== undefined ? propertyData.bedrooms : null;
+            property.bathrooms = propertyData.bathrooms !== undefined ? propertyData.bathrooms : null;
+            property.dens = propertyData.dens !== undefined ? propertyData.dens : null;
+            property.isPrincipalResidence = propertyData.isPrincipalResidence || false;
+            property.ownership = propertyData.ownership || null;
+            property.totalInvestment = property.purchasePrice + (property.closingCosts || 0) + (property.renovationCosts || 0) + (property.initialRenovations || 0);
+            
+            // Calculate appreciation
+            if (property.currentMarketValue && property.purchasePrice) {
+              property.appreciation = property.currentMarketValue - property.purchasePrice;
+            } else {
+              property.appreciation = 0;
+            }
+            
+            // Ensure property_data structure exists
+            if (!property.propertyData) {
+              property.propertyData = {};
+            }
+            
+            return property;
+          });
+          
+          setProperties(properties);
           
           if (typeof window !== 'undefined') {
             localStorage.setItem('current_account_id', demoAccount.id);
@@ -650,12 +814,20 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Load properties when current account changes
   useEffect(() => {
+    // Load properties for all accounts, including demo accounts
+    // Demo accounts loaded via loadDemoData() will have properties already set,
+    // but authenticated users with demo accounts need to load properties via API
     if (currentAccountId) {
-      loadProperties(currentAccountId);
+      // Only skip if user is not authenticated (meaning demo mode via loadDemoData)
+      // For authenticated users, always load properties via API, even for demo accounts
+      if (isAuthenticated()) {
+        loadProperties(currentAccountId);
+      }
+      // If not authenticated and it's a demo account, properties should already be loaded via loadDemoData()
     } else {
       setProperties([]);
     }
-  }, [currentAccountId, loadProperties]);
+  }, [currentAccountId, currentAccount?.isDemo, loadProperties]);
 
   // Refresh accounts
   const refreshAccounts = useCallback(async () => {

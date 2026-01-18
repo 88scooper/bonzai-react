@@ -12,6 +12,7 @@ interface UserWithCounts {
   is_admin: boolean;
   account_count: number;
   property_count: number;
+  total_hours: number;
 }
 
 /**
@@ -54,6 +55,7 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
       is_admin: boolean;
       account_count: number;
       property_count: number;
+      total_hours: number;
     }>;
 
     if (searchPattern) {
@@ -64,13 +66,14 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
           u.name,
           u.created_at,
           u.is_admin,
+          COALESCE(u.total_hours, 0)::numeric as total_hours,
           COALESCE(COUNT(DISTINCT a.id), 0)::int as account_count,
           COALESCE(COUNT(DISTINCT p.id), 0)::int as property_count
         FROM users u
         LEFT JOIN accounts a ON a.user_id = u.id
         LEFT JOIN properties p ON p.account_id = a.id
         WHERE u.email ILIKE ${searchPattern} OR u.name ILIKE ${searchPattern}
-        GROUP BY u.id, u.email, u.name, u.created_at, u.is_admin
+        GROUP BY u.id, u.email, u.name, u.created_at, u.is_admin, u.total_hours
         ORDER BY u.created_at DESC
         LIMIT ${limit}
         OFFSET ${offset}
@@ -80,6 +83,7 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
         name: string | null;
         created_at: Date;
         is_admin: boolean;
+        total_hours: number;
         account_count: number;
         property_count: number;
       }>;
@@ -91,12 +95,13 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
           u.name,
           u.created_at,
           u.is_admin,
+          COALESCE(u.total_hours, 0)::numeric as total_hours,
           COALESCE(COUNT(DISTINCT a.id), 0)::int as account_count,
           COALESCE(COUNT(DISTINCT p.id), 0)::int as property_count
         FROM users u
         LEFT JOIN accounts a ON a.user_id = u.id
         LEFT JOIN properties p ON p.account_id = a.id
-        GROUP BY u.id, u.email, u.name, u.created_at, u.is_admin
+        GROUP BY u.id, u.email, u.name, u.created_at, u.is_admin, u.total_hours
         ORDER BY u.created_at DESC
         LIMIT ${limit}
         OFFSET ${offset}
@@ -106,6 +111,7 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
         name: string | null;
         created_at: Date;
         is_admin: boolean;
+        total_hours: number;
         account_count: number;
         property_count: number;
       }>;
@@ -119,6 +125,7 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
       is_admin: user.is_admin,
       account_count: user.account_count,
       property_count: user.property_count,
+      total_hours: Number(user.total_hours) || 0,
     }));
 
     const paginatedResponse = createPaginatedResponse(usersWithCounts, total, page, limit);

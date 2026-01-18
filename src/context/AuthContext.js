@@ -296,6 +296,12 @@ export function AuthProvider({ children }) {
 export function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Track when component has mounted to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Check for demo mode on client side only
   useEffect(() => {
@@ -377,7 +383,8 @@ export function RequireAuth({ children }) {
     }
   }, [user, loading, isDemoMode]);
 
-  if (loading) {
+  // Only show loading state after mounting to prevent hydration mismatch
+  if (mounted && loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-sm text-gray-600 dark:text-gray-400">Loading...</div>
@@ -386,10 +393,13 @@ export function RequireAuth({ children }) {
   }
 
   // Allow demo mode without user
-  if (!user && !isDemoMode) {
+  // Only check after mounting to prevent hydration mismatch
+  if (mounted && !user && !isDemoMode) {
     return null;
   }
 
+  // During SSR or before mount, always render children to prevent hydration mismatch
+  // The useEffect will handle redirects if needed
   return children;
 }
 

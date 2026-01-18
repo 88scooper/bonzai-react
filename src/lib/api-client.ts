@@ -262,6 +262,7 @@ class ApiClient {
         is_admin: boolean;
         account_count: number;
         property_count: number;
+        total_hours: number;
       }>;
       pagination: any;
     }>(`/admin/users?${params.toString()}`);

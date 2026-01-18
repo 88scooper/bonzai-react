@@ -10,7 +10,7 @@ import { hashPassword, createUser, getUserByEmail } from '../src/lib/auth';
 import { sql } from '../src/lib/db';
 
 async function createAdminUser() {
-  const email = 'admin@bonzai.io';
+  const email = 'admin@bonzia.io';
   const password = 'testpass';
   const name = 'Admin User';
 

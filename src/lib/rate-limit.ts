@@ -68,6 +68,21 @@ export async function checkRateLimit(
 }
 
 /**
+ * Clear rate limit for a specific identifier
+ * @param identifier - Identifier to clear (e.g., 'login:127.0.0.1' or 'login:unknown')
+ */
+export function clearRateLimit(identifier: string): void {
+  rateLimitStore.delete(identifier);
+}
+
+/**
+ * Clear all rate limits (use with caution in production)
+ */
+export function clearAllRateLimits(): void {
+  rateLimitStore.clear();
+}
+
+/**
  * Get client IP address from request headers
  */
 export function getClientIP(request: Request): string {
