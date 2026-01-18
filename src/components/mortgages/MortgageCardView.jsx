@@ -214,28 +214,63 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
     </svg>
   );
 
+  // Extract short property name from address
+  const getShortPropertyName = () => {
+    const address = mortgage.property?.address || mortgage.propertyName || '';
+    if (address.includes(',')) {
+      const parts = address.split(',');
+      const streetPart = parts[0].trim();
+      // Remove unit number if present (e.g., "500-415 " from "500-415 Wilson Avenue")
+      const match = streetPart.match(/\d+[-\s]+\d+[-\s]+(.+)/) || streetPart.match(/\d+[-\s]+(.+)/) || [null, streetPart];
+      return match[1]?.trim() || streetPart;
+    }
+    return address || 'Mortgage';
+  };
+
   return (
     <div className="space-y-6">
-      {/* Top Summary Banner - Bonzai Green (Financial Summary) */}
-      <div className="bg-[#205A3E] dark:bg-[#1a4932] rounded-xl p-2 sm:p-3">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-4 items-center">
-          
-          {/* Left Section - Balance Overview with Donut Chart */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-20 h-20 sm:w-[120px] sm:h-[120px] relative flex-shrink-0">
+      {/* Mortgage Banner Card - Two-Tier Architecture */}
+      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+        
+        {/* Header Section - Property Identity */}
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 bg-slate-50/50 dark:bg-slate-900/50 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                {getShortPropertyName()}
+              </h3>
+            </div>
+          </div>
+        </div>
+        
+        {/* Financial Banner Section - Gradient Background */}
+        <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 dark:from-emerald-950 dark:to-emerald-900 p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+            
+            {/* Left Section - Balance Overview with Donut Chart */}
+            <div className="flex items-center gap-3 border-r border-white/10 pr-8">
+              <div className="flex-shrink-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">Starting Balance</div>
+                <div className="text-xs font-semibold tabular-nums text-white">{formatCurrency(startingBalance)}</div>
+              </div>
+              <div className="relative flex-shrink-0" style={{ width: '74px', height: '74px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={balanceChartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={28}
-                    outerRadius={42}
+                    innerRadius={18}
+                    outerRadius={33}
                     dataKey="value"
                     startAngle={90}
                     endAngle={450}
                     stroke="none"
                     strokeWidth={0}
+                    isAnimationActive={true}
+                    animationBegin={300}
+                    animationDuration={1400}
+                    animationEasing="ease-in-out"
                   >
                     {balanceChartData.map((entry, index) => (
                       <Cell 
@@ -247,12 +282,6 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center px-1">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">Starting Balance</div>
-                  <div className="text-xs font-semibold tabular-nums text-white">{formatCurrency(startingBalance)}</div>
-                </div>
-              </div>
             </div>
               <div className="space-y-2 flex-1">
               <div className="flex items-center gap-2">
@@ -273,7 +302,7 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
           </div>
 
           {/* Middle Section - Next Payment with Amount */}
-          <div className="space-y-2 text-center">
+          <div className="space-y-2 text-center border-r border-white/10 pr-8">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90 mb-1">Next Payment</div>
               <div className="text-base font-semibold text-white mb-0.5">
@@ -308,10 +337,10 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
               </div>
             )}
           </div>
-            <div className="space-y-2">
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-white flex-shrink-0"></div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">
                     {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
                       ? 'Principal (bi-weekly)'
@@ -322,7 +351,7 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-white/30 flex-shrink-0"></div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-white/90">
                     {mortgageObj.paymentFrequency?.toLowerCase() === 'bi-weekly'
                       ? 'Interest (bi-weekly)'
@@ -333,6 +362,7 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 

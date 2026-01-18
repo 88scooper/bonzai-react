@@ -1619,7 +1619,7 @@ function TopMetricCard({
   }, [isHovered, updateTooltipPosition]);
 
   return (
-    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-5">
+    <div className="relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 transition-shadow duration-300 ease-in-out hover:shadow-[0_12px_40px_rgb(0,0,0,0.06)]">
       <div className="flex items-start justify-between gap-3.5">
         <div>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -1632,8 +1632,16 @@ function TopMetricCard({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <div ref={iconRef} className="relative rounded-full p-2.5 text-[#205A3E] dark:text-[#66B894] bg-white dark:bg-gray-900 cursor-help flex-shrink-0 flex items-center justify-center">
-              <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+            <div ref={iconRef} className={`relative rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 cursor-help ${
+              accent === 'emerald' || accent === 'teal'
+                ? 'bg-[#205A3E]/10 dark:bg-[#205A3E]/20'
+                : 'bg-slate-100 dark:bg-slate-800'
+            }`}>
+              <Icon className={`h-5 w-5 flex-shrink-0 ${
+                accent === 'emerald' || accent === 'teal'
+                  ? 'text-[#205A3E] dark:text-[#66B894]'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`} aria-hidden="true" />
               {iconBadge && (
                 <span
                   className={`absolute flex h-4 w-4 items-center justify-center rounded-full bg-[#205A3E] text-[10px] font-semibold text-white shadow-sm dark:bg-[#2F7E57] ${
@@ -1972,6 +1980,10 @@ function AnnualRentalIncomeCard({ properties = [], totalMonthlyRent = 0 }) {
                               outerRadius={70}
                               fill="#8884d8"
                               dataKey="value"
+                              isAnimationActive={true}
+                              animationBegin={300}
+                              animationDuration={1400}
+                              animationEasing="ease-in-out"
                             >
                               {pieChartData.map((entry, index) => (
                                 <Cell 
@@ -2244,6 +2256,10 @@ function AnnualExpensesCard({
                         outerRadius={70}
                         fill="#8884d8"
                         dataKey="value"
+                        isAnimationActive={true}
+                        animationBegin={300}
+                        animationDuration={1400}
+                        animationEasing="ease-in-out"
                       >
                       {pieChartData.map((entry, index) => (
                         <Cell 
@@ -2491,8 +2507,12 @@ function AnnualDeductibleExpensesCard({
                       outerRadius={70}
                       fill="#8884d8"
                       dataKey="value"
+                      isAnimationActive={true}
+                      animationBegin={300}
+                      animationDuration={1400}
+                      animationEasing="ease-in-out"
                     >
-                      {pieChartData.map((entry, index) => (
+                    {pieChartData.map((entry, index) => (
                         <Cell 
                           key={`cell-${index}`} 
                           fill={COLORS[index % COLORS.length]} 

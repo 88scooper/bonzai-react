@@ -20,14 +20,14 @@ Option 1: Use the API endpoint (Recommended)
    Or use curl:
    curl -X POST http://localhost:3000/api/admin/create-admin-user \\
      -H "Content-Type: application/json" \\
-     -d '{"email":"admin@bonzia.com","password":"testpass","name":"Admin User"}'
+     -d '{"email":"admin@bonzai.io","password":"testpass","name":"Admin User"}'
 
 Option 2: Run SQL directly in your database
 Run this SQL in your Neon database SQL editor:
 
 INSERT INTO users (email, password_hash, name, is_admin)
 VALUES (
-  'admin@bonzia.com',
+  'admin@bonzai.io',
   '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqJqZ5Q5K2', -- hash for 'testpass'
   'Admin User',
   TRUE

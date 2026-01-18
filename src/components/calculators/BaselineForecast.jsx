@@ -490,6 +490,10 @@ const BaselineForecast = ({ property, assumptions }) => {
                 dot={{ fill: '#10b981', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
+                isAnimationActive={true}
+                animationBegin={300}
+                animationDuration={1400}
+                animationEasing="ease-in-out"
               />
             )}
             {visibleMetrics.operatingIncome && (
@@ -502,6 +506,10 @@ const BaselineForecast = ({ property, assumptions }) => {
                 dot={{ fill: '#3b82f6', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
+                isAnimationActive={true}
+                animationBegin={300}
+                animationDuration={1400}
+                animationEasing="ease-in-out"
               />
             )}
             {visibleMetrics.operatingExpenses && (
@@ -514,6 +522,10 @@ const BaselineForecast = ({ property, assumptions }) => {
                 dot={{ fill: '#ef4444', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
+                isAnimationActive={true}
+                animationBegin={300}
+                animationDuration={1400}
+                animationEasing="ease-in-out"
               />
             )}
             {visibleMetrics.noi && (
@@ -526,6 +538,10 @@ const BaselineForecast = ({ property, assumptions }) => {
                 dot={{ fill: '#8b5cf6', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
+                isAnimationActive={true}
+                animationBegin={300}
+                animationDuration={1400}
+                animationEasing="ease-in-out"
               />
             )}
             {visibleMetrics.debtService && (
@@ -538,6 +554,10 @@ const BaselineForecast = ({ property, assumptions }) => {
                 dot={{ fill: '#f59e0b', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
+                isAnimationActive={true}
+                animationBegin={300}
+                animationDuration={1400}
+                animationEasing="ease-in-out"
               />
             )}
             {visibleMetrics.mortgageBalance && (
@@ -550,6 +570,10 @@ const BaselineForecast = ({ property, assumptions }) => {
                 dot={{ fill: '#6b7280', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId={useDualAxis ? "right" : "left"}
+                isAnimationActive={true}
+                animationBegin={300}
+                animationDuration={1400}
+                animationEasing="ease-in-out"
               />
             )}
           </LineChart>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const { logIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -51,7 +53,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100 px-6">
-      <div className="w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-950/70 backdrop-blur p-6">
+      <div className="w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-950/70 backdrop-blur p-6" suppressHydrationWarning>
         <h1 className="text-2xl font-semibold">Log in</h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Bonzai.</p>
         
@@ -61,7 +63,7 @@ export default function LoginPage() {
           </div>
         )}
         
-        <form onSubmit={onSubmit} className="mt-6 grid gap-4">
+        <form onSubmit={onSubmit} className="mt-6 grid gap-4" suppressHydrationWarning>
           <div className="grid gap-2">
             <label htmlFor="email" className="text-sm">Email</label>
             <input 
@@ -75,14 +77,28 @@ export default function LoginPage() {
           </div>
           <div className="grid gap-2">
             <label htmlFor="password" className="text-sm">Password</label>
-            <input 
-              id="password" 
-              name="password" 
-              type="password" 
-              required 
-              suppressHydrationWarning
-              className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
-            />
+            <div className="relative">
+              <input 
+                id="password" 
+                name="password" 
+                type={showPassword ? "text" : "password"} 
+                required 
+                suppressHydrationWarning
+                className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
           <Button type="submit" loading={loading} className="mt-2 w-full">Continue</Button>
         </form>

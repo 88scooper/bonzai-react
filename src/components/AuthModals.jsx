@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +11,7 @@ function Modal({ children, onClose }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 p-6 shadow-xl">
+      <div className="relative z-10 w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 p-6 shadow-xl" suppressHydrationWarning>
         {children}
       </div>
     </div>
@@ -23,6 +24,7 @@ export function LoginModal({ onClose, onSwitchToSignup }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -85,7 +87,7 @@ export function LoginModal({ onClose, onSwitchToSignup }) {
         </div>
       )}
       
-      <form onSubmit={onSubmit} className="mt-6 grid gap-4">
+      <form onSubmit={onSubmit} className="mt-6 grid gap-4" suppressHydrationWarning>
         <div className="grid gap-2">
           <label htmlFor="login-email" className="text-sm">Email</label>
           <input 
@@ -93,18 +95,34 @@ export function LoginModal({ onClose, onSwitchToSignup }) {
             name="email" 
             type="email" 
             required 
+            suppressHydrationWarning
             className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
           />
         </div>
         <div className="grid gap-2">
           <label htmlFor="login-password" className="text-sm">Password</label>
-          <input 
-            id="login-password" 
-            name="password" 
-            type="password" 
-            required 
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
-          />
+          <div className="relative">
+            <input 
+              id="login-password" 
+              name="password" 
+              type={showPassword ? "text" : "password"} 
+              required 
+              suppressHydrationWarning
+              className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
         <Button type="submit" loading={loading} className="mt-2 w-full">Continue</Button>
       </form>
@@ -122,6 +140,7 @@ export function SignupModal({ onClose, onSwitchToLogin }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -188,13 +207,14 @@ export function SignupModal({ onClose, onSwitchToLogin }) {
         </div>
       )}
       
-      <form onSubmit={onSubmit} className="mt-6 grid gap-4">
+      <form onSubmit={onSubmit} className="mt-6 grid gap-4" suppressHydrationWarning>
         <div className="grid gap-2">
           <label htmlFor="signup-name" className="text-sm">Full name (optional)</label>
           <input 
             id="signup-name" 
             name="name" 
             type="text" 
+            suppressHydrationWarning
             className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
           />
         </div>
@@ -205,18 +225,34 @@ export function SignupModal({ onClose, onSwitchToLogin }) {
             name="email" 
             type="email" 
             required 
+            suppressHydrationWarning
             className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
           />
         </div>
         <div className="grid gap-2">
           <label htmlFor="signup-password" className="text-sm">Password</label>
-          <input 
-            id="signup-password" 
-            name="password" 
-            type="password" 
-            required 
-            className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
-          />
+          <div className="relative">
+            <input 
+              id="signup-password" 
+              name="password" 
+              type={showPassword ? "text" : "password"} 
+              required 
+              suppressHydrationWarning
+              className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
         <Button type="submit" loading={loading} className="mt-2 w-full">Create account</Button>
       </form>

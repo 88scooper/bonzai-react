@@ -57,7 +57,7 @@ export default function SignupPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-white text-gray-900 dark:bg-neutral-950 dark:text-gray-100 px-6">
-      <div className="w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-950/70 backdrop-blur p-6">
+      <div className="w-full max-w-md rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-950/70 backdrop-blur p-6" suppressHydrationWarning>
         <h1 className="text-2xl font-semibold">Create your account</h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Start managing your portfolio.</p>
         
@@ -67,7 +67,7 @@ export default function SignupPage() {
           </div>
         )}
         
-        <form onSubmit={onSubmit} className="mt-6 grid gap-4">
+        <form onSubmit={onSubmit} className="mt-6 grid gap-4" suppressHydrationWarning>
           <div className="grid gap-2">
             <label htmlFor="name" className="text-sm">Full name</label>
             <input 

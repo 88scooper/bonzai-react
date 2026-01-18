@@ -1793,6 +1793,10 @@ export default function PropertyDetailPage() {
                           strokeWidth={3}
                           dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
                           activeDot={{ r: 6, stroke: '#22c55e', strokeWidth: 2 }}
+                          isAnimationActive={true}
+                          animationBegin={300}
+                          animationDuration={1400}
+                          animationEasing="ease-in-out"
                         />
                         )}
                         {visibleMetrics.expenses && (
@@ -1803,6 +1807,10 @@ export default function PropertyDetailPage() {
                           strokeWidth={3}
                           dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
                           activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
+                          isAnimationActive={true}
+                          animationBegin={300}
+                          animationDuration={1400}
+                          animationEasing="ease-in-out"
                         />
                         )}
                         {visibleMetrics.cashFlow && (
@@ -1813,6 +1821,10 @@ export default function PropertyDetailPage() {
                           strokeWidth={3}
                           dot={{ fill: '#205A3E', strokeWidth: 2, r: 4 }}
                           activeDot={{ r: 6, stroke: '#205A3E', strokeWidth: 2 }}
+                          isAnimationActive={true}
+                          animationBegin={300}
+                          animationDuration={1400}
+                          animationEasing="ease-in-out"
                         />
                         )}
                       </LineChart>

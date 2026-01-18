@@ -131,30 +131,50 @@ const AnnualExpenseChart = ({ expenseHistory = [] }) => {
             stackId="a" 
             fill={categoryColors['Property Tax']}
             name="Property Tax"
+            isAnimationActive={true}
+            animationBegin={300}
+            animationDuration={1400}
+            animationEasing="ease-in-out"
           />
           <Bar 
             dataKey="Insurance" 
             stackId="a" 
             fill={categoryColors['Insurance']}
             name="Insurance"
+            isAnimationActive={true}
+            animationBegin={300}
+            animationDuration={1400}
+            animationEasing="ease-in-out"
           />
           <Bar 
             dataKey="Condo Fees" 
             stackId="a" 
             fill={categoryColors['Condo Fees']}
             name="Condo Fees"
+            isAnimationActive={true}
+            animationBegin={300}
+            animationDuration={1400}
+            animationEasing="ease-in-out"
           />
           <Bar 
             dataKey="Maintenance" 
             stackId="a" 
             fill={categoryColors['Maintenance']}
             name="Maintenance"
+            isAnimationActive={true}
+            animationBegin={300}
+            animationDuration={1400}
+            animationEasing="ease-in-out"
           />
           <Bar 
             dataKey="Other" 
             stackId="a" 
             fill={categoryColors['Other']}
             name="Other"
+            isAnimationActive={true}
+            animationBegin={300}
+            animationDuration={1400}
+            animationEasing="ease-in-out"
           />
         </BarChart>
       </ResponsiveContainer>

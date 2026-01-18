@@ -5,7 +5,7 @@ import Link from "next/link";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Eye, EyeOff } from "lucide-react";
 
 export default function HomePage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -241,6 +241,7 @@ function LoginModal({ onClose, onSwitchToSignup }) {
   const { logIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -292,7 +293,27 @@ function LoginModal({ onClose, onSwitchToSignup }) {
         </div>
         <div className="grid gap-2">
           <label htmlFor="login-password" className="text-sm">Password</label>
-          <input id="login-password" name="password" type="password" required className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" />
+          <div className="relative">
+            <input 
+              id="login-password" 
+              name="password" 
+              type={showPassword ? "text" : "password"} 
+              required 
+              className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
         <Button type="submit" loading={loading} className="w-full">Continue</Button>
       </form>
@@ -309,6 +330,7 @@ function SignupModal({ onClose, onSwitchToLogin }) {
   const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -367,7 +389,27 @@ function SignupModal({ onClose, onSwitchToLogin }) {
         </div>
         <div className="grid gap-2">
           <label htmlFor="signup-password" className="text-sm">Password</label>
-          <input id="signup-password" name="password" type="password" required className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" />
+          <div className="relative">
+            <input 
+              id="signup-password" 
+              name="password" 
+              type={showPassword ? "text" : "password"} 
+              required 
+              className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
         <Button type="submit" loading={loading} className="w-full">Create account</Button>
       </form>
