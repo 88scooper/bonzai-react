@@ -1,21 +1,23 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import { RequireAuth } from "@/context/AuthContext";
 import Button from "@/components/Button";
-import { useProperty } from "@/context/PropertyContext";
+import { useProperty, usePropertyContext } from "@/context/PropertyContext";
+import { isUUID } from "@/utils/slug";
 import { formatCurrency, formatPercentage, formatNumber } from "@/utils/formatting";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import AnnualExpenseChart from '@/components/charts/AnnualExpenseChart';
 import { useToast } from "@/context/ToastContext";
-import { X, ChevronDown, ChevronUp, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar, Plus, Edit2, Trash2, Check } from "lucide-react";
+import { X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar, Plus, Edit2, Trash2, Check, Building2, PiggyBank, FileSpreadsheet } from "lucide-react";
 import PropertyHeader from "@/components/shared/PropertyHeader";
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import { DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
 import { getPropertyNotes, savePropertyNotes } from "@/lib/property-notes-storage";
 import { getPropertyTabs, savePropertyTabs, addPropertyTab, updatePropertyTab, deletePropertyTab } from "@/lib/property-tabs-storage";
+import apiClient from "@/lib/api-client";
 import { 
   calculateAnnualOperatingExpenses, 
   calculateNOI, 
@@ -28,63 +30,239 @@ import {
 } from "@/utils/financialCalculations";
 import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from "@/utils/mortgageCalculator";
 
+// Helper function to format currency with no decimals (matching portfolio summary format)
+const formatCurrencyNoDecimals = (value) => {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.floor(value || 0));
+};
+
+// TopMetricCard component (matching Portfolio Summary format)
+function TopMetricCard({
+  title,
+  value,
+  icon: Icon,
+  accent = 'emerald',
+  supporting,
+  supportingSize = 'small',
+  iconBadge,
+  iconBadgePosition = 'bottom-right',
+  iconTooltip,
+}) {
+  const iconRef = useRef(null);
+  const tooltipRef = useRef(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const updateTooltipPosition = useCallback(() => {
+    if (!iconRef.current || !tooltipRef.current || !isHovered) return;
+    
+    const iconRect = iconRef.current.getBoundingClientRect();
+    
+    // Temporarily show tooltip to measure it
+    tooltipRef.current.style.visibility = 'hidden';
+    tooltipRef.current.style.display = 'block';
+    tooltipRef.current.style.opacity = '1';
+    tooltipRef.current.style.position = 'fixed';
+    tooltipRef.current.style.top = '0';
+    tooltipRef.current.style.left = '0';
+    
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const tooltipHeight = tooltipRect.height;
+    const tooltipWidth = tooltipRect.width;
+    
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const gap = 8;
+    
+    // Calculate available space around THIS specific icon
+    const spaceAbove = iconRect.top;
+    const spaceBelow = viewportHeight - iconRect.bottom;
+    const spaceRight = viewportWidth - iconRect.right;
+    const spaceLeft = iconRect.left;
+    
+    let top, left;
+
+    // Prefer above, centered on icon
+    if (spaceAbove >= tooltipHeight + gap) {
+      top = iconRect.top - tooltipHeight - gap;
+      left = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
+    } 
+    // Then below, centered on icon
+    else if (spaceBelow >= tooltipHeight + gap) {
+      top = iconRect.bottom + gap;
+      left = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
+    } 
+    // Then right of icon
+    else if (spaceRight >= tooltipWidth + gap) {
+      top = iconRect.top + (iconRect.height / 2) - (tooltipHeight / 2);
+      left = iconRect.right + gap;
+    } 
+    // Finally left of icon
+    else {
+      top = iconRect.top + (iconRect.height / 2) - (tooltipHeight / 2);
+      left = iconRect.left - tooltipWidth - gap;
+    }
+
+    // Keep within viewport bounds
+    left = Math.max(16, Math.min(left, viewportWidth - tooltipWidth - 16));
+    top = Math.max(16, Math.min(top, viewportHeight - tooltipHeight - 16));
+
+    // Apply position
+    tooltipRef.current.style.position = 'fixed';
+    tooltipRef.current.style.top = `${top}px`;
+    tooltipRef.current.style.left = `${left}px`;
+    tooltipRef.current.style.zIndex = '9999';
+    tooltipRef.current.style.visibility = 'visible';
+    tooltipRef.current.style.display = 'block';
+    tooltipRef.current.style.opacity = '1';
+  }, [isHovered]);
+
+  useEffect(() => {
+    if (isHovered) {
+      // Use requestAnimationFrame to ensure DOM is ready
+      const rafId = requestAnimationFrame(() => {
+        updateTooltipPosition();
+      });
+      
+      const scrollHandler = () => updateTooltipPosition();
+      const resizeHandler = () => updateTooltipPosition();
+      
+      window.addEventListener('scroll', scrollHandler, true);
+      window.addEventListener('resize', resizeHandler);
+      
+      return () => {
+        cancelAnimationFrame(rafId);
+        window.removeEventListener('scroll', scrollHandler, true);
+        window.removeEventListener('resize', resizeHandler);
+      };
+    }
+  }, [isHovered, updateTooltipPosition]);
+
+  return (
+    <div className="relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 transition-shadow duration-300 ease-in-out hover:shadow-[0_12px_40px_rgb(0,0,0,0.06)]">
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="min-w-0 flex-1 pr-1.5 max-w-[calc(100%-3rem)]">
+          <h3 className="text-[3.15px] font-semibold uppercase text-gray-500 dark:text-gray-400 whitespace-nowrap leading-tight" style={{ letterSpacing: '-0.04em' }}>
+            {title}
+          </h3>
+        </div>
+        {Icon && (
+          <div 
+            className="relative group flex-shrink-0"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <div ref={iconRef} className={`relative rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0 cursor-help ${
+              accent === 'emerald' || accent === 'teal'
+                ? 'bg-[#205A3E]/10 dark:bg-[#205A3E]/20'
+                : 'bg-slate-100 dark:bg-slate-800'
+            }`}>
+              <Icon className={`h-[16.2px] w-[16.2px] flex-shrink-0 ${
+                accent === 'emerald' || accent === 'teal'
+                  ? 'text-[#205A3E] dark:text-[#66B894]'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`} aria-hidden="true" />
+              {iconBadge && (
+                <span
+                  className={`absolute flex h-4 w-4 items-center justify-center rounded-full bg-[#205A3E] text-[10px] font-semibold text-white shadow-sm dark:bg-[#2F7E57] ${
+                    iconBadgePosition === 'top-center'
+                      ? '-top-1 left-1/2 -translate-x-1/2'
+                      : '-bottom-1 -right-1'
+                  }`}
+                >
+                  {iconBadge}
+                </span>
+              )}
+            </div>
+            {iconTooltip && (
+              <div
+                ref={tooltipRef}
+                className="p-3 bg-[#205A3E] text-white text-xs leading-relaxed rounded-lg transition-opacity duration-200 pointer-events-none whitespace-normal w-72 max-w-[calc(100vw-2rem)] shadow-2xl"
+                style={{ 
+                  position: 'fixed',
+                  opacity: isHovered ? 1 : 0, 
+                  visibility: isHovered ? 'visible' : 'hidden',
+                  pointerEvents: 'none',
+                  zIndex: isHovered ? 9999 : -1,
+                  top: isHovered ? undefined : '-9999px',
+                  left: isHovered ? undefined : '-9999px'
+                }}
+              >
+                {iconTooltip}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="mt-5 text-3xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+        {value}
+      </div>
+      {supporting && (
+        <>
+          <div className="mt-4 border-t border-gray-100 dark:border-gray-800" />
+          {supportingSize === 'dynamic' ? (
+            <div className="mt-3 w-full min-w-0">
+              <div 
+                className={`font-bold break-words ${
+                  accent === 'emerald' 
+                    ? 'text-[#205A3E] dark:text-[#66B894]' 
+                    : accent === 'teal'
+                    ? 'text-[#1A4A5A] dark:text-[#7AC0CF]'
+                    : accent === 'amber'
+                    ? 'text-[#B57A33] dark:text-[#E9C08A]'
+                    : 'text-gray-900 dark:text-gray-100'
+                }`}
+                style={{ 
+                  fontSize: 'clamp(0.625rem, 1.2vw, 1rem)',
+                  lineHeight: '1.3'
+                }}
+              >
+                {supporting}
+              </div>
+            </div>
+          ) : (
+            <p className={`mt-3 ${supportingSize === 'large' ? 'text-2xl font-bold' : 'text-sm'} ${
+              accent === 'emerald' 
+                ? 'text-[#205A3E] dark:text-[#66B894]' 
+                : accent === 'teal'
+                ? 'text-[#1A4A5A] dark:text-[#7AC0CF]'
+                : accent === 'amber'
+                ? 'text-[#B57A33] dark:text-[#E9C08A]'
+                : 'text-gray-900 dark:text-gray-100'
+            }`}>
+              {supporting}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function PropertyDetailPage() {
   // Use useParams hook for client components - more reliable than use(params)
   const params = useParams();
   // Handle both string and array cases for Next.js 15
-  const propertyId = Array.isArray(params?.propertyId) ? params.propertyId[0] : params?.propertyId;
+  const slugOrId = Array.isArray(params?.propertyId) ? params.propertyId[0] : params?.propertyId;
   const [isHydrated, setIsHydrated] = useState(false);
   const { addToast } = useToast();
+  const { getPropertyById, getPropertyBySlug } = usePropertyContext();
+  const router = useRouter();
   
-  // Early return if propertyId is not available
-  if (!propertyId) {
-    return (
-      <RequireAuth>
-        <Layout>
-          <div className="text-center py-12">
-            <h1 className="text-2xl font-semibold">Loading...</h1>
-          </div>
-        </Layout>
-      </RequireAuth>
-    );
-  }
-  
-  // Edit functionality removed - users must use the Data page to modify property data
-  
-  // Get property data using propertyId from PropertyContext
-  const property = useProperty(propertyId);
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
+  // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
+  // State hooks
   const [expenseView, setExpenseView] = useState('annual'); // 'monthly' or 'annual'
   const [hoveredSegment, setHoveredSegment] = useState(null); // For hover interactions
-  
-  // Historical Performance chart controls
   const [historicalStartYear, setHistoricalStartYear] = useState(null);
   const [historicalYears, setHistoricalYears] = useState(5);
-  
-  // Toggle state for Historical Performance chart
   const [visibleMetrics, setVisibleMetrics] = useState({
     income: true,
     expenses: true,
     cashFlow: true
   });
-  
-  const toggleMetric = (metric) => {
-    setVisibleMetrics(prev => {
-      const newState = { ...prev, [metric]: !prev[metric] };
-      // Ensure at least one metric is always visible
-      const hasVisibleMetric = Object.values(newState).some(v => v);
-      if (!hasVisibleMetric) {
-        return prev; // Don't allow hiding all metrics
-      }
-      return newState;
-    });
-  };
-  
-  // State for collapsible sections
   const [openSections, setOpenSections] = useState({
     generalNotes: false,
     propertyFinancials: true,
@@ -92,21 +270,39 @@ export default function PropertyDetailPage() {
     currentTenants: true,
     annualExpenseHistory: true
   });
-
-  // State for general notes
   const [notes, setNotes] = useState('');
   const [notesChanged, setNotesChanged] = useState(false);
-  
-  // State for tenant tabs
   const [activeTenantTab, setActiveTenantTab] = useState('current');
-  
-  // State for custom property tabs
   const [tabs, setTabs] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
   const [editingTabId, setEditingTabId] = useState(null);
   const [editingTabLabel, setEditingTabLabel] = useState('');
   const [showAddTabModal, setShowAddTabModal] = useState(false);
   const [newTabLabel, setNewTabLabel] = useState('');
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showAddPhotosModal, setShowAddPhotosModal] = useState(false);
+  const [showAddPhotosTooltip, setShowAddPhotosTooltip] = useState(false);
+  const [failedImageUrls, setFailedImageUrls] = useState(new Set());
+  
+  // Get property data - try slug first, then fall back to ID (for backward compatibility)
+  const property = useMemo(() => {
+    if (!slugOrId) return undefined;
+    
+    // Check if it looks like a UUID
+    if (isUUID(slugOrId)) {
+      return getPropertyById(slugOrId);
+    } else {
+      // Try to find by slug
+      return getPropertyBySlug(slugOrId);
+    }
+  }, [slugOrId, getPropertyById, getPropertyBySlug]);
+  
+  // Use property.id for notes/tabs storage (still uses UUID internally)
+  const propertyId = property?.id;
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Load notes when property is available
   useEffect(() => {
@@ -133,78 +329,12 @@ export default function PropertyDetailPage() {
     return () => clearTimeout(timeoutId);
   }, [notes, propertyId, isHydrated, notesChanged]);
 
-  const handleNotesChange = (e) => {
-    setNotes(e.target.value);
-    setNotesChanged(true);
-  };
+  // All useMemo hooks must be declared before conditional returns
+  // These will return empty/default values if property is not available, but hooks must still be called
   
-  // Tab handlers
-  const handleAddTab = () => {
-    if (!newTabLabel.trim()) return;
-    const newTab = addPropertyTab(propertyId, newTabLabel.trim());
-    const updatedTabs = getPropertyTabs(propertyId);
-    setTabs(updatedTabs);
-    setActiveTabId(newTab.id);
-    setNewTabLabel('');
-    setShowAddTabModal(false);
-    addToast('Tab added successfully!', { type: 'success' });
-  };
-  
-  const handleDeleteTab = (tabId) => {
-    deletePropertyTab(propertyId, tabId);
-    const updatedTabs = getPropertyTabs(propertyId);
-    setTabs(updatedTabs);
-    if (activeTabId === tabId) {
-      // Switch to General Notes when deleting the active tab
-      setActiveTabId(null);
-    }
-    addToast('Tab deleted successfully!', { type: 'success' });
-  };
-  
-  const handleStartEditTab = (tab) => {
-    setEditingTabId(tab.id);
-    setEditingTabLabel(tab.label);
-  };
-  
-  const handleSaveTabLabel = (tabId) => {
-    if (!editingTabLabel.trim()) return;
-    updatePropertyTab(propertyId, tabId, { label: editingTabLabel.trim() });
-    const updatedTabs = getPropertyTabs(propertyId);
-    setTabs(updatedTabs);
-    setEditingTabId(null);
-    setEditingTabLabel('');
-    addToast('Tab label updated!', { type: 'success' });
-  };
-  
-  const handleCancelEditTab = () => {
-    setEditingTabId(null);
-    setEditingTabLabel('');
-  };
-  
-  const handleTabContentChange = (tabId, content) => {
-    updatePropertyTab(propertyId, tabId, { content });
-    // Update local state immediately for better UX
-    setTabs(prevTabs => 
-      prevTabs.map(tab => 
-        tab.id === tabId ? { ...tab, content } : tab
-      )
-    );
-  };
-  
-  const toggleSection = (section) => {
-    setOpenSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
   // Prepare expense data for pie chart with mortgage breakdown
   const expenseChartData = useMemo(() => {
-    if (!isHydrated) return [];
-    if (!property?.monthlyExpenses) {
-      console.log('No monthlyExpenses found on property:', property);
-      return [];
-    }
+    if (!isHydrated || !property?.monthlyExpenses) return [];
     
     // Diverse color palette for better visualization
     const colors = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'];
@@ -212,37 +342,24 @@ export default function PropertyDetailPage() {
     const entries = [];
     let colorIndex = 0;
     
-    // Track which expense keys exist in monthlyExpenses for debugging
-    const availableExpenseKeys = Object.keys(property.monthlyExpenses).filter(
-      key => key !== 'total' && 
-             key !== 'mortgagePayment' && 
-             key !== 'mortgageInterest' && 
-             key !== 'mortgagePrincipal' &&
-             !key.toLowerCase().includes('mortgage')
-    );
-    console.log('Available expense categories in monthlyExpenses:', availableExpenseKeys);
-    
     // Add regular expenses (excluding mortgage payment if it exists)
     Object.entries(property.monthlyExpenses).forEach(([key, value]) => {
-      // Filter out 'total' and all mortgage-related entries (we'll add mortgage breakdown separately)
+      // Filter out 'total' and all mortgage-related entries
       if (key === 'total' || 
           key === 'mortgagePayment' || 
           key === 'mortgageInterest' || 
           key === 'mortgagePrincipal' ||
           key.toLowerCase().includes('mortgage')) return;
       
-        const numValue = typeof value === 'number' ? value : 0;
+      const numValue = typeof value === 'number' ? value : 0;
       if (numValue > 0) {
         entries.push({
           key,
-        name: key.replace(/([A-Z])/g, ' $1').trim().replace(/^\w/, c => c.toUpperCase()),
+          name: key.replace(/([A-Z])/g, ' $1').trim().replace(/^\w/, c => c.toUpperCase()),
           value: expenseView === 'annual' ? numValue * 12 : numValue,
           color: colors[colorIndex % colors.length]
         });
         colorIndex++;
-      } else if (numValue === 0) {
-        // Log zero-value expenses that exist but aren't shown
-        console.log(`Expense category "${key}" exists but has value 0, so it's not displayed`);
       }
     });
     
@@ -251,11 +368,9 @@ export default function PropertyDetailPage() {
       try {
         const monthlyInterest = getMonthlyMortgageInterest(property.mortgage);
         const monthlyPrincipal = getMonthlyMortgagePrincipal(property.mortgage);
-        const monthlyPayment = getMonthlyMortgagePayment(property.mortgage);
         
         const annualInterest = monthlyInterest * 12;
         const annualPrincipal = monthlyPrincipal * 12;
-        const annualPayment = monthlyPayment * 12;
         
         // Add Mortgage Interest
         if (annualInterest > 0) {
@@ -278,9 +393,6 @@ export default function PropertyDetailPage() {
           });
           colorIndex++;
         }
-        
-        // Note: Mortgage Payment (total) is intentionally excluded as it's redundant
-        // since it's just the sum of Mortgage Interest + Mortgage Principal
       } catch (error) {
         console.warn('Error calculating mortgage breakdown:', error);
       }
@@ -301,11 +413,11 @@ export default function PropertyDetailPage() {
     // Define historical data for each property based on available CSV data
     const historicalDataMap = {
       'first-st-1': [
-        { year: '2021', income: 31200, expenses: 32368, cashFlow: -1168 }, // 2600 * 12
-        { year: '2022', income: 31944, expenses: 35721, cashFlow: -3777 }, // 2662 * 12
-        { year: '2023', income: 31920, expenses: 33305, cashFlow: -1385 }, // 2660 * 12
-        { year: '2024', income: 32688, expenses: 33799, cashFlow: -1111 }, // 2724 * 12
-        { year: '2025', income: 33468, expenses: 33799, cashFlow: -331 } // 2789 * 12 (projected)
+        { year: '2021', income: 31200, expenses: 32368, cashFlow: -1168 },
+        { year: '2022', income: 31944, expenses: 35721, cashFlow: -3777 },
+        { year: '2023', income: 31920, expenses: 33305, cashFlow: -1385 },
+        { year: '2024', income: 32688, expenses: 33799, cashFlow: -1111 },
+        { year: '2025', income: 33468, expenses: 33799, cashFlow: -331 }
       ],
       'second-dr-1': [
         { year: '2021', income: 31200, expenses: 39389, cashFlow: -8189 },
@@ -404,7 +516,6 @@ export default function PropertyDetailPage() {
     const yoYData = {};
     expenseChartData.forEach(entry => {
       // For now, return null as we don't have historical breakdown by category
-      // This would need to be calculated from actual historical expense records
       yoYData[entry.key] = null;
     });
     
@@ -417,7 +528,7 @@ export default function PropertyDetailPage() {
     
     // Find earliest and latest dates
     let earliestDate = null;
-    let latestDate = new Date(); // Default to current date
+    let latestDate = new Date();
     
     property.tenants.forEach(tenant => {
       try {
@@ -442,7 +553,7 @@ export default function PropertyDetailPage() {
     // Generate monthly data points
     const monthlyData = [];
     const currentDate = new Date(earliestDate);
-    currentDate.setDate(1); // Start of month
+    currentDate.setDate(1);
     
     while (currentDate <= latestDate) {
       const year = currentDate.getFullYear();
@@ -453,7 +564,6 @@ export default function PropertyDetailPage() {
       let activeTenant = null;
       let isChange = false;
       let change = 0;
-      let changePercent = 0;
       
       property.tenants.forEach(tenant => {
         try {
@@ -462,7 +572,6 @@ export default function PropertyDetailPage() {
             ? new Date() 
             : new Date(tenant.leaseEnd);
           
-          // Check if tenant was active during this month
           const monthStart = new Date(year, month, 1);
           const monthEnd = new Date(year, month + 1, 0);
           
@@ -479,9 +588,6 @@ export default function PropertyDetailPage() {
       if (monthlyData.length > 0) {
         const previousRent = monthlyData[monthlyData.length - 1].rent;
         change = activeRent - previousRent;
-        if (previousRent > 0) {
-          changePercent = (change / previousRent) * 100;
-        }
         isChange = change !== 0;
       }
       
@@ -492,14 +598,12 @@ export default function PropertyDetailPage() {
         date: new Date(currentDate),
         rent: activeRent,
         change,
-        changePercent,
         tenantName: activeTenant?.name || 'Vacant',
         isIncrease: change > 0,
         isDecrease: change < 0,
         isChange
       });
       
-      // Move to next month
       currentDate.setMonth(month + 1);
     }
     
@@ -520,12 +624,10 @@ export default function PropertyDetailPage() {
       const monthsElapsed = Math.max(0, (currentDate.getFullYear() - purchaseDate.getFullYear()) * 12 + 
         (currentDate.getMonth() - purchaseDate.getMonth()));
       
-      // Use remainingBalance if available, otherwise calculate
       if (mortgage.remainingBalance !== undefined && mortgage.remainingBalance !== null) {
         return mortgage.remainingBalance;
       }
       
-      // Simplified calculation: assume linear amortization
       const originalAmount = mortgage.originalAmount || 0;
       const amortizationYears = mortgage.amortizationYears || 30;
       const totalMonths = amortizationYears * 12;
@@ -533,7 +635,6 @@ export default function PropertyDetailPage() {
       
       if (monthlyPayment <= 0) return originalAmount;
       
-      // Calculate approximate remaining balance
       const annualRate = mortgage.interestRate || 0;
       const monthlyRate = annualRate / 12;
       
@@ -541,66 +642,118 @@ export default function PropertyDetailPage() {
         return Math.max(0, originalAmount - (monthlyPayment * monthsElapsed));
       }
       
-      // Standard amortization formula
       const remainingMonths = totalMonths - monthsElapsed;
       if (remainingMonths <= 0) return 0;
       
-      return monthlyPayment * (1 - Math.pow(1 + monthlyRate, -remainingMonths)) / monthlyRate;
+      const remainingBalance = originalAmount * 
+        (Math.pow(1 + monthlyRate, remainingMonths) - 1) / 
+        (Math.pow(1 + monthlyRate, totalMonths) - 1) * 
+        Math.pow(1 + monthlyRate, totalMonths);
+      
+      return Math.max(0, remainingBalance);
     };
 
-    const propertyValue = property.currentMarketValue || property.currentValue || 0;
     const mortgageBalance = calculateMortgageBalance();
-    const equity = propertyValue - mortgageBalance;
-    const annualRevenue = property.rent?.annualRent || (property.rent?.monthlyRent || 0) * 12;
+    const propertyValue = property.currentMarketValue || property.currentValue || property.purchasePrice || 0;
+    const equity = Math.max(0, propertyValue - mortgageBalance);
+    const equityPercentage = propertyValue > 0 ? (equity / propertyValue) * 100 : 0;
+    const portfolioLTV = propertyValue > 0 ? (mortgageBalance / propertyValue) * 100 : 0;
+
+    const annualRevenue = property.rent?.annualRent || 0;
     const annualOperatingExpenses = calculateAnnualOperatingExpenses(property);
     const annualDebtService = calculateAnnualDebtService(property);
     const totalExpenses = annualOperatingExpenses + annualDebtService;
-    const netCashFlow = annualRevenue - totalExpenses;
     const noi = calculateNOI(property);
+    const netCashFlow = calculateAnnualCashFlow(property);
     const capRate = calculateCapRate(property);
     const cashOnCash = calculateCashOnCashReturn(property);
     const dscr = calculateDSCR(property);
     const irr = calculateIRR(property, 5);
 
-    // Calculate portfolio LTV
-    const portfolioLTV = propertyValue > 0 ? (mortgageBalance / propertyValue) * 100 : 0;
-
-    // Calculate margin
-    const margin = annualRevenue > 0 ? (netCashFlow / annualRevenue) * 100 : 0;
-
-    // Calculate equity percentage
-    const equityPercentage = propertyValue > 0 ? (equity / propertyValue) * 100 : 0;
-
-    // Calculate forecasted equity (equity earned this year)
-    const currentYear = new Date().getFullYear();
-    const purchaseYear = new Date(property.purchaseDate).getFullYear();
-    const yearsOwned = currentYear - purchaseYear;
-    const previousYearEquity = propertyValue > property.purchasePrice 
-      ? propertyValue - (mortgageBalance + (getMonthlyMortgagePayment(property.mortgage) || 0) * 12)
-      : 0;
-    const forecastedEquity = equity - previousYearEquity;
+    // Calculate forecasted equity (equity + appreciation + principal payments)
+    const downPayment = property.purchasePrice - (property.mortgage?.originalAmount || 0);
+    const appreciation = propertyValue - property.purchasePrice;
+    const equityViaPrincipalPayments = property.purchasePrice - mortgageBalance - downPayment;
+    const forecastedEquity = equity;
 
     return {
       propertyValue,
       mortgageBalance,
       equity,
       equityPercentage,
-      forecastedEquity,
+      portfolioLTV,
       annualRevenue,
       annualOperatingExpenses,
       annualDebtService,
       totalExpenses,
-      netCashFlow,
       noi,
+      netCashFlow,
       capRate,
       cashOnCash,
       dscr,
       irr,
-      portfolioLTV,
-      margin
+      forecastedEquity,
+      margin: annualRevenue > 0 ? ((netCashFlow / annualRevenue) * 100) : 0
     };
   }, [property]);
 
+  // Helper function to generate multiple image URLs from base imageUrl and property_data.imageUrls
+  const getPropertyImages = useMemo(() => {
+    const images = [];
+    
+    // First, check if property_data has imageUrls array (new way)
+    // Only use images from propertyData.imageUrls (these should be validated/existing images)
+    const propertyDataImageUrls = property?.propertyData?.imageUrls || [];
+    if (propertyDataImageUrls.length > 0) {
+      // Filter out any failed images
+      return propertyDataImageUrls.filter(url => !failedImageUrls.has(url));
+    }
+    
+    // Fallback to legacy method: ONLY use the base imageUrl (don't generate variations)
+    // Variations don't exist and will show as blank white images
+    if (!property?.imageUrl) return [];
+    
+    // Only include base imageUrl if it hasn't failed to load
+    if (!failedImageUrls.has(property.imageUrl)) {
+      images.push(property.imageUrl);
+    }
+    
+    return images;
+  }, [property?.imageUrl, property?.propertyData?.imageUrls, failedImageUrls]);
+
+  // Reset image index when property changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [property?.imageUrl]);
+
+  // NOW we can do conditional returns after all hooks are declared
+  // Early return if slugOrId is not available
+  if (!slugOrId) {
+    return (
+      <RequireAuth>
+        <Layout>
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-semibold">Loading...</h1>
+          </div>
+        </Layout>
+      </RequireAuth>
+    );
+  }
+
+  // Show loading while hydrating
+  if (!isHydrated) {
+    return (
+      <RequireAuth>
+        <Layout>
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-semibold">Loading...</h1>
+          </div>
+        </Layout>
+      </RequireAuth>
+    );
+  }
+
+  // Show error if property not found after hydration
   if (!property) {
     return (
       <RequireAuth>
@@ -615,18 +768,86 @@ export default function PropertyDetailPage() {
       </RequireAuth>
     );
   }
+  
+  const toggleMetric = (metric) => {
+    setVisibleMetrics(prev => {
+      const newState = { ...prev, [metric]: !prev[metric] };
+      // Ensure at least one metric is always visible
+      const hasVisibleMetric = Object.values(newState).some(v => v);
+      if (!hasVisibleMetric) {
+        return prev; // Don't allow hiding all metrics
+      }
+      return newState;
+    });
+  };
 
-  if (!financialMetrics) {
-    return (
-      <RequireAuth>
-        <Layout>
-          <div className="text-center py-12">
-            <h1 className="text-2xl font-semibold">Loading...</h1>
-          </div>
-        </Layout>
-      </RequireAuth>
+  const handleNotesChange = (e) => {
+    setNotes(e.target.value);
+    setNotesChanged(true);
+  };
+  
+  // Tab handlers
+  const handleAddTab = () => {
+    if (!newTabLabel.trim()) return;
+    const newTab = addPropertyTab(propertyId, newTabLabel.trim());
+    const updatedTabs = getPropertyTabs(propertyId);
+    setTabs(updatedTabs);
+    setActiveTabId(newTab.id);
+    setNewTabLabel('');
+    setShowAddTabModal(false);
+    addToast('Tab added successfully!', { type: 'success' });
+  };
+  
+  const handleDeleteTab = (tabId) => {
+    deletePropertyTab(propertyId, tabId);
+    const updatedTabs = getPropertyTabs(propertyId);
+    setTabs(updatedTabs);
+    if (activeTabId === tabId) {
+      // Switch to General Notes when deleting the active tab
+      setActiveTabId(null);
+    }
+    addToast('Tab deleted successfully!', { type: 'success' });
+  };
+  
+  const handleStartEditTab = (tab) => {
+    setEditingTabId(tab.id);
+    setEditingTabLabel(tab.label);
+  };
+  
+  const handleSaveTabLabel = (tabId) => {
+    if (!editingTabLabel.trim()) return;
+    updatePropertyTab(propertyId, tabId, { label: editingTabLabel.trim() });
+    const updatedTabs = getPropertyTabs(propertyId);
+    setTabs(updatedTabs);
+    setEditingTabId(null);
+    setEditingTabLabel('');
+    addToast('Tab label updated!', { type: 'success' });
+  };
+  
+  const handleCancelEditTab = () => {
+    setEditingTabId(null);
+    setEditingTabLabel('');
+  };
+  
+  const handleTabContentChange = (tabId, content) => {
+    updatePropertyTab(propertyId, tabId, { content });
+    // Update local state immediately for better UX
+    setTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === tabId ? { ...tab, content } : tab
+      )
     );
-  }
+  };
+  
+  const toggleSection = (section) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // All useMemo hooks are now declared above, before conditional returns
+  // The following code uses those memoized values
 
   // Helper function to get status label for metrics
   const getStatusLabel = (value, thresholds) => {
@@ -724,6 +945,18 @@ export default function PropertyDetailPage() {
     }
   }
 
+  const goToPreviousImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? getPropertyImages.length - 1 : prev - 1
+    );
+  };
+
+  const goToNextImage = () => {
+    setCurrentImageIndex((prev) => 
+      (prev + 1) % getPropertyImages.length
+    );
+  };
+
   return (
     <RequireAuth>
       <Layout>
@@ -731,13 +964,13 @@ export default function PropertyDetailPage() {
           {/* Property Header with Bonzai Green Banner */}
           <PropertyHeader 
             property={property}
-            onEdit={() => window.location.href = '/data'}
+            onEdit={() => router.push('/data')}
           />
 
           {/* Purchase Summary & Property Details with Image */}
           <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <Home className="w-5 h-5 text-gray-500" />
+              <Home className="w-5 h-5 text-[#205A3E]" />
               <h2 className="text-xl font-semibold">Purchase Summary & Property Details</h2>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -784,27 +1017,23 @@ export default function PropertyDetailPage() {
                   <span className="font-medium text-gray-900 dark:text-white">{property.units || 1}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Principal Residence</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{property.isPrincipalResidence ? "Yes" : "No"}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Unit Size</span>
                   <span className="font-medium text-gray-900 dark:text-white text-right">
                     {property.units > 1 && property.squareFootage ? (
                       <div className="space-y-0.5">
                         {Array.from({ length: property.units }, (_, index) => {
-                          const unitSize = property.squareFootage / property.units;
+                          const unitSize = Math.round(property.squareFootage / property.units);
                           return (
                             <div key={index} className="text-xs">
-                              Unit {index + 1}: {formatNumber(unitSize)} sq ft
+                              Unit {index + 1}: {unitSize.toLocaleString('en-CA')} sq ft
                             </div>
                           );
                         })}
                       </div>
                     ) : property.squareFootage && property.units 
-                      ? `${formatNumber(property.squareFootage / (property.units || 1))} sq ft`
+                      ? `${Math.round(property.squareFootage / (property.units || 1)).toLocaleString('en-CA')} sq ft`
                       : property.squareFootage 
-                        ? `${formatNumber(property.squareFootage)} sq ft`
+                        ? `${Math.round(property.squareFootage).toLocaleString('en-CA')} sq ft`
                         : 'N/A'}
                   </span>
                 </div>
@@ -827,17 +1056,92 @@ export default function PropertyDetailPage() {
                       : property.unitConfig || 'N/A')}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Ownership</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{property.ownership || property.propertyData?.ownership || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Principal Residence</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{property.isPrincipalResidence ? "Yes" : "No"}</span>
+                </div>
               </div>
               
-              {/* Column 3: Thumbnail Image */}
+              {/* Column 3: Thumbnail Image Carousel */}
               <div className="flex items-center justify-center">
-                <div className="w-full h-64 rounded-lg border border-black/10 dark:border-white/10 overflow-hidden shadow-sm">
-                  {property.imageUrl ? (
-                    <img 
-                      src={`${property.imageUrl}?v=3`}
-                      alt={property.name || property.nickname}
-                      className="w-full h-full object-cover"
-                    />
+                <div className="w-full h-64 rounded-lg border border-black/10 dark:border-white/10 overflow-hidden shadow-sm relative group">
+                  {getPropertyImages.length > 0 ? (
+                    <>
+                      <img 
+                        src={`${getPropertyImages[currentImageIndex]}?v=3`}
+                        alt={`${property.name || property.nickname} - Image ${currentImageIndex + 1}`}
+                        className="w-full h-full object-cover transition-opacity duration-300 cursor-pointer"
+                        onError={(e) => {
+                          // Track failed images and remove them from the display
+                          const failedUrl = getPropertyImages[currentImageIndex];
+                          if (failedUrl) {
+                            setFailedImageUrls(prev => new Set([...prev, failedUrl]));
+                          }
+                          // Hide broken images
+                          e.target.style.display = 'none';
+                          // If this was the current image and there are other images, move to next
+                          if (getPropertyImages.length > 1) {
+                            setCurrentImageIndex(prev => (prev + 1) % getPropertyImages.length);
+                          }
+                        }}
+                        onClick={() => {
+                          if (getPropertyImages.length === 1) {
+                            setShowAddPhotosTooltip(true);
+                            setTimeout(() => setShowAddPhotosTooltip(false), 3000);
+                          }
+                        }}
+                      />
+                      
+                      {/* Navigation Buttons - Show on hover or when multiple images */}
+                      {getPropertyImages.length > 1 && (
+                        <>
+                          <button
+                            onClick={goToPreviousImage}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            aria-label="Previous image"
+                          >
+                            <ChevronLeft className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={goToNextImage}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            aria-label="Next image"
+                          >
+                            <ChevronRight className="w-5 h-5" />
+                          </button>
+                          
+                          {/* Image Indicators */}
+                          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                            {getPropertyImages.map((_, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setCurrentImageIndex(index)}
+                                className={`h-1.5 rounded-full transition-all duration-200 ${
+                                  index === currentImageIndex
+                                    ? 'bg-white w-6'
+                                    : 'bg-white/50 w-1.5 hover:bg-white/70'
+                                }`}
+                                aria-label={`Go to image ${index + 1}`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Tooltip for single image - suggest adding more photos */}
+                      {getPropertyImages.length === 1 && showAddPhotosTooltip && (
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/90 text-white px-4 py-2 rounded-lg text-sm z-10 whitespace-nowrap shadow-lg">
+                          Add some more photos
+                          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full">
+                            <div className="border-4 border-transparent border-t-black/90"></div>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center">
                       <div className="text-center text-gray-500 dark:text-gray-400">
@@ -846,21 +1150,30 @@ export default function PropertyDetailPage() {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Add Photos Button - Bottom Right */}
+                  <button
+                    onClick={() => setShowAddPhotosModal(true)}
+                    className="absolute bottom-2 right-2 bg-[#205A3E]/80 hover:bg-[#1a4a32]/80 text-white rounded-full w-4 h-4 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110"
+                    aria-label="Add photos"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
           {/* General Notes Section */}
-          <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => toggleSection('generalNotes')}
-              className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
-            >
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#205A3E]" />
-                <h2 className="text-xl font-semibold">General Notes</h2>
-              </div>
+          <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 py-0.5 px-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between w-full mb-0.5">
+              <button
+                onClick={() => toggleSection('generalNotes')}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <FileText className="w-4 h-4 text-[#205A3E]" />
+                <h2 className="text-xs font-semibold">General Notes</h2>
+              </button>
               <div className="flex items-center gap-2">
                 {openSections.generalNotes && (
                   <Button
@@ -875,13 +1188,18 @@ export default function PropertyDetailPage() {
                     Add Page
                   </Button>
                 )}
-                {openSections.generalNotes ? (
-                  <ChevronUp className="w-5 h-5 text-gray-500" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-500" />
-                )}
+                <button
+                  onClick={() => toggleSection('generalNotes')}
+                  className="hover:opacity-80 transition-opacity"
+                >
+                  {openSections.generalNotes ? (
+                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                  )}
+                </button>
               </div>
-            </button>
+            </div>
             {openSections.generalNotes && (
               <div>
                 {tabs.length === 0 ? (
@@ -891,8 +1209,8 @@ export default function PropertyDetailPage() {
                       value={notes}
                       onChange={handleNotesChange}
                       placeholder="Add your notes about this property - dates key events, recording paint colours used, tracking the replacement of appliance - all these details can live here..."
-                      rows={8}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
+                      rows={5}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[120px]"
                     />
                     <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                       {notesChanged ? 'Saving...' : 'Notes are automatically saved'}
@@ -1005,8 +1323,8 @@ export default function PropertyDetailPage() {
                           value={notes}
                           onChange={handleNotesChange}
                           placeholder="Add your notes about this property - dates key events, recording paint colours used, tracking the replacement of appliance - all these details can live here..."
-                          rows={8}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[200px]"
+                          rows={5}
+                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y min-h-[120px]"
                         />
                         <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                           {notesChanged ? 'Saving...' : 'Notes are automatically saved'}
@@ -1040,116 +1358,66 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Key Financial Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {/* Estimated Property Value */}
-            <div className="relative rounded-2xl border border-[#205A3E]/30 dark:border-[#1C4F39]/40 bg-gradient-to-br from-[#D9E5DC] via-[#F4F8F5] to-transparent dark:from-[#1A2F25] dark:via-[#101B15] dark:to-transparent p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    Estimated Property Value
-                  </h3>
-                </div>
-                <div className="relative rounded-full p-1.5 text-[#205A3E] dark:text-[#66B894] bg-white/90 dark:bg-[#1D3A2C]/70 cursor-help flex-shrink-0 flex items-center justify-center">
-                  <DollarSign className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(financialMetrics.propertyValue)}
-              </div>
-              <div className="mt-2.5 border-t-[2px] border-[#205A3E]/30 dark:border-[#66B894]/30" />
-              <div className="mt-2 space-y-0.5">
-                <p className="text-[0.84375rem] text-gray-600 dark:text-gray-400">
-                  {(() => {
-                    const purchaseYear = new Date(property.purchaseDate).getFullYear();
-                    const purchasePrice = property.purchasePrice || 0;
-                    const currentValue = financialMetrics.propertyValue || 0;
-                    const changePercent = purchasePrice > 0 ? ((currentValue - purchasePrice) / purchasePrice) * 100 : 0;
-                    const isIncrease = changePercent >= 0;
-                    return `${isIncrease ? '+' : ''}${formatPercentage(Math.abs(changePercent))} ${isIncrease ? 'increase' : 'decrease'} since ${purchaseYear}`;
-                  })()}
-                </p>
-                <p className="text-[0.84375rem] text-gray-600 dark:text-gray-400">
-                  {(() => {
-                    const debtPercentage = financialMetrics.propertyValue > 0 
-                      ? (financialMetrics.mortgageBalance / financialMetrics.propertyValue) * 100 
-                      : 0;
-                    return (
-                      <>
-                        {formatCurrency(financialMetrics.equity)} equity ({formatPercentage(financialMetrics.equityPercentage)}) <span className="mx-1.5">●</span> {formatCurrency(financialMetrics.mortgageBalance)} debt ({formatPercentage(debtPercentage)})
-                      </>
-                    );
-                  })()}
-                </p>
-                <p className="text-[0.84375rem] text-gray-600 dark:text-gray-400">
-                  Potential Cash-Out Refinance {formatCurrency(Math.max(0, (financialMetrics.propertyValue * 0.8) - financialMetrics.mortgageBalance))} (assuming 80%)
-                </p>
-              </div>
-            </div>
-
-            {/* Forecasted Annual Equity */}
-            <div className="relative rounded-2xl border border-[#1A4A5A]/25 dark:border-[#123640]/40 bg-gradient-to-br from-[#D8E6EA] via-[#F5F9FA] to-transparent dark:from-[#11252B] dark:via-[#0B181D] dark:to-transparent p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    Forecasted Annual Equity
-                  </h3>
-                </div>
-                <div className="relative rounded-full p-1.5 text-[#1A4A5A] dark:text-[#7AC0CF] bg-white/90 dark:bg-[#132E36]/70 cursor-help flex-shrink-0 flex items-center justify-center">
-                  <Home className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(financialMetrics.forecastedEquity)}
-              </div>
-              <div className="mt-2.5 border-t-[2px] border-[#1A4A5A]/30 dark:border-[#7AC0CF]/30" />
-              <div className="mt-2 space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-[0.84375rem] text-gray-600 dark:text-gray-400">Estimated Equity</span>
-                  <span className="text-[0.84375rem] font-medium text-gray-700 dark:text-gray-300">{formatCurrency(financialMetrics.equity)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[0.84375rem] text-gray-600 dark:text-gray-400">- Down Payment</span>
-                  <span className="text-[0.84375rem] font-medium text-gray-700 dark:text-gray-300">{formatCurrency(downPayment)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[0.84375rem] text-gray-600 dark:text-gray-400">- Property Value Appreciation</span>
-                  <span className="text-[0.84375rem] font-medium text-emerald-600 dark:text-emerald-400">+{formatCurrency(appreciation)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[0.84375rem] text-gray-600 dark:text-gray-400">- Equity Via Principal Mortgage Payments</span>
-                  <span className="text-[0.84375rem] font-medium text-gray-700 dark:text-gray-300">{formatCurrency(equityViaPrincipalPayments)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Mortgage Remaining */}
-            <div className="relative rounded-2xl border border-[#D4B896]/40 dark:border-[#8B6F47]/40 bg-gradient-to-br from-[#F5F1EB] via-[#F9F6F2] to-transparent dark:from-[#3E2F1F] dark:via-[#2A1F14] dark:to-transparent p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-[#5C4033] dark:text-[#D4B896]">
-                    Mortgage Remaining
-                  </h3>
-                </div>
-                <div className="relative rounded-full p-1.5 text-[#8B6F47] dark:text-[#C9A882] bg-white/90 dark:bg-[#4A3524]/70 cursor-help flex-shrink-0 flex items-center justify-center">
-                  <DollarSign className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="mt-3 text-xl font-bold text-[#5C4033] dark:text-[#D4B896]">
-                {formatCurrency(financialMetrics.mortgageBalance)}
-              </div>
-              <div className="mt-2.5 border-t-[2px] border-[#D4B896]/50 dark:border-[#8B6F47]/50" />
-              <div className="mt-2 space-y-1">
-                <p className="text-[0.84375rem] text-[#5C4033] dark:text-[#C9A882]">
-                  Portfolio LTV (Loan-to-Value): {formatPercentage(financialMetrics.portfolioLTV)}
-                </p>
-                <p className="text-[0.84375rem] text-[#5C4033] dark:text-[#C9A882]">
-                  Total Mortgage Interest Paid: <span className="font-medium text-[#5C4033] dark:text-[#D4B896]">{formatCurrency(totalMortgageInterestPaid)}</span>
-                </p>
-                <p className="text-[0.84375rem] text-[#5C4033] dark:text-[#C9A882]">
-                  Total Mortgage Principal Paid: <span className="font-medium text-[#5C4033] dark:text-[#D4B896]">{formatCurrency(totalMortgagePrincipalPaid)}</span>
-                </p>
-              </div>
-            </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <TopMetricCard
+              title="Estimated Property Value"
+              value={formatCurrencyNoDecimals(financialMetrics.propertyValue)}
+              icon={Building2}
+              accent="emerald"
+              supporting={
+                <>
+                  <div className="whitespace-nowrap overflow-hidden">
+                    {formatCurrencyNoDecimals(financialMetrics.equity)} equity ({Math.round(financialMetrics.equityPercentage || 0)}%) • {formatCurrencyNoDecimals(financialMetrics.mortgageBalance)} debt ({Math.round(financialMetrics.propertyValue > 0 ? (financialMetrics.mortgageBalance / financialMetrics.propertyValue) * 100 : 0)}%)
+                  </div>
+                  <div className="mt-1 text-xs opacity-90">
+                    Portfolio LTV: {Math.floor(financialMetrics.portfolioLTV || 0)}%
+                  </div>
+                  <div className="mt-1 text-xs opacity-90">
+                    Estimated Appreciation: {formatCurrencyNoDecimals(appreciation)} ({Math.round(property.purchasePrice > 0 ? ((appreciation / property.purchasePrice) * 100) : 0)}%)
+                  </div>
+                </>
+              }
+              supportingSize="dynamic"
+              iconTooltip="The estimated current market value of this property, based on current market valuations. Values are rounded down to the nearest dollar. LTV (Loan-to-Value) shows the percentage of the property that is financed."
+            />
+            
+            <TopMetricCard
+              title="Forecasted Annual Equity"
+              value={formatCurrencyNoDecimals(financialMetrics.forecastedEquity)}
+              icon={PiggyBank}
+              accent="teal"
+              supporting={
+                <>
+                  <div className="whitespace-nowrap overflow-hidden">
+                    Current total equity: {formatCurrencyNoDecimals(financialMetrics.equity)}
+                  </div>
+                  <div className="mt-1 text-xs opacity-90">
+                    Includes principal payments + estimated appreciation
+                  </div>
+                </>
+              }
+              supportingSize="dynamic"
+              iconTooltip="The projected equity you will earn this calendar year through principal payments and estimated property appreciation. This forecast helps you understand how your property equity is growing over time."
+            />
+            
+            <TopMetricCard
+              title="Annual Debt Service"
+              value={formatCurrencyNoDecimals(financialMetrics.annualDebtService)}
+              icon={FileSpreadsheet}
+              accent="amber"
+              supporting={
+                <>
+                  <div className="whitespace-nowrap overflow-hidden">
+                    Monthly debt service: {formatCurrencyNoDecimals(financialMetrics.annualDebtService / 12)}
+                  </div>
+                  <div className="mt-1 text-xs opacity-90">
+                    Principal + interest payments
+                  </div>
+                </>
+              }
+              supportingSize="dynamic"
+              iconTooltip="Your total annual mortgage payments (principal and interest) for this property. This represents your annual debt obligations and helps you understand cash flow requirements."
+            />
           </div>
 
           <div className="space-y-6">
@@ -1157,10 +1425,13 @@ export default function PropertyDetailPage() {
             <div className="space-y-6">
               {/* Performance Metrics Section */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Performance Metrics</h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUp className="w-5 h-5 text-[#205A3E]" />
+                  <h2 className="text-xl font-semibold">Performance Metrics</h2>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {/* CAP RATE */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-4">
                     <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">CAP RATE</div>
                     <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                       {formatPercentage(financialMetrics.capRate)}
@@ -1171,7 +1442,7 @@ export default function PropertyDetailPage() {
                   </div>
 
                   {/* CASH ON CASH */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-4">
                     <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">CASH ON CASH</div>
                     <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                       {formatPercentage(financialMetrics.cashOnCash)}
@@ -1182,7 +1453,7 @@ export default function PropertyDetailPage() {
                   </div>
 
                   {/* DSCR */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-4">
                     <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">DSCR</div>
                     <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                       {financialMetrics.dscr.toFixed(2)}
@@ -1193,10 +1464,10 @@ export default function PropertyDetailPage() {
                   </div>
 
                   {/* IRR */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-4">
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-xs text-gray-600 dark:text-gray-400">IRR</div>
-                      <select className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800">
+                      <select className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#205A3E] focus:border-transparent">
                         <option>5Y</option>
                       </select>
                     </div>
@@ -1214,9 +1485,12 @@ export default function PropertyDetailPage() {
               <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-2 mb-4">
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">
-                      Income & Expenses
-                    </h2>
+                    <div className="flex items-center gap-2 mb-1">
+                      <DollarSign className="w-5 h-5 text-[#205A3E]" />
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        Income & Expenses
+                      </h2>
+                    </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Annualized snapshot of how rent covers operating costs and debt service.
                     </p>
@@ -1997,7 +2271,7 @@ export default function PropertyDetailPage() {
                           const tenancyDuration = calculateTenancyDuration();
                     
                     return (
-                      <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                      <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                                   <div className="font-semibold text-gray-900 dark:text-white mb-2">{tenant.name}</div>
@@ -2159,18 +2433,16 @@ export default function PropertyDetailPage() {
                 >
                   <div className="flex items-center gap-2">
                     <PieChartIcon className="w-5 h-5 text-[#205A3E]" />
-                  <h2 className="text-xl font-semibold">Annual Expense History</h2>
+                    <h2 className="text-xl font-semibold">Annual Expense History</h2>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                      Categorized expenses
+                    </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                    Categorized expenses
-                  </span>
-                    {openSections.annualExpenseHistory ? (
-                      <ChevronUp className="w-5 h-5 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
-                    )}
-                </div>
+                  {openSections.annualExpenseHistory ? (
+                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                  )}
                 </button>
                 {openSections.annualExpenseHistory && (
                   <div>
@@ -2243,6 +2515,18 @@ export default function PropertyDetailPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Add Photos Modal */}
+        {showAddPhotosModal && (
+          <AddPhotosModal
+            property={property}
+            onClose={() => setShowAddPhotosModal(false)}
+            onSave={() => {
+              // Refresh property data by reloading the page
+              router.refresh();
+            }}
+          />
         )}
 
       </Layout>
@@ -2576,6 +2860,212 @@ function AddExpenseModal({ property, onClose, onSave }) {
             </Button>
             <Button type="submit">
               Add Expense
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Add Photos Modal Component
+function AddPhotosModal({ property, onClose, onSave }) {
+  const [imageUrls, setImageUrls] = useState(['']);
+  const [uploading, setUploading] = useState(false);
+  const { addToast } = useToast();
+
+  const handleAddUrl = () => {
+    setImageUrls([...imageUrls, '']);
+  };
+
+  const handleUrlChange = (index, value) => {
+    const updated = [...imageUrls];
+    updated[index] = value;
+    setImageUrls(updated);
+  };
+
+  const handleRemoveUrl = (index) => {
+    if (imageUrls.length > 1) {
+      setImageUrls(imageUrls.filter((_, i) => i !== index));
+    } else {
+      setImageUrls(['']);
+    }
+  };
+
+  const handleFileInput = async (e, index) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select an image file', { type: 'error' });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Image size must be less than 10MB', { type: 'error' });
+      return;
+    }
+
+    // Convert to base64 data URL
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result;
+      if (dataUrl) {
+        const updated = [...imageUrls];
+        updated[index] = dataUrl;
+        setImageUrls(updated);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Filter out empty URLs
+    const validUrls = imageUrls.filter(url => url.trim() !== '');
+    
+    if (validUrls.length === 0) {
+      addToast('Please add at least one image URL or upload a file', { type: 'error' });
+      return;
+    }
+
+    setUploading(true);
+    
+    try {
+      // Get current property_data
+      const currentPropertyData = property?.propertyData || {};
+      
+      // Get existing imageUrls array or create new one
+      const existingImageUrls = currentPropertyData.imageUrls || [];
+      
+      // Add new imageUrl if it's not in the array
+      const baseImageUrl = property?.imageUrl || existingImageUrls[0] || '';
+      
+      // Combine existing URLs with new ones, avoiding duplicates
+      const allImageUrls = [...existingImageUrls];
+      validUrls.forEach(url => {
+        if (!allImageUrls.includes(url) && url !== baseImageUrl) {
+          allImageUrls.push(url);
+        }
+      });
+
+      // Update property_data with imageUrls array
+      const updatedPropertyData = {
+        ...currentPropertyData,
+        imageUrls: allImageUrls,
+        // Keep imageUrl as the primary image if it exists
+        imageUrl: baseImageUrl || allImageUrls[0] || null
+      };
+
+      // Update property via API
+      const response = await apiClient.updateProperty(property.id, {
+        propertyData: updatedPropertyData
+      });
+
+      if (response.success) {
+        addToast(`Successfully added ${validUrls.length} photo(s)`, { type: 'success' });
+        onSave?.();
+        onClose();
+      } else {
+        throw new Error(response.error || 'Failed to save photos');
+      }
+    } catch (error) {
+      console.error('Error saving photos:', error);
+      addToast(error.message || 'Failed to save photos', { type: 'error' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={onClose}>
+      <div 
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Add Photos
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="space-y-4">
+            {imageUrls.map((url, index) => (
+              <div key={index} className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => handleUrlChange(index, e.target.value)}
+                    placeholder="Enter image URL or upload a file"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#205A3E] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                  <div className="mt-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileInput(e, index)}
+                      className="hidden"
+                      id={`file-upload-${index}`}
+                    />
+                    <label
+                      htmlFor={`file-upload-${index}`}
+                      className="inline-flex items-center gap-2 text-sm text-[#205A3E] hover:text-[#1a4a32] cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Upload file instead
+                    </label>
+                  </div>
+                  {url && url.startsWith('data:image') && (
+                    <div className="mt-2">
+                      <img 
+                        src={url} 
+                        alt={`Preview ${index + 1}`}
+                        className="max-w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                      />
+                    </div>
+                  )}
+                </div>
+                {imageUrls.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveUrl(index)}
+                    className="text-red-500 hover:text-red-700 mt-2"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddUrl}
+            className="flex items-center gap-2 text-[#205A3E] hover:text-[#1a4a32] text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Add another photo
+          </button>
+
+          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button variant="secondary" type="button" onClick={onClose} disabled={uploading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={uploading}>
+              {uploading ? 'Saving...' : 'Save Photos'}
             </Button>
           </div>
         </form>

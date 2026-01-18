@@ -14,6 +14,7 @@ import {
   updatePropertyFinancialMetrics
 } from '@/utils/financialCalculations';
 import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from '@/utils/mortgageCalculator';
+import { generateSlug } from '@/utils/slug';
 
 // Define TypeScript interfaces for better type safety
 export interface Property {
@@ -149,6 +150,7 @@ export interface PropertyContextType {
   
   // Helper functions
   getPropertyById: (id: string) => Property | undefined;
+  getPropertyBySlug: (slug: string) => Property | undefined;
   getPropertiesByType: (type: string) => Property[];
   getPropertiesByLocation: (location: string) => Property[];
   getPropertiesWithTenants: () => Property[];
@@ -581,6 +583,13 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     // Helper functions
     getPropertyById: (id: string) => propertiesWithCalculations.find(p => p.id === id),
+    getPropertyBySlug: (slug: string) => {
+      const slugLower = slug.toLowerCase();
+      return propertiesWithCalculations.find(p => {
+        const propertySlug = generateSlug(p.nickname || p.name || '');
+        return propertySlug.toLowerCase() === slugLower;
+      });
+    },
     getPropertiesByType: (type: string) => 
       propertiesWithCalculations.filter(property => property.propertyType.toLowerCase() === type.toLowerCase()),
     getPropertiesByLocation: (location: string) => 

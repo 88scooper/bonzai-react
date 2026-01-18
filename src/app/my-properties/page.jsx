@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Layout from "@/components/Layout";
@@ -9,6 +9,7 @@ import Button from "@/components/Button";
 import AddPropertyModal from "@/components/AddPropertyModal";
 import { useProperties, usePropertyContext } from "@/context/PropertyContext";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
+import { getPropertySlug } from "@/utils/slug";
 import { Building2, PiggyBank, FileSpreadsheet, Plus } from "lucide-react";
 import { getCurrentMortgageBalance, getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from "@/utils/mortgageCalculator";
 import { ListPageHeader } from "@/components/shared";
@@ -593,9 +594,15 @@ function PropertyCard({ property }) {
     }).format(Math.floor(Math.abs(numValue)));
   };
   
+  // Get property slug for URL, fallback to ID if no name
+  const propertySlug = useMemo(() => {
+    const slug = getPropertySlug(property);
+    return slug || property.id;
+  }, [property]);
+
   return (
     <Link 
-      href={`/my-properties/${property.id}`}
+      href={`/my-properties/${propertySlug}`}
       prefetch={false}
       className="group block rounded-lg border border-black/10 dark:border-white/10 overflow-hidden bg-white dark:bg-neutral-900 hover:shadow-lg transition-all"
     >
@@ -621,9 +628,17 @@ function PropertyCard({ property }) {
                   <div className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5 uppercase tracking-wide">Units</div>
                   <div className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{property.units || 1}</div>
                 </div>
-                <div className="col-span-2">
+                <div>
                   <div className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5 uppercase tracking-wide">Purchase Date</div>
                   <div className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{formatPurchaseDate(property.purchaseDate)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] md:text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5 uppercase tracking-wide">Ownership</div>
+                  <div className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">
+                    {property.ownership || property.propertyData?.ownership 
+                      ? (property.ownership || property.propertyData?.ownership).charAt(0).toUpperCase() + (property.ownership || property.propertyData?.ownership).slice(1).toLowerCase()
+                      : 'Personal'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -753,6 +768,10 @@ function PropertyCard({ property }) {
               revenueConsumed={revenueConsumed}
               operatingExpensesPercent={operatingExpensesPercent}
               debtServicePercent={debtServicePercent}
+              onHover={(isHovered) => setHoveredMetric(isHovered ? { 
+                title: 'NET CASH FLOW (FORECASTED)', 
+                text: "Forecasted net cash flow is the projected amount of actual cash remaining after subtracting all expenses (mortgage, taxes, insurance, maintenance, management) from total rental income. Positive flow signals financial health, stability, and return, while negative flow drains money, highlighting risk and poor performance. It's crucial for assessing true profitability, funding emergencies, and attracting future financing." 
+              } : null)}
             />
 
             {/* Bottom: Performance Metrics - Full Width, Compact Grid */}
@@ -798,7 +817,7 @@ IRR is your property's "all-in" annual growth rate. Unlike simple cash flow, it 
                 <select 
                   value={irrYears} 
                   onChange={(e) => setIrrYears(parseInt(e.target.value))}
-                  className="text-xs bg-transparent border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#205A3E] dark:focus:ring-[#4ade80] mt-1"
+                  className="text-xs bg-transparent border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#205A3E] dark:focus:ring-[#4ade80]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <option value={3}>3Y</option>
@@ -867,7 +886,8 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
   
   return (
     <div 
-      className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2 md:p-2.5"
+      className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2 md:p-2.5 cursor-help transition-opacity"
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       <div className="flex items-start justify-between gap-1">
@@ -877,9 +897,8 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
         {Icon && (
           <div 
             className="relative group flex-shrink-0"
-            onMouseEnter={handleMouseEnter}
           >
-            <div className={`relative rounded-full p-1 ${getIconColor()} bg-white dark:bg-gray-900 cursor-help flex items-center justify-center`}>
+            <div className={`relative rounded-full p-1 ${getIconColor()} bg-white dark:bg-gray-900 flex items-center justify-center`}>
               <Icon className="h-2.5 w-2.5 md:h-3 md:w-3 flex-shrink-0" aria-hidden="true" />
             </div>
           </div>
@@ -909,7 +928,8 @@ function IncomeExpensesSection({
   margin, 
   revenueConsumed,
   operatingExpensesPercent,
-  debtServicePercent
+  debtServicePercent,
+  onHover
 }) {
   const totalOutflows = operatingExpenses + debtService;
   const netPositive = netCashFlow >= 0;
@@ -959,11 +979,13 @@ function IncomeExpensesSection({
       <div className="space-y-1.5 md:space-y-2">
         {/* Net Cash Flow - Moved to top */}
         <div
-          className={`mb-3 md:mb-4 flex items-start justify-between rounded-md border px-3 md:px-4 py-2.5 md:py-3.5 text-sm md:text-base ${
+          className={`mb-3 md:mb-4 flex items-start justify-between rounded-md border px-3 md:px-4 py-2.5 md:py-3.5 text-sm md:text-base cursor-help transition-opacity ${
             netPositive
               ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
               : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
           }`}
+          onMouseEnter={() => onHover && onHover(true)}
+          onMouseLeave={() => onHover && onHover(false)}
         >
           <div>
             <p className="font-semibold text-lg md:text-xl">Net Cash Flow (Forecasted)</p>
@@ -1086,7 +1108,8 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
 
   return (
     <div 
-      className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-1.5 md:p-2 hover:opacity-95 transition-opacity"
+      className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-1.5 md:p-2 hover:opacity-95 transition-opacity cursor-help"
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       <div className="flex items-start justify-between gap-1 mb-1">
@@ -1095,9 +1118,8 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
           {tooltipText && (
             <div 
               className="relative flex-shrink-0 group"
-              onMouseEnter={handleMouseEnter}
             >
-              <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-white dark:bg-gray-100 border-2 border-[#205A3E] dark:border-[#66B894] flex items-center justify-center cursor-help transition-all duration-200 hover:scale-110 hover:bg-[#205A3E] dark:hover:bg-[#66B894] group/icon">
+              <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-white dark:bg-gray-100 border-2 border-[#205A3E] dark:border-[#66B894] flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-[#205A3E] dark:hover:bg-[#66B894] group/icon">
                 <span className="text-[#205A3E] dark:text-[#66B894] text-[8px] md:text-[10px] font-bold leading-none transition-colors duration-200 group-hover/icon:text-white dark:group-hover/icon:text-[#1D3A2C]">i</span>
               </div>
             </div>
@@ -1105,21 +1127,20 @@ function KeyMetricCard({ title, value, tooltipText, statusTone = 'neutral', stat
         </div>
       </div>
       
-      <div className="mb-0.5">
+      <div className="mb-0.5 flex items-center justify-between gap-2">
         <p className={`text-sm md:text-base font-semibold tabular-nums ${getValueColor()}`}>
           {value}
         </p>
+        {customContent && (
+          <div>
+            {customContent}
+          </div>
+        )}
       </div>
 
       {statusMessage && (
         <div className={`rounded px-1.5 py-0.5 text-[9px] md:text-[10px] font-semibold uppercase tracking-wide ${statusStyles.bg} ${statusStyles.border} ${statusStyles.text} inline-block`}>
           {statusMessage}
-        </div>
-      )}
-
-      {customContent && (
-        <div className="mt-1.5">
-          {customContent}
         </div>
       )}
     </div>
