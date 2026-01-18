@@ -246,8 +246,7 @@ export default function MyPropertiesPage() {
 
           {/* Debug info */}
           <div className="text-xs text-gray-500 mb-2">
-            Properties: {properties ? properties.length : 'null'} | 
-            Calculations Complete: {calculationsComplete ? 'Yes' : 'No'}
+            Properties: {properties ? properties.length : 'null'}
           </div>
 
           {properties && Array.isArray(properties) && properties.length > 0 ? (
@@ -602,8 +601,8 @@ function PropertyCard({ property }) {
     >
       <div className="p-2.5 md:p-3 lg:p-4">
         {/* Two-Column Layout: Left = Property Details, Right = All Financial Sections */}
-        {/* Optimized proportions: 30% left, 70% right - prioritizing financial data */}
-        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_2.1fr] xl:grid-cols-[1fr_2.2fr] gap-2.5 md:gap-3 lg:gap-4">
+        {/* Optimized proportions: ~26% left, ~74% right - prioritizing financial data */}
+        <div className="grid grid-cols-1 lg:grid-cols-[0.77fr_2.23fr] xl:grid-cols-[0.85fr_2.35fr] gap-2.5 md:gap-3 lg:gap-4">
           {/* Left Column: Property Details - Compact */}
           <div className="space-y-2">
             <div>
@@ -657,11 +656,11 @@ function PropertyCard({ property }) {
             {/* Tooltip Display Area - Shows in empty space under thumbnail */}
             <div className="mt-2 min-h-[60px] transition-all duration-200 ease-in-out">
               {hoveredMetric ? (
-                <div className="rounded-lg border border-[#205A3E]/40 dark:border-[#66B894]/40 bg-gradient-to-br from-[#205A3E] to-[#1C4F39] dark:from-[#1D3A2C] dark:to-[#0F1F17] p-2.5 text-white text-xs leading-relaxed shadow-lg opacity-100 transition-opacity duration-200">
-                  <div className="font-semibold mb-1.5 text-[#66B894] dark:text-[#4ade80] text-[11px] uppercase tracking-wide">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-3 border-l-4 border-l-[#205A3E] dark:border-l-[#66B894] opacity-100 transition-opacity duration-200">
+                  <div className="font-semibold mb-2 text-[#205A3E] dark:text-[#66B894] text-[11px] uppercase tracking-wide">
                     {hoveredMetric.title}
                   </div>
-                  <div className="text-white/95 dark:text-gray-200 leading-snug">
+                  <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                     {hoveredMetric.text}
                   </div>
                 </div>
@@ -677,9 +676,9 @@ function PropertyCard({ property }) {
           <div className="space-y-2.5 md:space-y-3">
             {/* Top: Three Financial Overview Cards - Side by Side, Compact */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {/* Estimated Property Value */}
+              {/* Property Value */}
               <FinancialOverviewCard
-                title="Estimated Property Value"
+                title="Property Value"
                 value={formatCurrencyRounded(currentValue)}
                 supporting={
                   <>
@@ -697,6 +696,7 @@ function PropertyCard({ property }) {
                 icon={Building2}
                 accent="emerald"
                 tooltipText={`The current estimated market value of this property. Estimated Appreciation shows the increase in value since purchase (${formatCurrencyRounded(appreciation)}), representing ${appreciationPercentage}% growth from the original purchase price.`}
+                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ESTIMATED PROPERTY VALUE', text: `The current estimated market value of this property. Estimated Appreciation shows the increase in value since purchase (${formatCurrencyRounded(appreciation)}), representing ${appreciationPercentage}% growth from the original purchase price.` } : null)}
               />
               
               {/* Estimated Equity */}
@@ -719,6 +719,7 @@ function PropertyCard({ property }) {
                 icon={PiggyBank}
                 accent="teal"
                 tooltipText={`Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.`}
+                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ESTIMATED EQUITY', text: `Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.` } : null)}
               />
               
               {/* Mortgage Debt */}
@@ -738,6 +739,7 @@ function PropertyCard({ property }) {
                 icon={FileSpreadsheet}
                 accent="amber"
                 tooltipText={`The remaining mortgage balance on this property. LTV (Loan-to-Value) ratio shows what percentage of the property's value is financed through debt.`}
+                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'MORTGAGE DEBT', text: `The remaining mortgage balance on this property. LTV (Loan-to-Value) ratio shows what percentage of the property's value is financed through debt.` } : null)}
               />
             </div>
 
@@ -828,11 +830,46 @@ IRR is your property's "all-in" annual growth rate. Unlike simple cash flow, it 
 }
 
 // Financial Overview Card Component (Mercury style - no gradients)
-function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 'emerald', tooltipText }) {
-  const [showTooltip, setShowTooltip] = useState(false);
+function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 'emerald', tooltipText, onHover }) {
+  // Get icon colors based on accent (matching TopMetricCard)
+  const getIconColor = () => {
+    if (accent === 'emerald' || accent === 'teal') {
+      return 'text-[#205A3E] dark:text-[#66B894]';
+    }
+    return 'text-slate-500 dark:text-slate-400';
+  };
+  
+  // Get supporting text colors based on accent (matching TopMetricCard)
+  const getSupportingColor = () => {
+    if (accent === 'emerald') {
+      return 'text-[#205A3E] dark:text-[#66B894]';
+    }
+    if (accent === 'teal') {
+      return 'text-[#1A4A5A] dark:text-[#7AC0CF]';
+    }
+    if (accent === 'amber') {
+      return 'text-[#B57A33] dark:text-[#E9C08A]';
+    }
+    return 'text-gray-900 dark:text-gray-100';
+  };
+  
+  const handleMouseEnter = () => {
+    if (onHover && tooltipText) {
+      onHover(true);
+    }
+  };
+  
+  const handleMouseLeave = () => {
+    if (onHover) {
+      onHover(false);
+    }
+  };
   
   return (
-    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2 md:p-2.5">
+    <div 
+      className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2 md:p-2.5"
+      onMouseLeave={handleMouseLeave}
+    >
       <div className="flex items-start justify-between gap-1">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex-1 leading-tight line-clamp-2">
           {title}
@@ -840,18 +877,11 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
         {Icon && (
           <div 
             className="relative group flex-shrink-0"
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
+            onMouseEnter={handleMouseEnter}
           >
-            <div className="relative rounded-full p-1 text-[#205A3E] dark:text-[#66B894] bg-white dark:bg-gray-900 cursor-help flex items-center justify-center">
+            <div className={`relative rounded-full p-1 ${getIconColor()} bg-white dark:bg-gray-900 cursor-help flex items-center justify-center`}>
               <Icon className="h-2.5 w-2.5 md:h-3 md:w-3 flex-shrink-0" aria-hidden="true" />
             </div>
-            {tooltipText && showTooltip && (
-              <div className="absolute bottom-full right-0 mb-2 p-3 bg-[#205A3E] text-white text-xs leading-relaxed rounded-lg pointer-events-none whitespace-normal z-50 w-72 max-w-[calc(100vw-2rem)] shadow-2xl">
-                {tooltipText}
-                <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#205A3E]"></div>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -861,7 +891,7 @@ function FinancialOverviewCard({ title, value, supporting, icon: Icon, accent = 
       {supporting && (
         <>
           <div className="mt-1 md:mt-1.5 border-t border-gray-100 dark:border-gray-800" />
-          <div className="mt-0.5 md:mt-1 text-[10px] md:text-xs font-semibold text-gray-600 dark:text-gray-400 leading-tight" suppressHydrationWarning>
+          <div className={`mt-0.5 md:mt-1 text-[10px] md:text-xs font-semibold ${getSupportingColor()} leading-tight`} suppressHydrationWarning>
             {typeof supporting === 'string' ? supporting : supporting}
           </div>
         </>
@@ -919,7 +949,7 @@ function IncomeExpensesSection({
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2.5 md:p-3">
       <div className="mb-2.5">
         <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
-          Income & Expenses
+          Income & Expenses (Forecasted)
         </h3>
         <p className="mt-0.5 text-[10px] md:text-xs text-gray-600 dark:text-gray-400">
           Annualized snapshot of how rent covers operating costs and debt service.
@@ -936,7 +966,7 @@ function IncomeExpensesSection({
           }`}
         >
           <div>
-            <p className="font-semibold text-lg md:text-xl">Net Cash Flow</p>
+            <p className="font-semibold text-lg md:text-xl">Net Cash Flow (Forecasted)</p>
             <p className="text-sm md:text-base opacity-80">After operating expenses and debt service</p>
           </div>
           <div className="text-right">
