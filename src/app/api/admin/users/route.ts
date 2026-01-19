@@ -58,6 +58,8 @@ export const GET = withAdminAuth(async (request: NextRequest, admin) => {
       account_count: number;
       property_count: number;
       total_hours: number;
+      has_demo_account: boolean;
+      demo_account_id: string | null;
     }>;
 
     if (searchPattern) {

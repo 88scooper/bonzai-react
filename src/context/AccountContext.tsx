@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import apiClient from '@/lib/api-client';
 import { useAuth } from '@/context/AuthContext';
+import { calculateLandTransferTax } from '@/utils/financialCalculations';
 
 export interface Account {
   id: string;
@@ -264,7 +265,27 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             property.dens = propertyData.dens !== undefined ? propertyData.dens : null;
             property.isPrincipalResidence = propertyData.isPrincipalResidence || false;
             property.ownership = propertyData.ownership || null;
-            property.totalInvestment = property.purchasePrice + (property.closingCosts || 0) + (property.renovationCosts || 0) + (property.initialRenovations || 0);
+            
+            // Calculate Land Transfer Tax
+            const city = property.address?.includes('Toronto') ? 'Toronto' : '';
+            const province = 'ON';
+            const landTransferTax = calculateLandTransferTax(
+              property.purchasePrice || 0,
+              city,
+              province,
+              property.landTransferTax // Manual override if provided
+            );
+            
+            // Calculate down payment
+            const mortgageAmount = property.mortgage?.originalAmount || 0;
+            const downPayment = (property.purchasePrice || 0) - mortgageAmount;
+            
+            property.totalInvestment = downPayment + 
+                                      (property.closingCosts || 0) + 
+                                      (property.renovationCosts || 0) + 
+                                      (property.initialRenovations || 0) + 
+                                      landTransferTax;
+            property.landTransferTax = landTransferTax;
             
             // Calculate appreciation
             if (property.currentMarketValue && property.purchasePrice) {
@@ -551,7 +572,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     try {
       console.log('AccountContext: loadProperties called for accountId:', accountId);
       const response = await apiClient.getProperties(accountId, 1, 1000); // Get up to 1000 properties
-      console.log('AccountContext: getProperties response:', { success: response.success, hasData: !!response.data, dataLength: response.data?.data?.length || response.data?.length || 0 });
+      console.log('AccountContext: getProperties response:', { success: response.success, hasData: !!response.data, dataLength: Array.isArray(response.data?.data) ? response.data.data.length : (Array.isArray(response.data) ? response.data.length : 0) });
       
       // Handle "Account not found" error from API client
       if (!response.success && response.error === 'Account not found') {

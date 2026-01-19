@@ -11,7 +11,8 @@ import {
   calculateMonthlyCashFlow, 
   calculateAnnualCashFlow, 
   calculateCashOnCashReturn,
-  updatePropertyFinancialMetrics
+  updatePropertyFinancialMetrics,
+  calculateLandTransferTax
 } from '@/utils/financialCalculations';
 import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from '@/utils/mortgageCalculator';
 import { generateSlug } from '@/utils/slug';
@@ -116,6 +117,7 @@ export interface Property {
     total: number;
   }>;
   imageUrl?: string;
+  propertyData?: Record<string, any>;
 }
 
 export interface PortfolioMetrics {
@@ -337,8 +339,9 @@ const preparePropertyData = (property: Property): Property => {
   // Type assertion needed because initialRenovations is optional and may not be present in all property data
   const initialRenovations = ensureNumber('initialRenovations' in cloned ? (cloned as any).initialRenovations : undefined);
   const renovationCosts = ensureNumber((cloned as any).renovationCosts);
-
+  
   // Normalize core mortgage fields while preserving any additional metadata
+  // Do this BEFORE calculating downPayment to ensure we use the normalized mortgage values
   const originalMortgage: any = cloned.mortgage || {};
 
   // Special-case fix for SC property 403-311 Richmond St E to ensure
@@ -379,8 +382,22 @@ const preparePropertyData = (property: Property): Property => {
 
   cloned.mortgage = normalizedMortgage;
 
+  // Calculate down payment using normalized mortgage
   const downPayment = Math.max(0, purchasePrice - cloned.mortgage.originalAmount);
-  cloned.totalInvestment = Number((downPayment + closingCosts + initialRenovations + renovationCosts).toFixed(2));
+  
+  // Calculate Land Transfer Tax
+  const city = cloned.address?.includes('Toronto') ? 'Toronto' : '';
+  const province = 'ON';
+  const landTransferTax = calculateLandTransferTax(
+    purchasePrice,
+    city,
+    province,
+    (cloned as any).landTransferTax // Manual override if provided
+  );
+  
+  // Calculate total investment
+  cloned.totalInvestment = Number((downPayment + closingCosts + initialRenovations + renovationCosts + landTransferTax).toFixed(2));
+  (cloned as any).landTransferTax = landTransferTax;
 
   const prepared = updatePropertyFinancialMetrics
     ? updatePropertyFinancialMetrics(cloned as any)
