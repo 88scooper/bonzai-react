@@ -7,6 +7,10 @@ import { sql } from '@/lib/db';
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    // Log database connection status (for debugging)
+    const hasDbConnection = !!process.env.POSTGRES_URL;
+    console.log('[Demo API] Database connection:', hasDbConnection ? 'configured' : 'missing POSTGRES_URL');
+    
     // Find demo account (is_demo = true)
     // Prefer account with email matching demo@bonzai.io (case insensitive)
     const demoAccountResultRaw = await sql`
@@ -20,6 +24,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       END
       LIMIT 1
     `;
+    
+    console.log('[Demo API] Found demo accounts:', demoAccountResultRaw.length);
     const demoAccountResult = demoAccountResultRaw as Array<{
       id: string;
       name: string;
@@ -37,6 +43,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const demoAccount = demoAccountResult[0];
+    console.log('[Demo API] Using demo account:', {
+      id: demoAccount.id,
+      name: demoAccount.name,
+      email: demoAccount.email
+    });
 
     // Get properties for demo account
     const propertiesResultRaw = await sql`
@@ -49,6 +60,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ORDER BY created_at DESC
     `;
     const propertiesResult = propertiesResultRaw as Array<any>;
+    console.log('[Demo API] Found properties:', propertiesResult.length);
 
     // Get mortgages for demo account properties
     const propertyIds = propertiesResult.map(p => p.id);
@@ -139,12 +151,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    console.error("Error fetching demo data:", error);
+    console.error("[Demo API] Error fetching demo data:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: 500 }
-    );
+    
+    // Provide more detailed error information
+    const errorDetails: any = {
+      success: false,
+      error: errorMessage,
+    };
+    
+    // Check if it's a database connection error
+    if (errorMessage.includes('POSTGRES_URL') || errorMessage.includes('connection') || errorMessage.includes('database')) {
+      errorDetails.hint = 'Database connection issue. Check POSTGRES_URL environment variable.';
+      errorDetails.hasPostgresUrl = !!process.env.POSTGRES_URL;
+    }
+    
+    return NextResponse.json(errorDetails, { status: 500 });
   }
 }
 
