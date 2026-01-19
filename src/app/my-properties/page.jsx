@@ -389,7 +389,18 @@ function PropertyCard({ property }) {
   
   // Helper function to get property image URL with fallback
   const getPropertyImageUrl = () => {
-    // First, try the imageUrl from property data
+    // First, check propertyData.imageUrls array (matches data page and property detail page logic)
+    // Filter out base64 data URLs and prefer file paths
+    if (property.propertyData?.imageUrls && Array.isArray(property.propertyData.imageUrls) && property.propertyData.imageUrls.length > 0) {
+      const filePathUrls = property.propertyData.imageUrls.filter(url => 
+        url && typeof url === 'string' && !url.startsWith('data:')
+      );
+      if (filePathUrls.length > 0) {
+        return filePathUrls[0];
+      }
+    }
+    
+    // Then try the imageUrl from property data
     if (property.imageUrl) {
       return property.imageUrl;
     }

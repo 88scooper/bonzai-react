@@ -749,10 +749,15 @@ export default function PropertyDetailPage() {
     console.log('getPropertyImages: propertyDataImageUrls:', propertyDataImageUrls, 'property:', property?.id);
     
     if (propertyDataImageUrls.length > 0) {
-      // Filter out any failed images
-      const filtered = propertyDataImageUrls.filter(url => !failedImageUrls.has(url));
-      console.log('getPropertyImages: Returning filtered imageUrls:', filtered);
-      return filtered;
+      // Filter out base64 data URLs and prefer file paths, also filter out failed images
+      const filePathUrls = propertyDataImageUrls.filter(url => 
+        url && 
+        typeof url === 'string' && 
+        !url.startsWith('data:') && 
+        !failedImageUrls.has(url)
+      );
+      console.log('getPropertyImages: Returning filtered imageUrls:', filePathUrls);
+      return filePathUrls;
     }
     
     // Fallback to legacy method: ONLY use the base imageUrl (don't generate variations)

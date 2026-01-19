@@ -533,8 +533,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       bathrooms: propertyData.bathrooms !== undefined ? propertyData.bathrooms : null,
       dens: propertyData.dens !== undefined ? propertyData.dens : null,
       currentValue: parseFloat(apiProperty.current_market_value || 0),
-      // Image URL - try property_data first, then try to generate from address/nickname
+      // Image URL - try property_data.imageUrls array first, then imageUrl, then generate from address/nickname
       imageUrl: (() => {
+        // Check imageUrls array first (matches data page logic)
+        if (propertyData.imageUrls && Array.isArray(propertyData.imageUrls) && propertyData.imageUrls.length > 0) {
+          return propertyData.imageUrls[0];
+        }
+        
+        // Then check imageUrl
         if (propertyData.imageUrl) return propertyData.imageUrl;
         
         // Try to construct from address (e.g., "500-415 Wilson Avenue" -> "500 Wilson Ave.png")

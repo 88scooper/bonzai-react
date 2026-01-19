@@ -2060,7 +2060,9 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                 {(() => {
                   // Check propertyData.imageUrls first (uploaded photos), then fall back to imageUrl
                   const imageUrls = property.propertyData?.imageUrls || [];
-                  const imageUrl = imageUrls.length > 0 ? imageUrls[0] : (property.imageUrl || null);
+                  // Filter out base64 data URLs and prefer file paths
+                  const filePathUrls = imageUrls.filter(url => url && typeof url === 'string' && !url.startsWith('data:'));
+                  const imageUrl = filePathUrls.length > 0 ? filePathUrls[0] : (property.imageUrl || null);
                   return imageUrl ? (
                     <img 
                       src={`${imageUrl}?v=3`}
