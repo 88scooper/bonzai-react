@@ -25,20 +25,23 @@ export const GET = withAuth(async (request: NextRequest, user) => {
     const { page, limit } = parsePaginationParams(request);
     const offset = getOffset(page, limit);
 
-    // Get total count
+    // Get total count - include user's accounts plus demo accounts
     const countResult = await sql`
       SELECT COUNT(*) as count
       FROM accounts
-      WHERE user_id = ${user.id}
+      WHERE user_id = ${user.id} OR is_demo = true
     ` as Array<{ count: bigint }>;
     const total = Number(countResult[0]?.count || 0);
 
-    // Get accounts with pagination
+    // Get accounts with pagination - include user's accounts plus demo accounts
+    // Demo accounts are publicly readable and should appear in everyone's account list
     const accounts = await sql`
       SELECT id, user_id, name, email, is_demo, created_at, updated_at
       FROM accounts
-      WHERE user_id = ${user.id}
-      ORDER BY created_at DESC
+      WHERE user_id = ${user.id} OR is_demo = true
+      ORDER BY 
+        CASE WHEN user_id = ${user.id} THEN 0 ELSE 1 END,
+        created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}
     ` as Account[];

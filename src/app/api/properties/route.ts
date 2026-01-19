@@ -52,12 +52,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let dataQuery;
 
     if (accountId) {
-      // Verify account belongs to user
+      // Verify account belongs to user OR is a demo account (demo accounts are publicly readable)
       const accountCheck = await sql`
-        SELECT id FROM accounts
-        WHERE id = ${accountId} AND user_id = ${user.id}
+        SELECT id, is_demo FROM accounts
+        WHERE id = ${accountId} AND (user_id = ${user.id} OR is_demo = true)
         LIMIT 1
-      ` as Array<{ id: string }>;
+      ` as Array<{ id: string; is_demo: boolean }>;
 
       if (!accountCheck[0]) {
         return NextResponse.json(

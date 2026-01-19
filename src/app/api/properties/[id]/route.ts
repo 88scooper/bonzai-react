@@ -33,7 +33,7 @@ async function verifyPropertyOwnership(propertyId: string, userId: string): Prom
     SELECT p.id
     FROM properties p
     INNER JOIN accounts a ON p.account_id = a.id
-    WHERE p.id = ${propertyId} AND a.user_id = ${userId}
+    WHERE p.id = ${propertyId} AND (a.user_id = ${userId} OR a.is_demo = true)
     LIMIT 1
   ` as Array<{ id: string }>;
   return !!result[0];
