@@ -6,6 +6,7 @@ import { RequireAuth, useAuth } from "@/context/AuthContext";
 import { useAccount } from "@/context/AccountContext";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import { Loader2 } from "lucide-react";
+import Footer from "@/components/Footer";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -89,16 +90,21 @@ export default function OnboardingPage() {
     if (Array.isArray(accounts) && (accounts.length === 0 || onboardingInProgress)) {
       return (
         <RequireAuth>
-          <OnboardingWizard 
-            key="onboarding-wizard" 
-            onComplete={() => {
-              // Clear onboarding flag when wizard completes
-              onboardingStartedRef.current = false;
-              if (typeof window !== 'undefined') {
-                sessionStorage.removeItem('onboarding_in_progress');
-              }
-            }} 
-          />
+          <div className="min-h-screen flex flex-col">
+            <div className="flex-1">
+              <OnboardingWizard 
+                key="onboarding-wizard" 
+                onComplete={() => {
+                  // Clear onboarding flag when wizard completes
+                  onboardingStartedRef.current = false;
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('onboarding_in_progress');
+                  }
+                }} 
+              />
+            </div>
+            <Footer />
+          </div>
         </RequireAuth>
       );
     }

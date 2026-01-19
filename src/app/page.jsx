@@ -7,6 +7,7 @@ import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
 import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
+import Footer from "@/components/Footer";
 
 export default function HomePage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -431,18 +432,5 @@ function SignupModal({ onClose, onSwitchToLogin }) {
   );
 }
 
-function Footer() {
-  return (
-    <footer className="border-t border-black/10 dark:border-white/10 mt-16">
-      <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between text-sm">
-        <div className="text-gray-600 dark:text-gray-300">© {new Date().getFullYear()} Bonzai</div>
-        <div className="flex items-center gap-4">
-          <a className="hover:underline" href="#features">Features</a>
-          <a className="hover:underline" href="#cta">Get Started</a>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 

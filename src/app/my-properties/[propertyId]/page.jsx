@@ -270,8 +270,18 @@ export default function PropertyDetailPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const { addToast } = useToast();
   const { refreshAccounts } = useAccount();
-  const { getPropertyById, getPropertyBySlug, updateProperty: updatePropertyInContext } = usePropertyContext();
+  const { getPropertyById, getPropertyBySlug, updateProperty: updatePropertyInContext, properties: allProperties } = usePropertyContext();
   const router = useRouter();
+  
+  // Debug: Log available properties count
+  useEffect(() => {
+    if (isHydrated) {
+      console.log('PropertyDetailsPage: Total properties available:', allProperties?.length || 0);
+      if (allProperties && allProperties.length > 0) {
+        console.log('PropertyDetailsPage: Property nicknames:', allProperties.map(p => p.nickname || p.name));
+      }
+    }
+  }, [isHydrated, allProperties]);
   
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   // State hooks
@@ -308,17 +318,23 @@ export default function PropertyDetailPage() {
   
   // Get property data - try slug first, then fall back to ID (for backward compatibility)
   const property = useMemo(() => {
-    if (!slugOrId) return undefined;
+    if (!slugOrId) {
+      console.log('PropertyDetailsPage: No slugOrId provided');
+      return undefined;
+    }
     
     // Check if it looks like a UUID
     if (isUUID(slugOrId)) {
       const found = getPropertyById(slugOrId);
-      console.log('PropertyDetailsPage: getPropertyById result:', found?.id, 'imageUrls:', found?.propertyData?.imageUrls);
+      console.log('PropertyDetailsPage: Looking up by UUID:', slugOrId, 'Found:', !!found, 'Property ID:', found?.id);
       return found;
     } else {
       // Try to find by slug
       const found = getPropertyBySlug(slugOrId);
-      console.log('PropertyDetailsPage: getPropertyBySlug result:', found?.id, 'imageUrls:', found?.propertyData?.imageUrls);
+      console.log('PropertyDetailsPage: Looking up by slug:', slugOrId, 'Found:', !!found, 'Property ID:', found?.id, 'Nickname:', found?.nickname);
+      if (!found) {
+        console.warn('PropertyDetailsPage: Property not found with slug:', slugOrId);
+      }
       return found;
     }
   }, [slugOrId, getPropertyById, getPropertyBySlug]);

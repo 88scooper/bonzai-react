@@ -543,12 +543,15 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }
     
     if (!isAuthenticated() || !accountId) {
+      console.log('AccountContext: loadProperties skipped - not authenticated or no accountId', { isAuthenticated: isAuthenticated(), accountId });
       setProperties([]);
       return;
     }
 
     try {
+      console.log('AccountContext: loadProperties called for accountId:', accountId);
       const response = await apiClient.getProperties(accountId, 1, 1000); // Get up to 1000 properties
+      console.log('AccountContext: getProperties response:', { success: response.success, hasData: !!response.data, dataLength: response.data?.data?.length || response.data?.length || 0 });
       
       // Handle "Account not found" error from API client
       if (!response.success && response.error === 'Account not found') {
@@ -767,8 +770,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           })
         );
         
+        console.log('AccountContext: Setting properties:', mappedProperties.length, 'properties loaded');
         setProperties(mappedProperties);
       } else {
+        console.log('AccountContext: No properties in response, setting empty array');
         setProperties([]);
       }
     } catch (err) {

@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import Button from "@/components/Button";
 import { LogOut, UserCircle, Settings } from "lucide-react";
+import Footer from "@/components/Footer";
 
 export default function Layout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -131,6 +132,7 @@ export default function Layout({ children }) {
           <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950">
             <div className="mx-auto w-full max-w-7xl px-4 py-6">{children}</div>
           </main>
+          <Footer />
         </div>
       </div>
     </div>
