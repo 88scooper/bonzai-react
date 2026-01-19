@@ -1,6 +1,8 @@
 // Utility to parse CSV files and convert them to property objects
 // Supports both the template format and the simpler format
 
+import { calculateLandTransferTax } from '@/utils/financialCalculations';
+
 export function parseCSVToProperty(csvText, propertyId) {
   const lines = csvText.split('\n').map(line => line.trim()).filter(line => line);
   
@@ -257,9 +259,28 @@ function buildPropertyFromSimpleData(data, propertyId) {
     total: 0 // Will be calculated
   };
   
-  // Calculate total investment
+  // Calculate total investment including Land Transfer Tax
   const downPayment = property.purchasePrice - property.mortgage.originalAmount;
-  property.totalInvestment = downPayment + property.closingCosts + property.initialRenovations + property.renovationCosts;
+  
+  // Extract city from address or use property data
+  const city = property.address?.includes('Toronto') ? 'Toronto' : 
+               (data['address_city'] || '');
+  const province = 'ON'; // Assuming Ontario for now
+  
+  // Calculate LTT (with manual override if property.landTransferTax is set)
+  const landTransferTax = calculateLandTransferTax(
+    property.purchasePrice, 
+    city, 
+    province, 
+    property.landTransferTax // Manual override if provided
+  );
+  
+  property.totalInvestment = downPayment + 
+                               property.closingCosts + 
+                               property.initialRenovations + 
+                               property.renovationCosts + 
+                               landTransferTax;
+  property.landTransferTax = landTransferTax; // Store for reference
   property.appreciation = property.currentMarketValue - property.purchasePrice;
   
   return property;
