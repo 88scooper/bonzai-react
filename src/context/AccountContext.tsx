@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import apiClient from '@/lib/api-client';
 import { useAuth } from '@/context/AuthContext';
 import { calculateLandTransferTax } from '@/utils/financialCalculations';
@@ -79,6 +79,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false); // Start as false, will be set to true when needed
   const [error, setError] = useState<string | null>(null);
 
+  // Track if demo data is currently being loaded (to prevent duplicate calls)
+  const isLoadingDemoDataRef = useRef(false);
+
   // Load demo data from public API
   const loadDemoData = useCallback(async () => {
     if (typeof window === 'undefined') {
@@ -86,6 +89,19 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Prevent loading demo data if already loading or already loaded for demo account
+    if (isLoadingDemoDataRef.current || (currentAccount?.isDemo && properties.length > 0)) {
+      console.log('[AccountContext] Demo data already loading or loaded, skipping...', {
+        isLoadingDemoData: isLoadingDemoDataRef.current,
+        isDemoAccount: currentAccount?.isDemo,
+        propertiesCount: properties.length
+      });
+      return;
+    }
+    
+    isLoadingDemoDataRef.current = true;
+
+    console.log('[AccountContext] Loading demo data from /api/demo...');
     try {
       setLoading(true);
       setError(null);
@@ -99,10 +115,15 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         clearTimeout(timeoutId);
         
         if (!response.ok) {
-          throw new Error('Failed to load demo data');
+          throw new Error(`Failed to load demo data: ${response.status} ${response.statusText}`);
         }
         
         const result = await response.json();
+        console.log('[AccountContext] Demo API response:', { 
+          success: result.success, 
+          propertiesCount: result.data?.properties?.length || 0 
+        });
+        
         if (result.success && result.data) {
           // Set demo account
           const demoAccount: Account = {
@@ -302,6 +323,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             return property;
           });
           
+          console.log('[AccountContext] Demo data loaded:', {
+            accountId: demoAccount.id,
+            accountName: demoAccount.name,
+            propertiesCount: properties.length
+          });
+          
           setProperties(properties);
           
           if (typeof window !== 'undefined') {
@@ -318,12 +345,15 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (err) {
-      console.error('Error loading demo data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load demo data');
+      console.error('[AccountContext] Error loading demo data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load demo data';
+      setError(errorMessage);
+      // Don't clear properties on error - keep existing state
     } finally {
       setLoading(false);
+      isLoadingDemoDataRef.current = false;
     }
-  }, []);
+  }, [currentAccount?.isDemo, properties.length]);
 
   // Load accounts from API
   const loadAccounts = useCallback(async () => {
@@ -343,9 +373,20 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     
     // Check for demo mode (only from sessionStorage to avoid static generation issues)
     // Only use demo mode if user is NOT authenticated
-    const isDemoMode = !isAuthenticated() && sessionStorage.getItem('demoMode') === 'true';
+    // Note: Check sessionStorage first, then isAuthenticated() to handle stale tokens
+    const demoModeFlag = sessionStorage.getItem('demoMode') === 'true';
+    const userAuthenticated = isAuthenticated();
+    const isDemoMode = demoModeFlag && !userAuthenticated;
+    
+    console.log('[AccountContext] loadAccounts check:', {
+      demoModeFlag,
+      userAuthenticated,
+      isDemoMode,
+      user: user?.id || null
+    });
     
     if (isDemoMode) {
+      console.log('[AccountContext] Demo mode detected in loadAccounts, loading demo data...');
       await loadDemoData();
       return;
     }
@@ -825,6 +866,19 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
     }
   }, []);
+
+  // Check for demo mode immediately on mount (before AuthContext fully initializes)
+  // This ensures demo mode works even if there's a stale auth token
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !user) {
+      const demoMode = sessionStorage.getItem('demoMode') === 'true';
+      if (demoMode && !currentAccountId && !loading) {
+        console.log('[AccountContext] Demo mode detected on mount, loading demo data...');
+        loadDemoData();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - intentionally only run on mount
 
   // Initialize accounts and load current account
   useEffect(() => {
