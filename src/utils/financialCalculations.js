@@ -10,6 +10,8 @@
  * All calculations follow standard real estate investment principles.
  */
 
+import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getAnnualMortgageInterest } from './mortgageCalculator';
+
 /**
  * Calculate annual operating expenses for a property
  * EXCLUDES mortgage payments (principal and interest)
@@ -17,7 +19,98 @@
  * @param {Object} property - Property object with monthlyExpenses
  * @returns {number} Annual operating expenses
  */
-import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getAnnualMortgageInterest } from './mortgageCalculator';
+
+/**
+ * Calculate Land Transfer Tax (LTT) for Ontario/Toronto properties
+ * 
+ * MATH PROOF:
+ * Ontario Provincial LTT (2024 rates):
+ * - 0.5% on first $55,000
+ * - 1.0% on $55,001 - $250,000
+ * - 1.5% on $250,001 - $400,000
+ * - 2.0% on amounts over $400,000
+ * 
+ * Toronto Municipal LTT (2024 rates):
+ * - 0.5% on first $55,000
+ * - 1.0% on $55,001 - $250,000
+ * - 1.5% on $250,001 - $400,000
+ * - 2.0% on amounts over $400,000
+ * 
+ * Total LTT = Provincial LTT + Municipal LTT (if Toronto)
+ * 
+ * Example: $1,200,000 purchase in Toronto
+ * Provincial: 0.5%($55k) + 1.0%($195k) + 1.5%($150k) + 2.0%($800k) = $275 + $1,950 + $2,250 + $16,000 = $20,475
+ * Municipal: Same calculation = $20,475
+ * Total: $40,950
+ * 
+ * @param {number} purchasePrice - Purchase price of property
+ * @param {string} city - City name (case-insensitive)
+ * @param {string} province - Province code (default: 'ON')
+ * @param {number} manualOverride - Optional manual override value (if provided, returns this instead)
+ * @returns {number} Total Land Transfer Tax in dollars
+ */
+export function calculateLandTransferTax(purchasePrice, city = '', province = 'ON', manualOverride = null) {
+  // If manual override provided, use it
+  if (manualOverride !== null && manualOverride !== undefined && manualOverride >= 0) {
+    return manualOverride;
+  }
+
+  if (!purchasePrice || purchasePrice <= 0) {
+    return 0;
+  }
+
+  // Only calculate for Ontario properties
+  if (province.toUpperCase() !== 'ON' && province.toUpperCase() !== 'ONTARIO') {
+    return 0;
+  }
+
+  /**
+   * Calculate LTT for a single jurisdiction (Provincial or Municipal)
+   * Formula: Tiered tax brackets
+   */
+  const calculateSingleLTT = (price) => {
+    let tax = 0;
+    const remaining = price;
+
+    // Tier 1: 0.5% on first $55,000
+    if (remaining > 55000) {
+      tax += 55000 * 0.005;
+    } else {
+      tax += remaining * 0.005;
+      return tax;
+    }
+
+    // Tier 2: 1.0% on $55,001 - $250,000
+    const tier2Amount = Math.min(remaining - 55000, 250000 - 55000);
+    if (tier2Amount > 0) {
+      tax += tier2Amount * 0.01;
+    }
+
+    // Tier 3: 1.5% on $250,001 - $400,000
+    if (remaining > 250000) {
+      const tier3Amount = Math.min(remaining - 250000, 400000 - 250000);
+      if (tier3Amount > 0) {
+        tax += tier3Amount * 0.015;
+      }
+    }
+
+    // Tier 4: 2.0% on amounts over $400,000
+    if (remaining > 400000) {
+      tax += (remaining - 400000) * 0.02;
+    }
+
+    return tax;
+  };
+
+  // Calculate Provincial LTT (always for Ontario)
+  const provincialLTT = calculateSingleLTT(purchasePrice);
+
+  // Calculate Municipal LTT (only for Toronto)
+  const isToronto = city && city.toUpperCase().includes('TORONTO');
+  const municipalLTT = isToronto ? calculateSingleLTT(purchasePrice) : 0;
+
+  return provincialLTT + municipalLTT;
+}
 
 const deriveMonthlyMortgagePayment = (property) => {
   if (!property) {
@@ -80,21 +173,48 @@ export function calculateAnnualOperatingExpenses(property) {
 
 /**
  * Calculate Net Operating Income (NOI) for a property
- * NOI = Annual Rental Income - Annual Operating Expenses
+ * 
+ * MATH PROOF:
+ * NOI = Effective Gross Income - Operating Expenses
+ * Where:
+ *   Effective Gross Income = Potential Gross Income × (1 - Vacancy Rate)
+ *   Potential Gross Income = Annual Rental Income
+ *   Operating Expenses = Property Tax + Insurance + Maintenance + Utilities + Condo Fees + Professional Fees
+ * 
+ * Industry Standard: NOI excludes debt service (mortgage payments) and CapEx
+ * 
+ * Example: $1,200,000 property, $60,000 annual rent, 5% vacancy, $18,000 operating expenses
+ * Effective Gross Income = $60,000 × (1 - 0.05) = $57,000
+ * NOI = $57,000 - $18,000 = $39,000
  * 
  * @param {Object} property - Property object
+ * @param {number} vacancyRate - Vacancy rate as decimal (e.g., 0.05 for 5%). Defaults to property.vacancyRate or 0
  * @returns {number} Annual NOI
  */
-export function calculateNOI(property) {
+export function calculateNOI(property, vacancyRate = null) {
   if (!property || !property.rent) {
     return 0;
   }
 
+  // Get vacancy rate from parameter, property, or default to 0
+  const effectiveVacancyRate = vacancyRate !== null 
+    ? vacancyRate 
+    : (property.vacancyRate !== undefined ? property.vacancyRate : 0);
+  
+  // Ensure vacancy rate is between 0 and 1
+  const normalizedVacancyRate = Math.max(0, Math.min(1, effectiveVacancyRate));
+
   // Prefer annualRent if available, otherwise calculate from monthlyRent
-  const annualRentalIncome = property.rent.annualRent || (property.rent.monthlyRent ? property.rent.monthlyRent * 12 : 0);
+  const potentialGrossIncome = property.rent.annualRent || 
+    (property.rent.monthlyRent ? property.rent.monthlyRent * 12 : 0);
+  
+  // Apply vacancy adjustment: Effective Gross Income = Potential × (1 - Vacancy)
+  const effectiveGrossIncome = potentialGrossIncome * (1 - normalizedVacancyRate);
+  
   const annualOperatingExpenses = calculateAnnualOperatingExpenses(property);
   
-  return annualRentalIncome - annualOperatingExpenses;
+  // NOI = Effective Gross Income - Operating Expenses
+  return effectiveGrossIncome - annualOperatingExpenses;
 }
 
 /**
@@ -197,13 +317,35 @@ export function calculateDSCR(property) {
 
 /**
  * Calculate Internal Rate of Return (IRR) for a property
- * Simplified calculation based on 5-year holding period
+ * 
+ * MATH PROOF:
+ * IRR is the discount rate that makes NPV = 0:
+ * 0 = -Initial Investment + Σ(Annual Cash Flow / (1+IRR)^t) + Net Sale Proceeds / (1+IRR)^n
+ * 
+ * Where:
+ * - Initial Investment = Down Payment + Closing Costs + LTT + Immediate CapEx
+ * - Annual Cash Flow = (Rent - Operating Expenses - Debt Service) × 12
+ * - Net Sale Proceeds = Future Sale Price - Remaining Mortgage - Selling Costs
+ * - Future Sale Price = Final Year NOI / Exit Cap Rate (if provided) OR Purchase Price × (1 + Appreciation)^n
+ * 
+ * Exit Cap Rate Method (Preferred):
+ * Future Sale Price = NOI_final / (Exit Cap Rate / 100)
+ * This is more accurate than appreciation as it reflects income-based valuation
+ * 
+ * Example: $1,200,000 property, $39,000 NOI, 5% exit cap rate
+ * Future Sale Price = $39,000 / 0.05 = $780,000
+ * 
+ * Newton-Raphson Method:
+ * IRR_new = IRR_old - NPV(IRR_old) / NPV'(IRR_old)
+ * Where NPV' is the derivative of NPV with respect to IRR
  * 
  * @param {Object} property - Property object
  * @param {number} years - Holding period in years (default 5)
+ * @param {number} exitCapRate - Exit cap rate as percentage (e.g., 5.0 for 5%). If not provided, uses 3% appreciation
+ * @param {number} sellingCostsPercent - Selling costs as percentage (e.g., 5.0 for 5%). Default 5%
  * @returns {number} IRR as a percentage
  */
-export function calculateIRR(property, years = 5) {
+export function calculateIRR(property, years = 5, exitCapRate = null, sellingCostsPercent = 5.0) {
   if (!property || !property.totalInvestment || property.totalInvestment <= 0) {
     return 0;
   }
@@ -211,11 +353,31 @@ export function calculateIRR(property, years = 5) {
   // Calculate annual cash flows
   const annualCashFlow = calculateAnnualCashFlow(property);
   
-  // Estimate sale proceeds at end of holding period
-  // Assume modest appreciation (3% annually)
+  // Get current property value
   const currentValue = property.currentMarketValue || property.currentValue || property.purchasePrice;
-  const appreciationRate = 0.03; // 3% annual appreciation
-  const futureValue = currentValue * Math.pow(1 + appreciationRate, years);
+  
+  // Calculate future sale price using Exit Cap Rate (preferred) or appreciation (fallback)
+  let futureValue;
+  
+  if (exitCapRate !== null && exitCapRate > 0) {
+    // EXIT CAP RATE METHOD (Preferred)
+    // Future Sale Price = Final Year NOI / Exit Cap Rate
+    // We use current NOI as proxy for final year NOI (in production, should project forward)
+    const finalYearNOI = calculateNOI(property);
+    futureValue = finalYearNOI / (exitCapRate / 100);
+    
+    // Ensure future value is reasonable (not negative or zero)
+    if (futureValue <= 0 || !isFinite(futureValue)) {
+      // Fallback to appreciation method if exit cap rate produces invalid result
+      const appreciationRate = 0.03; // 3% annual appreciation
+      futureValue = currentValue * Math.pow(1 + appreciationRate, years);
+    }
+  } else {
+    // APPRECIATION METHOD (Fallback)
+    // Future Sale Price = Current Value × (1 + Appreciation Rate)^Years
+    const appreciationRate = 0.03; // 3% annual appreciation (hard-coded fallback)
+    futureValue = currentValue * Math.pow(1 + appreciationRate, years);
+  }
   
   // Estimate remaining mortgage balance (simplified - assumes linear amortization)
   const mortgagePayment = deriveMonthlyMortgagePayment(property);
@@ -234,12 +396,12 @@ export function calculateIRR(property, years = 5) {
   const currentMortgageBalance = property.mortgage?.remainingBalance || property.mortgage?.originalAmount || 0;
   const futureMortgageBalance = Math.max(0, currentMortgageBalance - (annualPrincipalPayment * years));
   
-  // Sale proceeds = future value - remaining mortgage - selling costs (assume 5%)
-  const sellingCosts = futureValue * 0.05;
+  // Sale proceeds = future value - remaining mortgage - selling costs
+  const sellingCosts = futureValue * (sellingCostsPercent / 100);
   const netSaleProceeds = futureValue - futureMortgageBalance - sellingCosts;
   
   // Use Newton-Raphson method to find IRR
-  // NPV = -Initial Investment + Sum(CF/(1+IRR)^t) + Sale Proceeds/(1+IRR)^n
+  // NPV = -Initial Investment + Σ(CF/(1+IRR)^t) + Sale Proceeds/(1+IRR)^n
   let irr = 0.1; // Starting guess of 10%
   const tolerance = 0.0001;
   const maxIterations = 100;
@@ -255,14 +417,19 @@ export function calculateIRR(property, years = 5) {
     // Add sale proceeds
     npv += netSaleProceeds / Math.pow(1 + irr, years);
     
-    // Calculate derivative
+    // Calculate derivative (NPV' with respect to IRR)
     let derivative = 0;
     for (let year = 1; year <= years; year++) {
       derivative -= (year * annualCashFlow) / Math.pow(1 + irr, year + 1);
     }
     derivative -= (years * netSaleProceeds) / Math.pow(1 + irr, years + 1);
     
-    // Newton-Raphson update
+    // Guard against division by zero
+    if (Math.abs(derivative) < tolerance) {
+      break;
+    }
+    
+    // Newton-Raphson update: IRR_new = IRR_old - NPV / NPV'
     const newIrr = irr - npv / derivative;
     
     if (Math.abs(newIrr - irr) < tolerance) {
@@ -273,19 +440,13 @@ export function calculateIRR(property, years = 5) {
     irr = newIrr;
     
     // Prevent extreme values but allow reasonable ranges
-    // Cap at reasonable extremes: -99% (total loss) to 1000% (exceptional returns)
-    // Values outside this range typically indicate calculation errors
     if (irr < -0.99) {
       console.warn(`IRR calculation resulted in extreme negative value: ${(irr * 100).toFixed(2)}%. Capping at -99%.`);
       irr = -0.99;
     }
-    // Allow high IRR values (up to 500% = 5.0 decimal) without issue
-    // Warn if unusually high (100-500%) but allow it
-    if (irr > 1.0 && irr <= 5.0) { // 100% to 500% - warn but allow
+    if (irr > 1.0 && irr <= 5.0) {
       console.warn(`IRR calculation resulted in unusually high value: ${(irr * 100).toFixed(2)}%. Verify property data.`);
     }
-    // Cap at extremely unrealistic values (>500% = 5.0 decimal = 500%)
-    // Values this high typically indicate calculation errors or incorrect data
     if (irr > 5.0) {
       console.warn(`IRR calculation resulted in extreme value: ${(irr * 100).toFixed(2)}%. Capping at 500%. Verify property data inputs.`);
       irr = 5.0;
