@@ -8,10 +8,16 @@ import { sql } from '@/lib/db';
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Find demo account (is_demo = true)
+    // Prefer account with email matching demo@bonzai.io (case insensitive)
     const demoAccountResultRaw = await sql`
       SELECT id, name, email, is_demo, created_at, updated_at
       FROM accounts
       WHERE is_demo = true
+      ORDER BY CASE 
+        WHEN LOWER(email) = 'demo@bonzai.io' THEN 1
+        WHEN LOWER(email) LIKE '%demo%@bonzai%' THEN 2
+        ELSE 3
+      END
       LIMIT 1
     `;
     const demoAccountResult = demoAccountResultRaw as Array<{
