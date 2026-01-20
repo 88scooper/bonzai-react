@@ -72,14 +72,14 @@ const BaselineForecast = ({ property, assumptions }) => {
   const showRightAxis = visibleMetrics.mortgageBalance;
   const useDualAxis = showLeftAxis && showRightAxis;
 
-  // Custom tooltip for chart
+  // Custom tooltip for chart with tabular-nums
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-          <p className="font-semibold text-gray-900 dark:text-white mb-2">Year {label}</p>
+          <p className="font-semibold text-gray-900 dark:text-white mb-2 tabular-nums">Year {label}</p>
           {payload.map((entry, index) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
+            <p key={index} className="text-sm tabular-nums" style={{ color: entry.color }}>
               {entry.name}: {formatCurrency(entry.value)}
             </p>
           ))}
@@ -92,12 +92,12 @@ const BaselineForecast = ({ property, assumptions }) => {
   // Custom legend with click handlers - show all metrics regardless of visibility
   const renderCustomLegend = () => {
     const allMetrics = [
-      { key: 'netCashFlow', name: 'Net Cash Flow', color: '#10b981' },
-      { key: 'operatingIncome', name: 'Operating Income', color: '#3b82f6' },
-      { key: 'operatingExpenses', name: 'Operating Expenses', color: '#ef4444' },
-      { key: 'noi', name: 'NOI', color: '#8b5cf6' },
-      { key: 'debtService', name: 'Debt Service', color: '#f59e0b' },
-      { key: 'mortgageBalance', name: 'Mortgage Balance', color: '#6b7280' },
+      { key: 'netCashFlow', name: 'Net Cash Flow', color: '#205A3E' }, // Bonsai Green
+      { key: 'operatingIncome', name: 'Operating Income', color: '#94A3B8' }, // Light Slate for baseline
+      { key: 'operatingExpenses', name: 'Operating Expenses', color: '#ef4444' }, // Red for costs
+      { key: 'noi', name: 'NOI', color: '#94A3B8' }, // Light Slate
+      { key: 'debtService', name: 'Debt Service', color: '#ef4444' }, // Red for debt
+      { key: 'mortgageBalance', name: 'Mortgage Balance', color: '#ef4444' }, // Red for debt
     ];
 
     return (
@@ -246,7 +246,7 @@ const BaselineForecast = ({ property, assumptions }) => {
 
   if (!property) {
     return (
-      <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-neutral-900 p-6">
         <div className="flex items-center gap-2 mb-1">
           <LineChartIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -262,7 +262,7 @@ const BaselineForecast = ({ property, assumptions }) => {
 
   if (isCalculating || forecastData.length === 0) {
     return (
-      <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-neutral-900 p-6">
         <div className="flex items-center gap-3 mb-1">
           <LineChartIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -329,7 +329,7 @@ const BaselineForecast = ({ property, assumptions }) => {
   };
 
   return (
-    <div ref={chartRef} className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6">
+    <div ref={chartRef} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-neutral-900 p-6">
       <div className="flex items-start justify-between mb-6">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-1">
@@ -455,18 +455,27 @@ const BaselineForecast = ({ property, assumptions }) => {
             data={forecastData}
             margin={{ top: 5, right: showRightAxis ? 30 : 20, left: 20, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+            {/* Grid - only horizontal lines with subtle color */}
+            <CartesianGrid 
+              strokeDasharray="1 3" 
+              stroke="#f1f5f9" 
+              horizontal={true} 
+              vertical={false}
+              className="dark:stroke-gray-800"
+            />
             <XAxis 
               dataKey="year" 
               label={{ value: 'Year', position: 'insideBottom', offset: -5 }}
-              className="text-gray-600 dark:text-gray-400"
+              className="text-gray-600 dark:text-gray-400 tabular-nums"
+              tick={{ className: 'tabular-nums' }}
             />
             {showLeftAxis && (
               <YAxis
                 yAxisId="left"
                 tickFormatter={(value) => formatYAxisTick(value, false)}
                 label={{ value: 'Cash Flow ($)', angle: -90, position: 'insideLeft' }}
-                className="text-gray-600 dark:text-gray-400"
+                className="text-gray-600 dark:text-gray-400 tabular-nums"
+                tick={{ className: 'tabular-nums' }}
               />
             )}
             {showRightAxis && (
@@ -475,7 +484,8 @@ const BaselineForecast = ({ property, assumptions }) => {
                 orientation="right"
                 tickFormatter={(value) => formatYAxisTick(value, true)}
                 label={{ value: 'Mortgage Balance ($)', angle: 90, position: 'insideRight' }}
-                className="text-gray-600 dark:text-gray-400"
+                className="text-gray-600 dark:text-gray-400 tabular-nums"
+                tick={{ className: 'tabular-nums' }}
               />
             )}
             <Tooltip content={<CustomTooltip />} />
@@ -485,9 +495,9 @@ const BaselineForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="netCashFlow"
                 name="Net Cash Flow"
-                stroke="#10b981"
+                stroke="#205A3E"
                 strokeWidth={2}
-                dot={{ fill: '#10b981', r: 4 }}
+                dot={{ fill: '#205A3E', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
                 isAnimationActive={true}
@@ -501,9 +511,9 @@ const BaselineForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="operatingIncome"
                 name="Operating Income"
-                stroke="#3b82f6"
+                stroke="#94A3B8"
                 strokeWidth={2}
-                dot={{ fill: '#3b82f6', r: 4 }}
+                dot={{ fill: '#94A3B8', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
                 isAnimationActive={true}
@@ -533,9 +543,9 @@ const BaselineForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="noi"
                 name="NOI"
-                stroke="#8b5cf6"
+                stroke="#94A3B8"
                 strokeWidth={2}
-                dot={{ fill: '#8b5cf6', r: 4 }}
+                dot={{ fill: '#94A3B8', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
                 isAnimationActive={true}
@@ -549,9 +559,9 @@ const BaselineForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="debtService"
                 name="Debt Service"
-                stroke="#f59e0b"
+                stroke="#ef4444"
                 strokeWidth={2}
-                dot={{ fill: '#f59e0b', r: 4 }}
+                dot={{ fill: '#ef4444', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
                 isAnimationActive={true}
@@ -565,9 +575,9 @@ const BaselineForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="mortgageBalance"
                 name="Mortgage Balance"
-                stroke="#6b7280"
+                stroke="#ef4444"
                 strokeWidth={2}
-                dot={{ fill: '#6b7280', r: 4 }}
+                dot={{ fill: '#ef4444', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId={useDualAxis ? "right" : "left"}
                 isAnimationActive={true}
@@ -581,13 +591,13 @@ const BaselineForecast = ({ property, assumptions }) => {
       </div>
 
       {/* Key Metrics Summary */}
-      <div className="mt-6 pt-6 border-t border-black/10 dark:border-white/10">
+      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
               Year 1 Cash Flow
             </p>
-            <p className="text-2xl font-bold text-green-900 dark:text-green-300">
+            <p className="text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
               {formatCurrency(forecastData[0]?.netCashFlow || 0)}
             </p>
           </div>
@@ -595,7 +605,7 @@ const BaselineForecast = ({ property, assumptions }) => {
             <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
               Year {years} Cash Flow
             </p>
-            <p className="text-2xl font-bold text-green-900 dark:text-green-300">
+            <p className="text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
               {formatCurrency(forecastData[forecastData.length - 1]?.netCashFlow || 0)}
             </p>
           </div>
@@ -603,7 +613,7 @@ const BaselineForecast = ({ property, assumptions }) => {
             <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
               {years}-Year Total
             </p>
-            <p className="text-2xl font-bold text-green-900 dark:text-green-300">
+            <p className="text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
               {formatCurrency(forecastData[forecastData.length - 1]?.cumulativeCashFlow || 0)}
             </p>
           </div>
@@ -612,7 +622,7 @@ const BaselineForecast = ({ property, assumptions }) => {
 
       {/* Contextual Insights */}
       {insights.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-black/10 dark:border-white/10">
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
             Key Insights
           </h3>

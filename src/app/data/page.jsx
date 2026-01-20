@@ -1669,7 +1669,25 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
 
   const handleEdit = () => {
     setIsEditing(true);
-    setEditedData(clonePropertyData(property));
+    const cloned = clonePropertyData(property);
+    // Initialize the combined name field for each tenant so EditableDataRow can find it
+    if (cloned.tenants && Array.isArray(cloned.tenants)) {
+      cloned.tenants.forEach((tenant, index) => {
+        if (!tenant.name) {
+          // Format name from firstInitial and lastName
+          let displayName = 'N/A';
+          if (tenant.firstInitial && tenant.lastName) {
+            displayName = `${tenant.firstInitial}. ${tenant.lastName}`;
+          } else if (tenant.firstInitial) {
+            displayName = `${tenant.firstInitial}.`;
+          } else if (tenant.lastName) {
+            displayName = tenant.lastName;
+          }
+          cloned.tenants[index].name = displayName !== 'N/A' ? displayName : '';
+        }
+      });
+    }
+    setEditedData(cloned);
   };
 
   const handleCancel = () => {
@@ -1751,6 +1769,58 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
         parsedValue = value;
       }
       return setValueAtPath(base, path, parsedValue);
+    });
+  }, [property]);
+
+  // Helper function to get tenant display name from firstInitial and lastName
+  const getTenantDisplayName = useCallback((tenant) => {
+    if (!tenant) return 'N/A';
+    // Support both old format (name) and new format (firstInitial + lastName)
+    if (tenant.name) {
+      return tenant.name;
+    }
+    if (tenant.firstInitial && tenant.lastName) {
+      return `${tenant.firstInitial}. ${tenant.lastName}`;
+    }
+    if (tenant.firstInitial) {
+      return `${tenant.firstInitial}.`;
+    }
+    if (tenant.lastName) {
+      return tenant.lastName;
+    }
+    return 'N/A';
+  }, []);
+
+  // Custom handler to update tenant name by splitting full name into firstInitial and lastName
+  const updateTenantName = useCallback((tenantIndex, fullName) => {
+    setEditedData(prev => {
+      const base = prev && Object.keys(prev).length > 0 ? prev : clonePropertyData(property);
+      
+      // Split the full name
+      // If name contains ". ", split at that point (e.g., "A. Shah" -> "A" and "Shah")
+      // Otherwise, split at first space
+      let firstInitial = '';
+      let lastName = '';
+      
+      if (fullName && fullName.trim()) {
+        const trimmed = fullName.trim();
+        if (trimmed.includes('. ')) {
+          const parts = trimmed.split('. ');
+          firstInitial = parts[0].trim().charAt(0).toUpperCase();
+          lastName = parts.slice(1).join('. ').trim();
+        } else {
+          const parts = trimmed.split(' ');
+          firstInitial = parts[0].trim().charAt(0).toUpperCase();
+          lastName = parts.slice(1).join(' ').trim();
+        }
+      }
+      
+      // Update both fields and store the combined name for EditableDataRow
+      let updated = setValueAtPath(base, `tenants.${tenantIndex}.firstInitial`, firstInitial);
+      updated = setValueAtPath(updated, `tenants.${tenantIndex}.lastName`, lastName);
+      updated = setValueAtPath(updated, `tenants.${tenantIndex}.name`, fullName || '');
+      
+      return updated;
     });
   }, [property]);
 
@@ -2261,7 +2331,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
         </div>
       </Section>
 
-      <Section title="Tenant Information" sectionKey="tenantInfo" showEditButton={true}>
+      <Section title="Lease Details" sectionKey="tenantInfo" showEditButton={true}>
         <div className="space-y-1">
           {/* View Toggle and Add Tenant Button */}
           <div className="flex items-center justify-between mb-4">
@@ -2306,26 +2376,25 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
               {(() => {
                 const activeTenant = property.tenants?.find(t => t.status === 'Active') || property.tenant;
                 const tenantIndex = property.tenants?.findIndex(t => t.status === 'Active') ?? 0;
+                // Get display value from editedData or activeTenant
+                const editedTenant = editedData.tenants?.[tenantIndex];
+                const displayName = isEditing && editedTenant
+                  ? getTenantDisplayName(editedTenant)
+                  : getTenantDisplayName(activeTenant);
+                // Determine label based on number of tenants
+                const tenantCount = property.tenants?.length || (property.tenant ? 1 : 0);
+                const tenantLabel = tenantCount > 1 ? "Tenants" : "Tenant";
+                
                 return (
                   <>
                     <EditableDataRow 
-                      label="First Initial" 
-                      value={activeTenant?.firstInitial || (activeTenant?.name ? activeTenant.name.charAt(0).toUpperCase() : '')} 
+                      label={tenantLabel} 
+                      value={displayName} 
                       editable 
-                      field={`tenants.${tenantIndex}.firstInitial`}
+                      field={`tenants.${tenantIndex}.name`}
                       isEditing={isEditing} 
                       editedData={editedData} 
-                      onUpdateField={updateField}
-                      maxLength={1}
-                    />
-                    <EditableDataRow 
-                      label="Last Name" 
-                      value={activeTenant?.lastName || (activeTenant?.name ? activeTenant.name.substring(1).trim() : '')} 
-                      editable 
-                      field={`tenants.${tenantIndex}.lastName`}
-                      isEditing={isEditing} 
-                      editedData={editedData} 
-                      onUpdateField={updateField}
+                      onUpdateField={(path, value) => updateTenantName(tenantIndex, value)}
                     />
                     <EditableDataRow 
                       label="Unit" 
@@ -2384,8 +2453,11 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
             /* All Tenants */
             <div className="space-y-4">
               {property.tenants && property.tenants.length > 0 ? (
-                property.tenants.map((tenant, index) => (
-                  <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                property.tenants.map((tenant, index) => {
+                  const tenantCount = property.tenants?.length || 0;
+                  const tenantLabel = tenantCount > 1 ? "Tenants" : "Tenant";
+                  return (
+                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <div className="space-y-1">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Tenant {index + 1}</span>
@@ -2398,23 +2470,16 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                         </span>
                       </div>
                       <EditableDataRow 
-                        label="First Initial" 
-                        value={tenant.firstInitial || (tenant.name ? tenant.name.charAt(0).toUpperCase() : '')} 
+                        label={tenantLabel} 
+                        value={isEditing && editedData.tenants?.[index] 
+                          ? getTenantDisplayName(editedData.tenants[index])
+                          : getTenantDisplayName(tenant)
+                        } 
                         editable 
-                        field={`tenants.${index}.firstInitial`}
+                        field={`tenants.${index}.name`}
                         isEditing={isEditing} 
                         editedData={editedData} 
-                        onUpdateField={updateField}
-                        maxLength={1}
-                      />
-                      <EditableDataRow 
-                        label="Last Name" 
-                        value={tenant.lastName || (tenant.name ? tenant.name.substring(1).trim() : '')} 
-                        editable 
-                        field={`tenants.${index}.lastName`}
-                        isEditing={isEditing} 
-                        editedData={editedData} 
-                        onUpdateField={updateField}
+                        onUpdateField={(path, value) => updateTenantName(index, value)}
                       />
                       <EditableDataRow 
                         label="Unit" 
@@ -2477,7 +2542,8 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-4 text-gray-500 dark:text-gray-400">
                   <div className="text-sm">No tenant data available</div>

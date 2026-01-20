@@ -14,6 +14,7 @@ import SensitivityDashboard from "@/components/calculators/SensitivityDashboard"
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import SaveScenarioModal from "@/components/calculators/SaveScenarioModal";
 import SavedScenariosPanel from "@/components/calculators/SavedScenariosPanel";
+import SettingsSidebar from "@/components/calculators/SettingsSidebar";
 import { DEFAULT_ASSUMPTIONS, CASH_FLOW_DEFAULT_ASSUMPTIONS, EQUITY_DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
 import { useToast } from "@/context/ToastContext";
@@ -102,8 +103,12 @@ export default function AnalyticsPage() {
   return (
     <RequireAuth>
       <Layout>
-        <div className="space-y-6">
-          <header className="space-y-4">
+        {/* Main container with sidebar layout */}
+        <div className="flex relative" style={{ minHeight: 'calc(100vh - 200px)', background: '#F9FAFB' }}>
+          {/* Main content area with right padding for sidebar */}
+          <div className="flex-1 pr-[300px]">
+            <div className="space-y-6 p-6">
+              <header className="space-y-4">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Analytics</h1>
               <p className="mt-2 text-gray-600 dark:text-gray-300">
@@ -112,34 +117,34 @@ export default function AnalyticsPage() {
                   : "Project your property's equity growth over time. Model how appreciation, interest rates, and principal paydown affect your total equity."
                 }
               </p>
-            </div>
-            
-            {/* Analysis Mode Selector */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleModeChange('cash-flow')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                  analysisMode === 'cash-flow'
-                    ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                }`}
-              >
-                <DollarSign className="w-4 h-4" />
-                Cash Flow Analysis
-              </button>
-              <button
-                onClick={() => handleModeChange('equity')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                  analysisMode === 'equity'
-                    ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                }`}
-              >
-                <TrendingUp className="w-4 h-4" />
-                Equity Analysis
-              </button>
-            </div>
-          </header>
+              </div>
+              
+              {/* Analysis Mode Selector */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleModeChange('cash-flow')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    analysisMode === 'cash-flow'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <DollarSign className="w-4 h-4" />
+                  Cash Flow Analysis
+                </button>
+                <button
+                  onClick={() => handleModeChange('equity')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    analysisMode === 'equity'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Equity Analysis
+                </button>
+              </div>
+            </header>
 
           {/* Tab Navigation */}
           <div className="border-b border-gray-200 dark:border-gray-700">
@@ -168,57 +173,49 @@ export default function AnalyticsPage() {
           <div className="mt-6">
             {activeTab === 'sensitivity' && (
               <div className="space-y-6">
-                {/* Property Selection */}
-                <PropertySelectCard
-                  properties={properties}
-                  selectedPropertyId={selectedPropertyId}
-                  onSelect={setSelectedPropertyId}
-                />
+                {/* Property Selection - wrapped in standardized card */}
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+                  <PropertySelectCard
+                    properties={properties}
+                    selectedPropertyId={selectedPropertyId}
+                    onSelect={setSelectedPropertyId}
+                  />
+                </div>
 
                 {/* Main Analysis Section */}
                 {selectedProperty && (
                   <div className="space-y-6">
-                    {/* Baseline Forecast with Assumptions Bar Above */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            Baseline Forecast
-                          </h2>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            Default 10-year projection based on conservative assumptions
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* Assumptions Panel - Above Chart */}
+                    {/* Assumptions Panel - Presets & Modes only - wrapped in standardized card */}
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
                       {analysisMode === 'cash-flow' ? (
                         <AssumptionsPanel
                           assumptions={assumptions}
                           onAssumptionsChange={setAssumptions}
                           onSaveClick={() => setShowSaveModal(true)}
+                          showInputs={false}
                         />
                       ) : (
                         <EquityAssumptionsPanel
                           assumptions={assumptions}
                           onAssumptionsChange={setAssumptions}
                           onSaveClick={() => setShowSaveModal(true)}
-                        />
-                      )}
-
-                      {/* Forecast Chart */}
-                      {analysisMode === 'cash-flow' ? (
-                        <BaselineForecast 
-                          property={selectedProperty}
-                          assumptions={assumptions}
-                        />
-                      ) : (
-                        <EquityForecast 
-                          property={selectedProperty}
-                          assumptions={assumptions}
+                          showInputs={false}
                         />
                       )}
                     </div>
+
+                    {/* Forecast Chart - already has its own card wrapper */}
+                    {analysisMode === 'cash-flow' ? (
+                      <BaselineForecast 
+                        property={selectedProperty}
+                        assumptions={assumptions}
+                      />
+                    ) : (
+                      <EquityForecast 
+                        property={selectedProperty}
+                        assumptions={assumptions}
+                      />
+                    )}
 
                     {/* Comparison Section */}
                     <div className="space-y-4">
@@ -258,8 +255,10 @@ export default function AnalyticsPage() {
                           </>
                         )}
                         {analysisMode === 'equity' && (
-                          <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                            <p>Equity metrics dashboard coming soon</p>
+                          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+                            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                              <p>Equity metrics dashboard coming soon</p>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -279,15 +278,19 @@ export default function AnalyticsPage() {
                 )}
               </div>
             )}
-
-            {activeTab === 'scenarios' && <ScenarioAnalysisDashboard />}
+            
+            {activeTab === 'scenarios' && (
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+                <ScenarioAnalysisDashboard />
+              </div>
+            )}
             
             {activeTab === 'insights' && (
               <div className="space-y-6">
-                <div className="rounded-lg border border-black/10 dark:border-white/10 p-6">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
                   <h2 className="text-lg font-semibold mb-4">Portfolio Insights</h2>
                   <div className="space-y-4">
-                    <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
                       <h3 className="font-medium mb-2 flex items-center gap-2">
                         <Lightbulb className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                         Top Performing Property
@@ -300,7 +303,7 @@ export default function AnalyticsPage() {
                       </p>
                     </div>
                     
-                    <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
                       <h3 className="font-medium mb-2 flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                         Portfolio Diversification
@@ -311,7 +314,7 @@ export default function AnalyticsPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
                       <h3 className="font-medium mb-2 flex items-center gap-2">
                         <Target className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                         Risk Assessment
@@ -326,6 +329,16 @@ export default function AnalyticsPage() {
               </div>
             )}
           </div>
+            </div>
+          </div>
+
+          {/* Settings Sidebar */}
+          {selectedProperty && activeTab === 'sensitivity' && (
+            <SettingsSidebar
+              assumptions={assumptions}
+              onAssumptionsChange={setAssumptions}
+            />
+          )}
         </div>
       </Layout>
     </RequireAuth>

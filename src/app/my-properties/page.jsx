@@ -12,7 +12,7 @@ import { useAccount } from "@/context/AccountContext";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
 import { getPropertySlug } from "@/utils/slug";
 import { orderProperties, getPropertyOrder } from "@/utils/propertyOrder";
-import { Building2, PiggyBank, FileSpreadsheet, Plus, Settings, GripVertical, X } from "lucide-react";
+import { Building2, TrendingUp, Receipt, Plus, Settings, GripVertical, X } from "lucide-react";
 import { getCurrentMortgageBalance, getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from "@/utils/mortgageCalculator";
 import { ListPageHeader } from "@/components/shared";
 import { calculateIRR as calculateIRRProper } from "@/utils/financialCalculations";
@@ -819,7 +819,7 @@ function PropertyCard({ property }) {
                     </div>
                   </>
                 }
-                icon={PiggyBank}
+                icon={TrendingUp}
                 accent="teal"
                 tooltipText={`Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.`}
                 onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ESTIMATED EQUITY', text: `Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.` } : null)}
@@ -839,7 +839,7 @@ function PropertyCard({ property }) {
                     </div>
                   </>
                 }
-                icon={FileSpreadsheet}
+                icon={Receipt}
                 accent="amber"
                 tooltipText={`Your total annual mortgage payments (principal and interest) for this property. This represents your annual debt obligations and helps you understand cash flow requirements.`}
                 onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ANNUAL DEBT SERVICE', text: `Your total annual mortgage payments (principal and interest) for this property. This represents your annual debt obligations and helps you understand cash flow requirements.` } : null)}

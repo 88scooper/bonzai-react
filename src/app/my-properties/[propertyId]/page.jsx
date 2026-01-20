@@ -12,7 +12,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, L
 import AnnualExpenseChart from '@/components/charts/AnnualExpenseChart';
 import { useToast } from "@/context/ToastContext";
 import { useAccount } from "@/context/AccountContext";
-import { X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar, Plus, Edit2, Trash2, Check, Building2, PiggyBank, FileSpreadsheet } from "lucide-react";
+import { X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, FileText, DollarSign, TrendingUp, Home, Users, BarChart3, PieChart as PieChartIcon, Calendar, Plus, Edit2, Trash2, Check, Building2, Receipt } from "lucide-react";
 import PropertyHeader from "@/components/shared/PropertyHeader";
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import { DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
@@ -1460,7 +1460,7 @@ export default function PropertyDetailPage() {
             <TopMetricCard
               title="Forecasted Annual Equity"
               value={formatCurrencyNoDecimals(financialMetrics.forecastedEquity)}
-              icon={PiggyBank}
+              icon={TrendingUp}
               accent="teal"
               supporting={
                 <>
@@ -1479,7 +1479,7 @@ export default function PropertyDetailPage() {
             <TopMetricCard
               title="Annual Debt Service"
               value={formatCurrencyNoDecimals(financialMetrics.annualDebtService)}
-              icon={FileSpreadsheet}
+              icon={Receipt}
               accent="amber"
               supporting={
                 <>

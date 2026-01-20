@@ -10,9 +10,9 @@ import Input from "@/components/Input";
 import DateInput from "@/components/DateInput";
 import SelectInput from "@/components/SelectInput";
 import { 
-  Home, 
-  User,
-  Receipt, 
+  Landmark, 
+  UserCheck,
+  BarChart3, 
   CheckCircle2, 
   ChevronDown, 
   ChevronUp, 
@@ -966,7 +966,7 @@ export default function PropertyFinancialDataForm({
               1
             </div>
             <div className={`p-2.5 rounded-lg ${isIncomeComplete() ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
-              <User className={`w-6 h-6 ${isIncomeComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
+              <UserCheck className={`w-6 h-6 ${isIncomeComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
             </div>
             <div className="text-left">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
@@ -1151,7 +1151,7 @@ export default function PropertyFinancialDataForm({
               2
             </div>
             <div className={`p-2.5 rounded-lg ${isExpensesComplete() ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
-              <Receipt className={`w-6 h-6 ${isExpensesComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
+              <BarChart3 className={`w-6 h-6 ${isExpensesComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
             </div>
             <div className="text-left">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
@@ -1356,7 +1356,7 @@ export default function PropertyFinancialDataForm({
               3
             </div>
             <div className={`p-2.5 rounded-lg ${isMortgageComplete() ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
-              <Home className={`w-6 h-6 ${isMortgageComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
+              <Landmark className={`w-6 h-6 ${isMortgageComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
             </div>
             <div className="text-left">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white">

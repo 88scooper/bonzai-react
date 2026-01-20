@@ -23,7 +23,7 @@ export default function YoYAnalysis({ property, assumptions, baselineAssumptions
 
   if (!yoyMetrics) {
     return (
-      <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 shadow-sm">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="w-full flex items-center justify-between px-4 py-3 text-left"
@@ -131,7 +131,7 @@ export default function YoYAnalysis({ property, assumptions, baselineAssumptions
         <div className="px-4 pb-6 pt-2">
       {/* Data Quality Warning */}
       {warningMessage && (
-        <div className={`mb-4 rounded-lg border p-4 ${getWarningStyle()}`}>
+        <div className={`mb-4 rounded-xl border p-4 ${getWarningStyle()}`}>
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 mt-0.5">
               {getWarningIcon()}

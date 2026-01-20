@@ -16,6 +16,7 @@ export const CASH_FLOW_DEFAULT_ASSUMPTIONS = {
   annualRentIncrease: 2.0, // 2% per year
   annualExpenseInflation: 2.5, // 2.5% per year
   vacancyRate: 5.0, // 5% vacancy allowance
+  futureInterestRate: 5.0, // 5% for mortgage renewals
 };
 
 /**

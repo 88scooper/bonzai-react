@@ -8,7 +8,7 @@ import { useAccount } from "@/context/AccountContext";
 import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import AnnualAssumptionsModal from "@/components/AnnualAssumptionsModal";
-import { Settings, GripVertical, Building2, PiggyBank, FileSpreadsheet, BarChart3, PieChart as PieChartIcon, X } from "lucide-react";
+import { Settings, GripVertical, Building2, TrendingUp, Receipt, BarChart3, PieChart as PieChartIcon, X } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -1155,7 +1155,7 @@ function PortfolioSummaryContent() {
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
                         }).format(Math.floor(annualEquityBuilt))}
-                        icon={PiggyBank}
+                        icon={TrendingUp}
                         accent="teal"
                         iconBadge="$"
                         iconBadgePosition="top-center"
@@ -1190,7 +1190,7 @@ function PortfolioSummaryContent() {
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0,
                         }).format(Math.floor(totalAnnualDebtService))}
-                        icon={FileSpreadsheet}
+                        icon={Receipt}
                         accent="amber"
                         supporting={
                           <>

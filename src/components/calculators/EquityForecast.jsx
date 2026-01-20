@@ -69,14 +69,14 @@ const EquityForecast = ({ property, assumptions }) => {
   const showRightAxis = visibleMetrics.mortgageBalance;
   const useDualAxis = showLeftAxis && showRightAxis;
 
-  // Custom tooltip for chart
+  // Custom tooltip for chart with tabular-nums
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-          <p className="font-semibold text-gray-900 dark:text-white mb-2">Year {label}</p>
+          <p className="font-semibold text-gray-900 dark:text-white mb-2 tabular-nums">Year {label}</p>
           {payload.map((entry, index) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
+            <p key={index} className="text-sm tabular-nums" style={{ color: entry.color }}>
               {entry.name}: {formatCurrency(entry.value)}
             </p>
           ))}
@@ -89,11 +89,11 @@ const EquityForecast = ({ property, assumptions }) => {
   // Custom legend with click handlers
   const renderCustomLegend = () => {
     const allMetrics = [
-      { key: 'totalEquity', name: 'Total Equity', color: '#3b82f6' },
-      { key: 'propertyValue', name: 'Property Value', color: '#10b981' },
-      { key: 'mortgageBalance', name: 'Mortgage Balance', color: '#ef4444' },
-      { key: 'equityFromAppreciation', name: 'Equity from Appreciation', color: '#8b5cf6' },
-      { key: 'equityFromPaydown', name: 'Equity from Paydown', color: '#f59e0b' },
+      { key: 'totalEquity', name: 'Total Equity', color: '#205A3E' }, // Bonsai Green
+      { key: 'propertyValue', name: 'Property Value', color: '#94A3B8' }, // Light Slate for baseline
+      { key: 'mortgageBalance', name: 'Mortgage Balance', color: '#ef4444' }, // Red for debt
+      { key: 'equityFromAppreciation', name: 'Equity from Appreciation', color: '#94A3B8' }, // Light Slate
+      { key: 'equityFromPaydown', name: 'Equity from Paydown', color: '#94A3B8' }, // Light Slate
     ];
 
     return (
@@ -271,7 +271,7 @@ const EquityForecast = ({ property, assumptions }) => {
 
   if (!property) {
     return (
-      <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 shadow-sm p-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
         <p className="text-gray-500 dark:text-gray-400 text-center">
           Select a property to view equity forecast
         </p>
@@ -281,7 +281,7 @@ const EquityForecast = ({ property, assumptions }) => {
 
   if (forecastData.length === 0) {
     return (
-      <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 shadow-sm p-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
         <p className="text-gray-500 dark:text-gray-400 text-center">
           Unable to generate forecast. Please check property data.
         </p>
@@ -411,18 +411,27 @@ const EquityForecast = ({ property, assumptions }) => {
             data={forecastData}
             margin={{ top: 5, right: showRightAxis ? 30 : 20, left: 20, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+            {/* Grid - only horizontal lines with subtle color */}
+            <CartesianGrid 
+              strokeDasharray="1 3" 
+              stroke="#f1f5f9" 
+              horizontal={true} 
+              vertical={false}
+              className="dark:stroke-gray-800"
+            />
             <XAxis
               dataKey="year"
-              className="text-gray-600 dark:text-gray-400"
+              className="text-gray-600 dark:text-gray-400 tabular-nums"
               label={{ value: 'Year', position: 'insideBottom', offset: -5 }}
+              tick={{ className: 'tabular-nums' }}
             />
             {showLeftAxis && (
               <YAxis
                 yAxisId="left"
                 tickFormatter={(value) => formatYAxisTick(value, false)}
                 label={{ value: 'Equity/Value ($)', angle: -90, position: 'insideLeft' }}
-                className="text-gray-600 dark:text-gray-400"
+                className="text-gray-600 dark:text-gray-400 tabular-nums"
+                tick={{ className: 'tabular-nums' }}
               />
             )}
             {showRightAxis && (
@@ -431,7 +440,8 @@ const EquityForecast = ({ property, assumptions }) => {
                 orientation="right"
                 tickFormatter={(value) => formatYAxisTick(value, true)}
                 label={{ value: 'Mortgage Balance ($)', angle: 90, position: 'insideRight' }}
-                className="text-gray-600 dark:text-gray-400"
+                className="text-gray-600 dark:text-gray-400 tabular-nums"
+                tick={{ className: 'tabular-nums' }}
               />
             )}
             <Tooltip content={<CustomTooltip />} />
@@ -441,9 +451,9 @@ const EquityForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="totalEquity"
                 name="Total Equity"
-                stroke="#3b82f6"
+                stroke="#205A3E"
                 strokeWidth={2}
-                dot={{ fill: '#3b82f6', r: 4 }}
+                dot={{ fill: '#205A3E', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
                 isAnimationActive={true}
@@ -457,9 +467,9 @@ const EquityForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="propertyValue"
                 name="Property Value"
-                stroke="#10b981"
+                stroke="#94A3B8"
                 strokeWidth={2}
-                dot={{ fill: '#10b981', r: 4 }}
+                dot={{ fill: '#94A3B8', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
                 isAnimationActive={true}
@@ -473,9 +483,9 @@ const EquityForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="equityFromAppreciation"
                 name="Equity from Appreciation"
-                stroke="#8b5cf6"
+                stroke="#94A3B8"
                 strokeWidth={2}
-                dot={{ fill: '#8b5cf6', r: 4 }}
+                dot={{ fill: '#94A3B8', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
                 isAnimationActive={true}
@@ -489,9 +499,9 @@ const EquityForecast = ({ property, assumptions }) => {
                 type="monotone"
                 dataKey="equityFromPaydown"
                 name="Equity from Paydown"
-                stroke="#f59e0b"
+                stroke="#94A3B8"
                 strokeWidth={2}
-                dot={{ fill: '#f59e0b', r: 4 }}
+                dot={{ fill: '#94A3B8', r: 4 }}
                 activeDot={{ r: 6 }}
                 yAxisId="left"
                 isAnimationActive={true}

@@ -1,0 +1,76 @@
+Section,Field,Description,Value,Notes
+Property Identity,Property ID,Unique identifier,queen-west-condo-1205,Lowercase with hyphens
+Property Identity,Display Name,Full property name,Queen West Condo,Full property name shown in app
+Property Identity,Nickname,Short label,Queen West Condo,Short label for cards
+Property Identity,Street Number,Street number only,550,Street number
+Property Identity,Street Name,Street name without number,Queen Street West,Street name
+Property Identity,Unit,Unit or suite identifier,Unit 1205,Unit/suite number
+Property Identity,City,City or municipality,Toronto,City name
+Property Identity,Province/State,Two-letter region code,ON,Province code
+Property Identity,Postal Code,Standard postal format,M5V 2B7,Postal code
+Property Identity,Country,Two-letter country code,CA,Country code
+Property Profile,Property Type,Property type for filtering,Condo,Property type
+Property Profile,Year Built,4-digit construction year,2018,Year built
+Property Profile,Size (SF),Interior square footage,850,Square footage
+Property Profile,Unit Configuration,Beds/Baths description,2 Bed / 2 Bath,Unit configuration
+Property Profile,Units,Number of rentable units,1,Number of units
+Property Profile,Bedrooms Per Unit,Comma-separated bedroom counts,2,Bedrooms
+Property Profile,Bathrooms Per Unit,Comma-separated bathroom counts,2,Bathrooms
+Property Profile,Image URL,Path or URL to display photo,,Optional image
+Acquisition & Valuation,Purchase Date,Date property was acquired,2024-01-01,YYYY-MM-DD format
+Acquisition & Valuation,Purchase Price,Contract purchase price,680000,Numbers only
+Acquisition & Valuation,Closing Costs,Total closing costs at acquisition,18000,Closing costs
+Acquisition & Valuation,Initial Renovations,Pre-rent capital improvements,0,Initial renovations
+Acquisition & Valuation,Capital Improvements Since Purchase,Additional capex after closing,0,Capital improvements
+Acquisition & Valuation,Current Market Value,Most recent appraised value,720000,Current market value
+Acquisition & Valuation,Latest Valuation Date,Date for current market value,,Optional
+Acquisition & Valuation,Total Cash Invested,Down Payment + Closing + Renovations,154000,Calculated: 136000 + 18000 + 0
+Rental Profile,Current Tenant Name,Name of current tenant,Alex Chen,Current tenant
+Rental Profile,Current Tenant Unit,Unit identifier for tenant,Unit 1205,Unit identifier
+Rental Profile,Current Lease Start,Lease start date,2024-02-01,YYYY-MM-DD format
+Rental Profile,Current Lease End,Lease end date or Active,2026-01-31,YYYY-MM-DD or Active
+Rental Profile,Current Monthly Rent,Monthly rent received,3400,Monthly rent
+Rental Profile,Other Monthly Income,Recurring monthly income,0,Parking storage etc
+Rental Profile,Lease Status,Active or Vacant,Active,Lease status
+Rental Profile,Annual Rent (Current),Auto-calculated from monthly rent,40800,Calculated: 3400 × 12
+Operating Expenses (Monthly),Property Tax,Monthly property tax,283,Monthly property tax
+Operating Expenses (Monthly),Condo/HOA Fees,Monthly condo or HOA dues,675,Monthly condo fees
+Operating Expenses (Monthly),Insurance,Monthly insurance premium,52,Monthly insurance
+Operating Expenses (Monthly),Repairs & Maintenance,Average monthly maintenance,125,Monthly maintenance reserve
+Operating Expenses (Monthly),Professional Fees,Monthly average for accounting/legal,0,Professional fees
+Operating Expenses (Monthly),Utilities,Monthly utilities paid by owner,0,Owner-paid utilities
+Operating Expenses (Monthly),Mortgage Payment,Auto-calculated from mortgage details,3175,Calculated from mortgage
+Operating Expenses (Monthly),Mortgage Interest Portion,Monthly interest portion,2567,Monthly interest
+Operating Expenses (Monthly),Mortgage Principal Portion,Monthly principal portion,608,Monthly principal
+Income & Expense Years,Year Sequence,Chronological sequence for annual metrics,2024|2025|2026|2027|2028,Use | between years
+Annual Income,Rent (Annual),Annual rent totals by year,2024=37400;2025=40800;2026=41820;2027=42864;2028=43932,YYYY=value format
+Annual Income,Parking Income,Optional annual parking income,2024=0;2025=0;2026=0;2027=0;2028=0,YYYY=value format
+Annual Income,Laundry Income,Optional annual laundry income,2024=0;2025=0;2026=0;2027=0;2028=0,YYYY=value format
+Annual Income,Other Income,Other recurring income,2024=0;2025=0;2026=0;2027=0;2028=0,YYYY=value format
+Annual Expenses,Insurance,Annual insurance totals by year,2024=624;2025=643;2026=662;2027=682;2028=702,YYYY=value format
+Annual Expenses,Interest & Bank Charges,Annual mortgage interest by year,2024=30800;2025=30200;2026=29600;2027=28950;2028=28300,YYYY=value format
+Annual Expenses,Professional Fees,Annual legal/accounting fees,2024=0;2025=0;2026=0;2027=0;2028=0,YYYY=value format
+Annual Expenses,Repairs & Maintenance,Annual maintenance spend by year,2024=1500;2025=1500;2026=1800;2027=1500;2028=2000,YYYY=value format
+Annual Expenses,Property Taxes,Annual property tax totals by year,2024=3400;2025=3502;2026=3607;2027=3715;2028=3826,YYYY=value format
+Annual Expenses,Management & Administration,Annual management fees,2024=0;2025=0;2026=0;2027=0;2028=0,YYYY=value format
+Annual Expenses,Utilities,Owner-paid utilities per year,2024=0;2025=0;2026=0;2027=0;2028=0,YYYY=value format
+Annual Expenses,Travel,Travel costs attributable to property,2024=0;2025=0;2026=0;2027=0;2028=0,YYYY=value format
+Annual Expenses,Motor Vehicle Expenses,Vehicle expenses allocated,2024=50;2025=50;2026=50;2027=50;2028=50,YYYY=value format
+Annual Expenses,Condo/HOA Fees,Annual condo or HOA dues,2024=8100;2025=8343;2026=8593;2027=8851;2028=9116,YYYY=value format
+Annual Expenses,Other Rental Expenses,Miscellaneous deductible expenses,2024=0;2025=0;2026=0;2027=0;2028=0,YYYY=value format
+Annual Expenses,Mortgage Principal,Principal paid each year,2024=10060;2025=10320;2026=10590;2027=10870;2028=11160,YYYY=value format
+Mortgage Details,Primary Lender,Name of lender for primary mortgage,TD Canada Trust,Lender name
+Mortgage Details,Original Loan Amount,Principal advanced at origination,544000,Original loan amount
+Mortgage Details,Interest Rate (decimal),Enter as decimal,0.0575,0.0575 for 5.75%
+Mortgage Details,Rate Type,Fixed or Variable,Fixed,Rate type
+Mortgage Details,Amortization (years),Total amortization period,30,Amortization in years
+Mortgage Details,Term (months),Remaining term length in months,60,Term in months
+Mortgage Details,Payment Frequency,Payment cadence,Monthly,Payment frequency
+Mortgage Details,Start Date,Date mortgage started,2024-01-01,YYYY-MM-DD format
+Mortgage Details,Mortgage Type,Closed Open HELOC etc,Closed,Mortgage type
+Mortgage Details,Fixed Payments,Yes if payments constant,Yes,Fixed payments
+Mortgage Details,Second Mortgage Lender,Name of secondary lender,,Optional
+Mortgage Details,Second Mortgage Amount,Original amount of second mortgage,,Optional
+Mortgage Details,Second Mortgage Rate (decimal),Decimal format,,Optional
+Mortgage Details,Second Mortgage Term (months),Term length for second mortgage,,Optional
+Notes,General Notes,Freeform notes about property,Cash flow positive Toronto condo in Queen West area. 2BR/2BA unit with good rental demand.,General notes

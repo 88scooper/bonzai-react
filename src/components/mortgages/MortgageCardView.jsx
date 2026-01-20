@@ -366,23 +366,27 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
         </div>
       </div>
 
-      {/* Mortgage & Payment Details - Single Dropdown */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-black/10 dark:border-white/10">
-        <button
-          onClick={() => setShowMortgageDetails(!showMortgageDetails)}
-          className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Mortgage & Payment Details
-          </h3>
-          {showMortgageDetails ? (
-            <ChevronUp className="w-5 h-5 text-gray-500" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-500" />
-          )}
-        </button>
-        {showMortgageDetails && (
-          <div className="px-6 pb-6">
+      {/* Accordion Sections Container */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        {/* Mortgage & Payment Details - Single Dropdown */}
+        <div>
+          <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <button
+              onClick={() => setShowMortgageDetails(!showMortgageDetails)}
+              className="flex-1 flex items-center justify-between text-left"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Mortgage & Payment Details
+              </h3>
+              {showMortgageDetails ? (
+                <ChevronUp className="w-5 h-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-500" />
+              )}
+            </button>
+          </div>
+          {showMortgageDetails && (
+            <div className="p-4 pt-0 bg-gray-50 dark:bg-gray-800/50">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
               {/* Left Column - Mortgage Details */}
@@ -508,54 +512,55 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
       </div>
 
       {/* Amortization Schedule Dropdown */}
-      <div className="mt-6">
-        <button
-          onClick={() => setShowAmortizationSchedule(!showAmortizationSchedule)}
-          className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 rounded-xl border border-black/10 dark:border-white/10"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Amortization Schedule
-          </h3>
-          {showAmortizationSchedule ? (
-            <ChevronUp className="w-5 h-5 text-gray-500" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-500" />
-          )}
-        </button>
+      <div className="border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <button
+            onClick={() => setShowAmortizationSchedule(!showAmortizationSchedule)}
+            className="flex-1 flex items-center justify-between text-left"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Amortization Schedule
+            </h3>
+            {showAmortizationSchedule ? (
+              <ChevronUp className="w-5 h-5 text-gray-500" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-500" />
+            )}
+          </button>
+        </div>
         
         {showAmortizationSchedule && (
-          <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-4">
+          <div className="p-4 pt-0 bg-gray-50 dark:bg-gray-800/50">
               <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Payment Schedule</h4>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-600">
-                      <th className="text-left py-2 font-medium text-gray-700 dark:text-gray-300">Payment #</th>
-                      <th className="text-left py-2 font-medium text-gray-700 dark:text-gray-300">Date</th>
-                      <th className="text-right py-2 font-medium text-gray-700 dark:text-gray-300">Principal</th>
-                      <th className="text-right py-2 font-medium text-gray-700 dark:text-gray-300">Interest</th>
-                      <th className="text-right py-2 font-medium text-gray-700 dark:text-gray-300">Total</th>
-                      <th className="text-right py-2 font-medium text-gray-700 dark:text-gray-300">Balance</th>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300">Payment #</th>
+                      <th className="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300">Date</th>
+                      <th className="text-right py-3 px-4 font-semibold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300">Principal</th>
+                      <th className="text-right py-3 px-4 font-semibold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300">Interest</th>
+                      <th className="text-right py-3 px-4 font-semibold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300">Total</th>
+                      <th className="text-right py-3 px-4 font-semibold text-xs uppercase tracking-wider text-gray-700 dark:text-gray-300">Balance</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
                     {mortgageData.schedule.slice(0, 12).map((payment, index) => (
-                      <tr key={index} className="border-b border-gray-100 dark:border-gray-700">
-                        <td className="py-2 text-gray-900 dark:text-white">{payment.paymentNumber}</td>
-                        <td className="py-2 text-gray-600 dark:text-gray-400">
+                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">{payment.paymentNumber}</td>
+                        <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
                           {new Date(payment.paymentDate).toLocaleDateString()}
                         </td>
-                        <td className="text-right py-2 text-emerald-600 dark:text-emerald-400">
+                        <td className="text-right py-3 px-4 font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
                           {formatCurrency(payment.principal)}
                         </td>
-                        <td className="text-right py-2 text-red-600 dark:text-red-400">
+                        <td className="text-right py-3 px-4 font-semibold tabular-nums text-red-600 dark:text-red-400">
                           {formatCurrency(payment.interest)}
                         </td>
-                        <td className="text-right py-2 font-medium text-gray-900 dark:text-white">
+                        <td className="text-right py-3 px-4 font-semibold tabular-nums text-gray-900 dark:text-white">
                           {formatCurrency(payment.monthlyPayment)}
                         </td>
-                        <td className="text-right py-2 text-gray-600 dark:text-gray-400">
+                        <td className="text-right py-3 px-4 tabular-nums text-gray-600 dark:text-gray-400">
                           {formatCurrency(payment.remainingBalance)}
                         </td>
                       </tr>
@@ -576,29 +581,30 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
                   </div>
                 )}
               </div>
-            </div>
           </div>
         )}
       </div>
 
       {/* Mortgage Chart Dropdown */}
-      <div className="mt-6">
-        <button
-          onClick={() => setShowMortgageChart(!showMortgageChart)}
-          className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 rounded-xl border border-black/10 dark:border-white/10"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Year Over Year Payment Chart
-          </h3>
-          {showMortgageChart ? (
-            <ChevronUp className="w-5 h-5 text-gray-500" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-500" />
-          )}
-        </button>
+      <div className="border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <button
+            onClick={() => setShowMortgageChart(!showMortgageChart)}
+            className="flex-1 flex items-center justify-between text-left"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Year Over Year Payment Chart
+            </h3>
+            {showMortgageChart ? (
+              <ChevronUp className="w-5 h-5 text-gray-500" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-500" />
+            )}
+          </button>
+        </div>
         
         {showMortgageChart && (
-          <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden p-6">
+          <div className="p-4 pt-0 bg-gray-50 dark:bg-gray-800/50">
             {yearlyChartData.length > 0 ? (
               <>
                 <div className="mb-4">
@@ -672,6 +678,7 @@ const MortgageCardView = ({ mortgage, onEdit }) => {
             )}
           </div>
         )}
+      </div>
       </div>
 
       {/* Complete Amortization Schedule Modal */}

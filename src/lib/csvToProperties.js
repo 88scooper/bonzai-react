@@ -27,11 +27,15 @@ function parseTemplateFormatCSV(csvText, propertyId) {
     if (!line.trim()) continue;
     
     const parts = parseCSVLine(line);
-    if (parts.length < 6) continue;
+    // Template format has: Section,Field,Description,Value,Notes (5 columns)
+    // Or: Section,Field,Description,Value,Notes,Property1,... (6+ columns for multiple properties)
+    if (parts.length < 4) continue;
     
     const section = parts[0];
     const field = parts[1];
-    const value = parts[5]; // Property 1 column
+    // Value column is at index 3 (0-indexed: Section=0, Field=1, Description=2, Value=3, Notes=4)
+    // If there are multiple property columns, use index 5 (Property 1 column)
+    const value = parts.length >= 6 ? parts[5] : parts[3];
     
     if (!value || value.trim() === '') continue;
     
@@ -262,15 +266,15 @@ function buildPropertyFromSimpleData(data, propertyId) {
   // Calculate total investment including Land Transfer Tax
   const downPayment = property.purchasePrice - property.mortgage.originalAmount;
   
-  // Extract city from address or use property data
-  const city = property.address?.includes('Toronto') ? 'Toronto' : 
-               (data['address_city'] || '');
+  // Extract city from address or use property data (reuse existing city variable)
+  const cityForLTT = property.address?.includes('Toronto') ? 'Toronto' : 
+                      (city || '');
   const province = 'ON'; // Assuming Ontario for now
   
   // Calculate LTT (with manual override if property.landTransferTax is set)
   const landTransferTax = calculateLandTransferTax(
     property.purchasePrice, 
-    city, 
+    cityForLTT, 
     province, 
     property.landTransferTax // Manual override if provided
   );
@@ -350,9 +354,207 @@ function buildTenantHistory(data) {
 }
 
 function buildPropertyFromTemplateData(data, propertyId) {
-  // Similar structure but parse from template format
-  // Implementation would be similar but use different field names
-  return buildPropertyFromSimpleData(data, propertyId);
+  // Map template format fields to property structure
+  // Template format uses: Section_Field as keys (e.g., "Property Identity_Property ID")
+  
+  // Build address from components
+  const streetNumber = data['Property Identity_Street Number'] || '';
+  const streetName = data['Property Identity_Street Name'] || '';
+  const unit = data['Property Identity_Unit'] || '';
+  const city = data['Property Identity_City'] || 'Toronto';
+  const province = data['Property Identity_Province/State'] || 'ON';
+  const postalCode = data['Property Identity_Postal Code'] || '';
+  
+  const addressParts = [streetNumber, unit, streetName].filter(p => p);
+  const address = `${addressParts.join(' ')}, ${city}, ${province} ${postalCode}`;
+  
+  // Parse purchase date
+  const purchaseDate = parseDate(data['Acquisition & Valuation_Purchase Date']);
+  
+  // Parse annual income/expense data
+  const parseAnnualData = (fieldName) => {
+    const value = data[fieldName];
+    if (!value) return {};
+    
+    // Format: "2024=37400;2025=40800;2026=41820"
+    const annualData = {};
+    if (typeof value === 'string' && value.includes('=')) {
+      const pairs = value.split(';');
+      pairs.forEach(pair => {
+        const [year, amount] = pair.split('=');
+        if (year && amount) {
+          annualData[year.trim()] = parseNumber(amount.trim());
+        }
+      });
+    }
+    return annualData;
+  };
+  
+  // Build property object
+  const property = {
+    id: propertyId || data['Property Identity_Property ID'] || `property-${Date.now()}`,
+    nickname: data['Property Identity_Display Name'] || data['Property Identity_Nickname'] || streetName || 'Property',
+    address: address,
+    purchasePrice: parseNumber(data['Acquisition & Valuation_Purchase Price']),
+    purchaseDate: purchaseDate,
+    closingCosts: parseNumber(data['Acquisition & Valuation_Closing Costs']),
+    initialRenovations: parseNumber(data['Acquisition & Valuation_Initial Renovations']),
+    renovationCosts: parseNumber(data['Acquisition & Valuation_Capital Improvements Since Purchase']),
+    currentMarketValue: parseNumber(data['Acquisition & Valuation_Current Market Value']),
+    yearBuilt: parseInt(data['Property Profile_Year Built'] || '0'),
+    propertyType: data['Property Profile_Property Type'] || 'Condo',
+    size: parseNumber(data['Property Profile_Size (SF)']),
+    unitConfig: data['Property Profile_Unit Configuration'] || '',
+    
+    mortgage: {
+      lender: data['Mortgage Details_Primary Lender'] || '',
+      originalAmount: parseNumber(data['Mortgage Details_Original Loan Amount']),
+      interestRate: parseNumber(data['Mortgage Details_Interest Rate (decimal)']),
+      rateType: data['Mortgage Details_Rate Type'] || 'Fixed',
+      termMonths: parseInt(data['Mortgage Details_Term (months)'] || '60'),
+      amortizationYears: parseInt(data['Mortgage Details_Amortization (years)'] || '30'),
+      paymentFrequency: data['Mortgage Details_Payment Frequency'] || 'Monthly',
+      startDate: parseDate(data['Mortgage Details_Start Date']),
+      mortgageType: data['Mortgage Details_Mortgage Type'] || 'Closed',
+      fixedPayments: data['Mortgage Details_Fixed Payments'] === 'Yes',
+    },
+    
+    rent: {
+      monthlyRent: parseNumber(data['Rental Profile_Current Monthly Rent']),
+      annualRent: parseNumber(data['Rental Profile_Annual Rent (Current)']),
+    },
+    
+    expenseHistory: buildExpenseHistoryFromTemplate(data),
+    
+    tenant: {
+      name: data['Rental Profile_Current Tenant Name'] || '',
+      unit: data['Rental Profile_Current Tenant Unit'] || '',
+      leaseStartDate: parseDate(data['Rental Profile_Current Lease Start']),
+      leaseEndDate: data['Rental Profile_Current Lease End'] || 'Active',
+      rent: parseNumber(data['Rental Profile_Current Monthly Rent']),
+      status: data['Rental Profile_Lease Status'] || 'Active'
+    },
+    
+    // Additional fields
+    name: data['Property Identity_Display Name'] || streetName || 'Property',
+    type: data['Property Profile_Property Type'] || 'Condo',
+    units: parseInt(data['Property Profile_Units'] || '1'),
+    bedrooms: [parseInt(data['Property Profile_Bedrooms Per Unit'] || '0')],
+    bathrooms: [parseInt(data['Property Profile_Bathrooms Per Unit'] || '0')],
+    squareFootage: parseNumber(data['Property Profile_Size (SF)']),
+    currentValue: parseNumber(data['Acquisition & Valuation_Current Market Value']),
+    imageUrl: data['Property Profile_Image URL'] || '',
+    tenants: [],
+  };
+  
+  // Calculate monthly expenses from Operating Expenses section
+  property.monthlyPropertyTax = parseNumber(data['Operating Expenses (Monthly)_Property Tax']);
+  property.monthlyCondoFees = parseNumber(data['Operating Expenses (Monthly)_Condo/HOA Fees']);
+  property.monthlyInsurance = parseNumber(data['Operating Expenses (Monthly)_Insurance']);
+  property.monthlyMaintenance = parseNumber(data['Operating Expenses (Monthly)_Repairs & Maintenance']);
+  property.monthlyProfessionalFees = parseNumber(data['Operating Expenses (Monthly)_Professional Fees']);
+  property.monthlyUtilities = parseNumber(data['Operating Expenses (Monthly)_Utilities']);
+  
+  property.monthlyExpenses = {
+    propertyTax: property.monthlyPropertyTax,
+    condoFees: property.monthlyCondoFees,
+    insurance: property.monthlyInsurance,
+    maintenance: property.monthlyMaintenance,
+    professionalFees: property.monthlyProfessionalFees,
+    utilities: property.monthlyUtilities,
+    mortgagePayment: parseNumber(data['Operating Expenses (Monthly)_Mortgage Payment']),
+    mortgageInterest: parseNumber(data['Operating Expenses (Monthly)_Mortgage Interest Portion']),
+    mortgagePrincipal: parseNumber(data['Operating Expenses (Monthly)_Mortgage Principal Portion']),
+    total: 0 // Will be calculated
+  };
+  
+  // Calculate total investment
+  const downPayment = property.purchasePrice - property.mortgage.originalAmount;
+  const landTransferTax = calculateLandTransferTax(
+    property.purchasePrice,
+    city,
+    province,
+    null // No manual override
+  );
+  
+  property.totalInvestment = downPayment + 
+                             property.closingCosts + 
+                             property.initialRenovations + 
+                             property.renovationCosts + 
+                             landTransferTax;
+  property.landTransferTax = landTransferTax;
+  property.appreciation = property.currentMarketValue - property.purchasePrice;
+  
+  return property;
+}
+
+function buildExpenseHistoryFromTemplate(data) {
+  const expenseHistory = [];
+  
+  // Parse annual income/expense data
+  const parseAnnualField = (fieldName) => {
+    const value = data[fieldName];
+    if (!value) return {};
+    
+    // Format: "2024=37400;2025=40800;2026=41820"
+    const annualData = {};
+    if (typeof value === 'string' && value.includes('=')) {
+      const pairs = value.split(';');
+      pairs.forEach(pair => {
+        const [year, amount] = pair.split('=');
+        if (year && amount) {
+          annualData[year.trim()] = parseNumber(amount.trim());
+        }
+      });
+    }
+    return annualData;
+  };
+  
+  // Get years from Year Sequence
+  const yearSequence = data['Income & Expense Years_Year Sequence'] || '';
+  const years = yearSequence.split('|').map(y => y.trim()).filter(y => y);
+  
+  // Map expense categories
+  const expenseCategories = {
+    'Annual Expenses_Insurance': 'Insurance',
+    'Annual Expenses_Interest & Bank Charges': 'Other',
+    'Annual Expenses_Professional Fees': 'Professional Fees',
+    'Annual Expenses_Repairs & Maintenance': 'Maintenance',
+    'Annual Expenses_Property Taxes': 'Property Tax',
+    'Annual Expenses_Motor Vehicle Expenses': 'Other',
+    'Annual Expenses_Condo/HOA Fees': 'Condo Fees',
+    'Annual Expenses_Other Rental Expenses': 'Other',
+  };
+  
+  // Build expense history for each year
+  years.forEach(year => {
+    Object.entries(expenseCategories).forEach(([fieldKey, category]) => {
+      const annualData = parseAnnualField(fieldKey);
+      if (annualData[year]) {
+        expenseHistory.push({
+          id: `expense-${year}-${fieldKey}`,
+          date: `${year}-01-15`,
+          amount: annualData[year],
+          category: category,
+          description: fieldKey.replace('Annual Expenses_', '').replace(/_/g, ' ')
+        });
+      }
+    });
+    
+    // Add rent income
+    const rentData = parseAnnualField('Annual Income_Rent (Annual)');
+    if (rentData[year]) {
+      expenseHistory.push({
+        id: `income-${year}-rent`,
+        date: `${year}-01-15`,
+        amount: rentData[year],
+        category: 'Rent',
+        description: 'Annual rent income'
+      });
+    }
+  });
+  
+  return expenseHistory;
 }
 
 function parseDate(dateStr) {

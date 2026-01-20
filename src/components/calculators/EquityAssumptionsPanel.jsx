@@ -68,7 +68,7 @@ const EQUITY_PRESET_TEMPLATES = {
   },
 };
 
-const EquityAssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick }) => {
+const EquityAssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick, showInputs = true }) => {
   const [showTooltip, setShowTooltip] = useState(null);
   const [scenarioMode, setScenarioMode] = useState(SCENARIO_MODES.CUSTOM);
   const [selectedTemplate, setSelectedTemplate] = useState('moderate');
@@ -132,7 +132,7 @@ const EquityAssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick 
   };
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 shadow-sm p-5">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
       {/* Header */}
       <div className="flex items-start justify-between mb-1">
         <div>
@@ -223,7 +223,8 @@ const EquityAssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick 
         </div>
       </div>
 
-      {/* Equity Drivers */}
+      {/* Equity Drivers - conditionally show */}
+      {showInputs && (
       <div className="mt-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Equity Drivers</h3>
         <div className="flex items-end gap-3 flex-wrap">
@@ -309,6 +310,7 @@ const EquityAssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick 
           })}
         </div>
       </div>
+      )}
     </div>
   );
 };

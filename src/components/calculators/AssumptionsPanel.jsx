@@ -79,7 +79,7 @@ const PRESET_TEMPLATES = {
   },
 };
 
-const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick }) => {
+const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick, showInputs = true }) => {
   const [showTooltip, setShowTooltip] = useState(null);
   const [scenarioMode, setScenarioMode] = useState(SCENARIO_MODES.CUSTOM);
   const [selectedTemplate, setSelectedTemplate] = useState('moderate');
@@ -156,7 +156,7 @@ const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick }) => 
   };
 
   return (
-    <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-neutral-900 p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-start justify-between mb-1">
@@ -249,7 +249,8 @@ const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick }) => 
         </div>
       </div>
 
-      {/* Cash Flow Drivers */}
+      {/* Cash Flow Drivers - conditionally show */}
+      {showInputs && (
       <div className="mt-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Cash Flow Drivers</h3>
         <div className="flex items-end gap-3 flex-wrap">
@@ -335,9 +336,11 @@ const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick }) => 
           })}
         </div>
       </div>
+      )}
 
-      {/* Actions */}
-      <div className="mt-6 pt-5 border-t border-black/10 dark:border-white/10">
+      {/* Actions - always show if inputs hidden, otherwise conditionally show */}
+      {(!showInputs || true) && (
+      <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-800">
         <button
           onClick={handleResetToTemplate}
           className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 
@@ -346,6 +349,7 @@ const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick }) => 
           Reset to {PRESET_TEMPLATES[selectedTemplate]?.name || 'Moderate'}
         </button>
       </div>
+      )}
     </div>
   );
 };

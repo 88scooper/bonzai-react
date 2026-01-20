@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Trash2, Download, Upload, RefreshCw, Calendar, TrendingUp, Search, Folder, Tag, X, Edit2, ChevronDown } from 'lucide-react';
+import Button from '@/components/Button';
 import { 
   getSavedScenarios, 
   deleteScenario, 
@@ -154,7 +155,7 @@ const SavedScenariosPanel = ({ propertyId, onLoadScenario, currentAssumptions, a
 
   if (totalScenarios === 0) {
     return (
-      <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 shadow-sm" ref={dropdownRef}>
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="w-full flex items-center justify-between px-4 py-3 text-left"
@@ -187,7 +188,7 @@ const SavedScenariosPanel = ({ propertyId, onLoadScenario, currentAssumptions, a
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 shadow-sm" ref={dropdownRef}>
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
@@ -201,7 +202,7 @@ const SavedScenariosPanel = ({ propertyId, onLoadScenario, currentAssumptions, a
         <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className="px-4 pb-4 pt-2 border-t border-black/10 dark:border-white/10">
+        <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <button
@@ -315,10 +316,10 @@ const SavedScenariosPanel = ({ propertyId, onLoadScenario, currentAssumptions, a
                 {scenarios.map((scenario) => (
           <div
             key={scenario.id}
-            className={`relative rounded-lg border transition-all ${
+            className={`relative rounded-xl border transition-all ${
               isCurrentScenario(scenario)
                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
             }`}
           >
             <div className="p-4">
@@ -390,14 +391,13 @@ const SavedScenariosPanel = ({ propertyId, onLoadScenario, currentAssumptions, a
               {/* Actions */}
               <div className="flex items-center gap-2">
                 {!isCurrentScenario(scenario) && (
-                  <button
+                  <Button
                     onClick={() => handleLoadScenario(scenario)}
-                    className="flex-1 px-3 py-1.5 text-sm bg-black text-white dark:bg-white dark:text-gray-900 rounded-md 
-                             hover:opacity-90 transition-opacity"
+                    className="flex-1 justify-center"
                   >
-                    <Upload className="w-3 h-3 inline mr-1" />
-                    Load
-                  </button>
+                    <Upload className="w-3 h-3 mr-1" />
+                    Load Scenario
+                  </Button>
                 )}
                 
                 {/* Move to Folder Dropdown */}

@@ -90,11 +90,11 @@ const SensitivityDashboard = ({ property, assumptions }) => {
           </div>
           <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
-        {isOpen && (
-          <div className="px-4 pb-4 pt-2 border-t border-black/10 dark:border-white/10">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              Compare baseline scenario with your adjusted assumptions. Green indicates improvement, red indicates decline.
-            </p>
+      {isOpen && (
+        <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            Compare baseline scenario with your adjusted assumptions. Green indicates improvement, red indicates decline.
+          </p>
             <MetricCardSkeleton count={3} />
           </div>
         )}
@@ -225,7 +225,7 @@ const SensitivityDashboard = ({ property, assumptions }) => {
   };
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 shadow-sm" ref={dropdownRef}>
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
@@ -239,19 +239,23 @@ const SensitivityDashboard = ({ property, assumptions }) => {
         <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className="px-4 pb-4 pt-2 border-t border-black/10 dark:border-white/10">
+        <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-800">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
             Compare baseline scenario with your adjusted assumptions. Green indicates improvement, red indicates decline.
           </p>
 
       <div className="space-y-6">
-        {allMetrics.map((metric, index) => (
+        {allMetrics.map((metric, index) => {
+          const isHero = index < 3; // First 3 metrics are hero metrics
+          return (
           <div 
             key={index}
-            className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+            className={`rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden ${
+              isHero ? 'shadow-[0_8px_30px_rgb(0,0,0,0.04)]' : ''
+            }`}
           >
             {/* Metric Header */}
-            <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
               <h3 className="font-semibold text-gray-900 dark:text-white">
                 {metric.label}
               </h3>
@@ -261,13 +265,13 @@ const SensitivityDashboard = ({ property, assumptions }) => {
             </div>
 
             {/* Comparison Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-800">
               {/* Baseline */}
               <div className="p-4">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                   Baseline
                 </div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                   {metric.formatter(metric.baseline)}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -277,15 +281,15 @@ const SensitivityDashboard = ({ property, assumptions }) => {
 
               {/* New Scenario */}
               <div className={`p-4 ${getComparisonBg(metric.difference, metric.higherIsBetter)}`}>
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                   New Scenario
                 </div>
-                <div className={`text-2xl font-bold ${getComparisonColor(metric.difference, metric.higherIsBetter)}`}>
+                <div className={`text-2xl font-semibold tabular-nums ${getComparisonColor(metric.difference, metric.higherIsBetter)}`}>
                   {metric.formatter(metric.newScenario)}
                 </div>
                 <div className="flex items-center gap-1 mt-1">
                   {getComparisonIcon(metric.difference, metric.higherIsBetter)}
-                  <span className={`text-xs ${getComparisonColor(metric.difference, metric.higherIsBetter)}`}>
+                  <span className={`text-xs tabular-nums ${getComparisonColor(metric.difference, metric.higherIsBetter)}`}>
                     {metric.difference > 0 ? '+' : ''}{metric.formatter(metric.difference)}
                   </span>
                 </div>
@@ -293,10 +297,10 @@ const SensitivityDashboard = ({ property, assumptions }) => {
 
               {/* Change */}
               <div className="p-4 bg-gray-50 dark:bg-gray-700/30">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                   % Change
                 </div>
-                <div className={`text-2xl font-bold ${getComparisonColor(metric.difference, metric.higherIsBetter)}`}>
+                <div className={`text-2xl font-semibold tabular-nums ${getComparisonColor(metric.difference, metric.higherIsBetter)}`}>
                   {metric.percentChange > 0 ? '+' : ''}{metric.percentChange.toFixed(1)}%
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -305,11 +309,12 @@ const SensitivityDashboard = ({ property, assumptions }) => {
               </div>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {/* Key Insights */}
-      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
         <div className="flex items-center gap-2 mb-3">
           <Lightbulb className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           <h3 className="font-semibold text-gray-900 dark:text-white">
