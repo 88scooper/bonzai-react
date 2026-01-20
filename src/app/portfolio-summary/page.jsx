@@ -913,7 +913,7 @@ function PortfolioSummaryContent() {
                 <span className="text-sm text-emerald-700 dark:text-emerald-300">You're viewing a read-only demo portfolio. Sign up to create your own portfolio!</span>
               </div>
               <a 
-                href="/" 
+                href="/?signup=true" 
                 className="text-sm text-emerald-700 dark:text-emerald-300 hover:underline font-medium"
               >
                 Get Started →
@@ -930,9 +930,11 @@ function PortfolioSummaryContent() {
                 onComplete={() => {
                   setShowOnboardingModal(false);
                   setShowOnboardingPrompt(false);
+                  // Only clear onboarding_in_progress here
+                  // Don't clear onboarding_current_step - let OnboardingWizard's handleComplete do that
+                  // This allows "Save Draft & Continue Later" to preserve the step
                   if (typeof window !== 'undefined') {
                     sessionStorage.removeItem('onboarding_in_progress');
-                    sessionStorage.removeItem('onboarding_current_step');
                   }
                 }} 
               />
@@ -978,6 +980,12 @@ function PortfolioSummaryContent() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
+                      // Ensure onboarding is marked as in progress
+                      if (typeof window !== 'undefined') {
+                        sessionStorage.setItem('onboarding_in_progress', 'true');
+                        // If there's a saved step, ensure it's preserved (don't clear it)
+                        // The OnboardingWizard will restore from sessionStorage
+                      }
                       setShowOnboardingModal(true);
                       setShowOnboardingPrompt(false);
                     }}

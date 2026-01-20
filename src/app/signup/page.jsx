@@ -24,6 +24,12 @@ export default function SignupPage() {
       const name = String(form.get("name") || "");
       
       await signUp(email, password, name || null);
+      // Clear demo mode flag and set onboarding_in_progress flag
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('demoMode');
+        sessionStorage.removeItem('readOnlyMode');
+        sessionStorage.setItem('onboarding_in_progress', 'true');
+      }
       addToast("Account created successfully!", { type: "success" });
       
       // Redirect to onboarding for new users, otherwise portfolio summary

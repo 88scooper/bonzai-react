@@ -154,6 +154,13 @@ export function SignupModal({ onClose, onSwitchToLogin }) {
       const name = String(form.get("name") || "");
       
       await signUp(email, password, name || null);
+      // Clear demo mode flag immediately after signup to prevent demo data from loading
+      // Set onboarding_in_progress flag to prevent redirect to portfolio-summary
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('demoMode');
+        sessionStorage.removeItem('readOnlyMode');
+        sessionStorage.setItem('onboarding_in_progress', 'true');
+      }
       addToast("Account created successfully!", { type: "success" });
       onClose();
       // Redirect to onboarding for new users, otherwise portfolio summary
@@ -161,9 +168,13 @@ export function SignupModal({ onClose, onSwitchToLogin }) {
     } catch (error) {
       console.error("Signup error:", error);
       let errorMessage = "Sign up failed. Please try again.";
+      let isRateLimited = false;
       
       if (error.message) {
-        if (error.message.includes("already exists") || error.message.includes("duplicate") || error.message.includes("409")) {
+        if (error.message.includes("Too many registration attempts") || error.message.includes("429")) {
+          errorMessage = "Too many registration attempts. Please wait an hour or restart the dev server.";
+          isRateLimited = true;
+        } else if (error.message.includes("already exists") || error.message.includes("duplicate") || error.message.includes("409")) {
           errorMessage = "An account with this email already exists.";
         } else if (error.message.includes("password") && error.message.includes("short")) {
           errorMessage = "Password should be at least 6 characters long.";
@@ -178,6 +189,38 @@ export function SignupModal({ onClose, onSwitchToLogin }) {
       
       setError(errorMessage);
       addToast(errorMessage, { type: "error" });
+      
+      // In development, offer to reset rate limit
+      if (isRateLimited && typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+        const resetRateLimit = async () => {
+          try {
+            const response = await fetch('/api/dev/reset-registration-rate-limit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+            if (data.success) {
+              addToast("Rate limit reset! You can try signing up again.", { type: "success" });
+              setError("");
+            }
+          } catch (e) {
+            console.error('Failed to reset rate limit:', e);
+          }
+        };
+        
+        // Show reset button in error message
+        setTimeout(() => {
+          const errorDiv = document.querySelector('[data-signup-error]');
+          if (errorDiv && !errorDiv.querySelector('[data-reset-button]')) {
+            const resetBtn = document.createElement('button');
+            resetBtn.textContent = 'Reset Rate Limit (Dev Only)';
+            resetBtn.onclick = resetRateLimit;
+            resetBtn.className = 'mt-2 text-sm underline text-green-600 dark:text-green-400';
+            resetBtn.setAttribute('data-reset-button', 'true');
+            errorDiv.appendChild(resetBtn);
+          }
+        }, 100);
+      }
     } finally {
       setLoading(false);
     }
@@ -202,7 +245,7 @@ export function SignupModal({ onClose, onSwitchToLogin }) {
       </div>
       
       {error && (
-        <div className="mt-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+        <div className="mt-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800" data-signup-error>
           <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
         </div>
       )}

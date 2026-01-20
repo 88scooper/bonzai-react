@@ -479,7 +479,6 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
             <option value="Condo">Condo</option>
             <option value="House">House</option>
             <option value="Townhouse">Townhouse</option>
-            <option value="Commercial">Commercial</option>
             <option value="Other">Other</option>
           </select>
         </div>

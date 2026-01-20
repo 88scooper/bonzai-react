@@ -6,6 +6,9 @@ import apiClient from "@/lib/api-client";
 import { savePropertyDraft, getPropertyDraft, clearPropertyDraft } from "@/lib/onboarding-draft-storage";
 import { normalizePaymentFrequency } from "@/lib/mortgage-validation";
 import Button from "@/components/Button";
+import Input from "@/components/Input";
+import DateInput from "@/components/DateInput";
+import SelectInput from "@/components/SelectInput";
 import { 
   Home, 
   User,
@@ -65,13 +68,19 @@ export default function PropertyFinancialDataForm({
   property,
   accountId,
   onComplete,
-  onBack
+  onBack,
+  onExit // New prop for exiting without completing
 }) {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null); // 'income' | 'mortgage' | 'expenses' | null
+  const [sectionsSaved, setSectionsSaved] = useState({
+    income: false,
+    expenses: false,
+    mortgage: false,
+  });
   const autoSaveTimeoutRef = useRef(null);
 
   // Form state structure
@@ -79,6 +88,7 @@ export default function PropertyFinancialDataForm({
     income: {
       tenants: [{ firstInitial: '', lastName: '' }], // Array of tenant objects with firstInitial and lastName
       monthlyRent: '',
+      keyDeposit: '',
       leaseStartDate: new Date().toISOString().split('T')[0],
       leaseEndDate: '',
       status: 'Active',
@@ -113,6 +123,17 @@ export default function PropertyFinancialDataForm({
     return new Date().getFullYear().toString();
   };
 
+  // Get years from purchase date to current year (inclusive)
+  const getYearsFromPurchaseToCurrent = () => {
+    const purchaseYear = parseInt(getDefaultYear());
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = purchaseYear; year <= currentYear; year++) {
+      years.push(year.toString());
+    }
+    return years;
+  };
+
   // Initialize year data structure
   const initializeYearData = (year) => {
     const expenses = {};
@@ -128,8 +149,14 @@ export default function PropertyFinancialDataForm({
     };
   };
 
-  // Restore draft on mount and initialize current year if needed
+  // Restore draft on mount and initialize years based on purchase date if needed
   useEffect(() => {
+    // Only proceed if we have property data to determine purchase year
+    if (!property && propertyId) {
+      // Property not loaded yet, wait for it
+      return;
+    }
+    
     if (propertyId) {
       const draft = getPropertyDraft(propertyId);
       if (draft) {
@@ -212,35 +239,66 @@ export default function PropertyFinancialDataForm({
           });
         }
         
-        // If no years exist in expensesByYear, initialize with current year
+        // If no years exist in expensesByYear, initialize with purchase year to current year
         if (!draft.expensesByYear || Object.keys(draft.expensesByYear).length === 0) {
-          const defaultYear = getDefaultYear();
-          draft.expensesByYear = {
-            [defaultYear]: initializeYearData(defaultYear)
-          };
+          const years = getYearsFromPurchaseToCurrent();
+          draft.expensesByYear = {};
+          years.forEach(year => {
+            draft.expensesByYear[year] = initializeYearData(year);
+          });
         }
         
         setFormData(draft);
         addToast("Draft restored", { type: "success", duration: 2000 });
       } else {
-        // No draft exists - initialize with current year
-        const defaultYear = getDefaultYear();
-        setFormData(prev => ({
-          ...prev,
-          expensesByYear: {
-            [defaultYear]: initializeYearData(defaultYear)
+        // No draft exists - initialize with purchase year to current year
+        // Also load keyDeposit from property if it exists
+        const years = getYearsFromPurchaseToCurrent();
+        const propertyData = property?.property_data || property?.propertyData || {};
+        setFormData(prev => {
+          // Only initialize if expensesByYear is empty
+          const newExpensesByYear = {};
+          if (!prev.expensesByYear || Object.keys(prev.expensesByYear).length === 0) {
+            years.forEach(year => {
+              newExpensesByYear[year] = initializeYearData(year);
+            });
+          } else {
+            Object.assign(newExpensesByYear, prev.expensesByYear);
           }
-        }));
+          return {
+            ...prev,
+            income: {
+              ...prev.income,
+              ...(propertyData.keyDeposit && { keyDeposit: propertyData.keyDeposit.toString() }),
+            },
+            expensesByYear: Object.keys(newExpensesByYear).length > 0 ? newExpensesByYear : prev.expensesByYear
+          };
+        });
       }
-    } else {
-      // No propertyId yet - initialize with current year
-      const defaultYear = getDefaultYear();
-      setFormData(prev => ({
-        ...prev,
-        expensesByYear: {
-          [defaultYear]: initializeYearData(defaultYear)
+    } else if (property) {
+      // No propertyId yet but have property - initialize with purchase year to current year
+      // Also load keyDeposit from property if it exists
+      const years = getYearsFromPurchaseToCurrent();
+      const propertyData = property?.property_data || property?.propertyData || {};
+      setFormData(prev => {
+        // Only initialize if expensesByYear is empty
+        const newExpensesByYear = {};
+        if (!prev.expensesByYear || Object.keys(prev.expensesByYear).length === 0) {
+          years.forEach(year => {
+            newExpensesByYear[year] = initializeYearData(year);
+          });
+        } else {
+          Object.assign(newExpensesByYear, prev.expensesByYear);
         }
-      }));
+        return {
+          ...prev,
+          income: {
+            ...prev.income,
+            ...(propertyData.keyDeposit && { keyDeposit: propertyData.keyDeposit.toString() }),
+          },
+          expensesByYear: Object.keys(newExpensesByYear).length > 0 ? newExpensesByYear : prev.expensesByYear
+        };
+      });
     }
   }, [propertyId, property]);
 
@@ -278,10 +336,17 @@ export default function PropertyFinancialDataForm({
     };
   }, [formData, saveDraft]);
 
-  // Manual save draft handler
+  // Manual save draft handler - saves draft and exits wizard
   const handleSaveDraft = () => {
     saveDraft();
     addToast("Draft saved", { type: "success", duration: 2000 });
+    // Exit the wizard after saving draft
+    // Use onExit if available (preserves sessionStorage), otherwise use onComplete
+    if (onExit) {
+      onExit();
+    } else if (onComplete) {
+      onComplete();
+    }
   };
 
   // Update form data helper
@@ -558,7 +623,9 @@ export default function PropertyFinancialDataForm({
   };
 
   // Check section completion
+  // Check if section has been saved and has valid data
   const isIncomeComplete = () => {
+    if (!sectionsSaved.income) return false;
     const errors = validateIncome();
     const tenants = formData.income?.tenants || [];
     const hasValidTenant = Array.isArray(tenants) && tenants.some(tenant => 
@@ -570,6 +637,7 @@ export default function PropertyFinancialDataForm({
   };
 
   const isMortgageComplete = () => {
+    if (!sectionsSaved.mortgage) return false;
     const errors = validateMortgage();
     return Object.keys(errors).length === 0 && 
            formData.mortgage.lender.trim() && 
@@ -578,7 +646,9 @@ export default function PropertyFinancialDataForm({
   };
 
   const isExpensesComplete = () => {
-    if (!formData.expensesByYear || Object.keys(formData.expensesByYear).length === 0) return true; // Empty is valid
+    // Only return true if section has been saved AND has data
+    if (!sectionsSaved.expenses) return false;
+    if (!formData.expensesByYear || Object.keys(formData.expensesByYear).length === 0) return false; // Must have at least one year
     const errors = validateExpenses();
     return Object.keys(errors).length === 0;
   };
@@ -588,7 +658,7 @@ export default function PropertyFinancialDataForm({
     const incomeErrors = validateIncome();
     if (Object.keys(incomeErrors).length > 0) {
       setErrors(prev => ({ ...prev, income: incomeErrors }));
-      addToast("Please fix the errors in the income section", { type: "error" });
+      addToast("Please fix the errors in the lease details section", { type: "error" });
       return;
     }
 
@@ -621,19 +691,26 @@ export default function PropertyFinancialDataForm({
           monthlyRent: parseFloat(formData.income.monthlyRent),
           annualRent: parseFloat(formData.income.monthlyRent) * 12,
         },
+        propertyData: {
+          ...(property.property_data || property.propertyData || {}),
+          ...(formData.income.keyDeposit && {
+            keyDeposit: parseFloat(formData.income.keyDeposit),
+          }),
+        },
       };
 
       const response = await apiClient.updateProperty(property.id, updatedProperty);
 
       if (response.success) {
-        addToast("Tenant information saved successfully!", { type: "success" });
+        addToast("Lease details saved successfully!", { type: "success" });
         setErrors(prev => ({ ...prev, income: {} }));
+        setSectionsSaved(prev => ({ ...prev, income: true }));
       } else {
-        throw new Error(response.error || "Failed to save tenant information");
+        throw new Error(response.error || "Failed to save lease details");
       }
     } catch (error) {
-      console.error("Error saving tenant information:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save tenant information";
+      console.error("Error saving lease details:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save lease details";
       addToast(errorMessage, { type: "error" });
     } finally {
       setLoading(false);
@@ -683,6 +760,7 @@ export default function PropertyFinancialDataForm({
       if (response.success) {
         addToast("Mortgage saved successfully!", { type: "success" });
         setErrors(prev => ({ ...prev, mortgage: {} }));
+        setSectionsSaved(prev => ({ ...prev, mortgage: true }));
       } else {
         throw new Error(response.error || "Failed to save mortgage");
       }
@@ -754,6 +832,7 @@ export default function PropertyFinancialDataForm({
       }, 0);
       addToast(`Successfully saved ${totalExpenses} expense${totalExpenses !== 1 ? 's' : ''} for ${years.length} year${years.length !== 1 ? 's' : ''}!`, { type: "success" });
       setErrors(prev => ({ ...prev, expenses: {} }));
+      setSectionsSaved(prev => ({ ...prev, expenses: true }));
     } catch (error) {
       console.error("Error saving expenses:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to save expenses";
@@ -872,8 +951,8 @@ export default function PropertyFinancialDataForm({
         </div>
       </div>
 
-      {/* Section 1: Tenant Information */}
-      <div className="border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:opacity-95 transition-opacity bg-white dark:bg-neutral-900">
+      {/* Section 1: Lease Details */}
+      <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:opacity-95 transition-opacity bg-white dark:bg-gray-950">
         <button
           onClick={() => setExpandedSection(expandedSection === 'income' ? null : 'income')}
           className="w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
@@ -882,19 +961,19 @@ export default function PropertyFinancialDataForm({
             <div className={`flex items-center justify-center w-10 h-10 rounded-lg font-bold text-lg ${
               isIncomeComplete() 
                 ? 'bg-emerald-500 text-white' 
-                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
             }`}>
               1
             </div>
-            <div className={`p-2.5 rounded-lg ${isIncomeComplete() ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
-              <User className={`w-6 h-6 ${isIncomeComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`} />
+            <div className={`p-2.5 rounded-lg ${isIncomeComplete() ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
+              <User className={`w-6 h-6 ${isIncomeComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
             </div>
             <div className="text-left">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
-                Tenant Information
+                Lease Details
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Add tenant and monthly rent. Use your existing and past leases for reference
+                Add your lease details here using your existing and past leases for reference.
               </p>
             </div>
           </div>
@@ -913,11 +992,11 @@ export default function PropertyFinancialDataForm({
         </button>
 
         {expandedSection === 'income' && (
-          <div className="p-6 border-t border-black/10 dark:border-white/10 bg-gray-50 dark:bg-gray-900/50">
+          <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                     Tenant Name(s) <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-2">
@@ -931,8 +1010,8 @@ export default function PropertyFinancialDataForm({
                           className={`w-12 rounded-lg border ${
                             (errors.income.tenants && (typeof errors.income.tenants === 'string' || errors.income.tenants[index]))
                               ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
-                              : 'border-black/15 dark:border-white/15'
-                          } bg-white dark:bg-gray-800 px-3 py-2.5 text-center outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors uppercase`}
+                              : 'border-gray-200 dark:border-gray-800'
+                          } bg-white dark:bg-gray-900 px-3 py-2 text-center text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors uppercase`}
                           placeholder={index === 0 ? "A" : "I"}
                         />
                         <input
@@ -942,8 +1021,8 @@ export default function PropertyFinancialDataForm({
                           className={`flex-1 rounded-lg border ${
                             (errors.income.tenants && (typeof errors.income.tenants === 'string' || errors.income.tenants[index]))
                               ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
-                              : 'border-black/15 dark:border-white/15'
-                          } bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
+                              : 'border-gray-200 dark:border-gray-800'
+                          } bg-white dark:bg-gray-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors`}
                           placeholder={index === 0 ? "e.g., Smith" : "Last name"}
                         />
                         {(formData.income?.tenants || []).length > 1 && (
@@ -978,72 +1057,76 @@ export default function PropertyFinancialDataForm({
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                     Monthly Rent <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.income.monthlyRent}
-                    onChange={(e) => updateFormData('income', { monthlyRent: e.target.value })}
-                    className={`w-full rounded-lg border ${
-                      errors.income.monthlyRent 
-                        ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
-                        : 'border-black/15 dark:border-white/15'
-                    } bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
-                    placeholder="0.00"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 z-10">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.income.monthlyRent}
+                      onChange={(e) => updateFormData('income', { monthlyRent: e.target.value })}
+                      className={`w-full rounded-lg border ${
+                        errors.income.monthlyRent 
+                          ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
+                          : 'border-gray-200 dark:border-gray-800'
+                      } bg-white dark:bg-gray-900 pl-7 pr-4 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors`}
+                      placeholder="0.00"
+                    />
+                  </div>
                   {errors.income.monthlyRent && (
                     <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.income.monthlyRent}</p>
                   )}
                 </div>
+                <DateInput
+                  label="Lease Start Date *"
+                  id="leaseStartDate"
+                  value={formData.income.leaseStartDate}
+                  onChange={(e) => updateFormData('income', { leaseStartDate: e.target.value })}
+                  className={errors.income.leaseStartDate ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' : ''}
+                />
+                {errors.income.leaseStartDate && (
+                  <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.income.leaseStartDate}</p>
+                )}
+                <DateInput
+                  label="Lease End Date (Optional)"
+                  id="leaseEndDate"
+                  value={formData.income.leaseEndDate}
+                  onChange={(e) => updateFormData('income', { leaseEndDate: e.target.value })}
+                />
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
-                    Lease Start Date <span className="text-red-500">*</span>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    Key Deposit
                   </label>
-                  <input
-                    type="date"
-                    value={formData.income.leaseStartDate}
-                    onChange={(e) => updateFormData('income', { leaseStartDate: e.target.value })}
-                    className={`w-full rounded-lg border ${
-                      errors.income.leaseStartDate 
-                        ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
-                        : 'border-black/15 dark:border-white/15'
-                    } bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
-                  />
-                  {errors.income.leaseStartDate && (
-                    <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.income.leaseStartDate}</p>
-                  )}
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 z-10">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.income.keyDeposit}
+                      onChange={(e) => updateFormData('income', { keyDeposit: e.target.value })}
+                      className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 pl-7 pr-4 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
-                    Lease End Date <span className="text-gray-400 text-xs font-normal">(Optional)</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.income.leaseEndDate}
-                    onChange={(e) => updateFormData('income', { leaseEndDate: e.target.value })}
-                    className="w-full rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Status</label>
-                  <select
-                    value={formData.income.status}
-                    onChange={(e) => updateFormData('income', { status: e.target.value })}
-                    className="w-full rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+                <SelectInput
+                  label="Status"
+                  id="status"
+                  value={formData.income.status}
+                  onChange={(e) => updateFormData('income', { status: e.target.value })}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </SelectInput>
               </div>
               <div className="flex justify-end pt-2">
                 <Button
                   onClick={handleSubmitIncome}
                   loading={loading}
                   disabled={!isIncomeComplete()}
-                  className="min-w-[140px]"
+                  className="min-w-[140px] bg-[#205A3E] text-white hover:bg-[#1a4932]"
                 >
                   Save Section 1
                 </Button>
@@ -1053,7 +1136,7 @@ export default function PropertyFinancialDataForm({
         )}
       </div>
 
-      {/* Section 2: Property Annual Revenue & Expenses */}
+      {/* Section 2: Annual Revenue & Expenses */}
       <div className="border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:opacity-95 transition-opacity bg-white dark:bg-neutral-900">
         <button
           onClick={() => setExpandedSection(expandedSection === 'expenses' ? null : 'expenses')}
@@ -1061,26 +1144,30 @@ export default function PropertyFinancialDataForm({
         >
           <div className="flex items-center gap-4">
             <div className={`flex items-center justify-center w-10 h-10 rounded-lg font-bold text-lg ${
-              isExpensesComplete() && Object.keys(formData.expensesByYear || {}).length > 0
+              isExpensesComplete()
                 ? 'bg-emerald-500 text-white' 
-                : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
             }`}>
               2
             </div>
-            <div className={`p-2.5 rounded-lg ${isExpensesComplete() && Object.keys(formData.expensesByYear).length > 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-orange-100 dark:bg-orange-900/30'}`}>
-              <Receipt className={`w-6 h-6 ${isExpensesComplete() && Object.keys(formData.expensesByYear).length > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`} />
+            <div className={`p-2.5 rounded-lg ${isExpensesComplete() ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
+              <Receipt className={`w-6 h-6 ${isExpensesComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
             </div>
             <div className="text-left">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
-                Property Annual Revenue & Expenses
+                Annual Revenue & Expenses
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Use your records or your T1, Statement of Real Estate Rentals, Part 3 - Income & Part 4 - Expenses. Mortgage (Principal) can be populated per the Annual Mortgage Statement
+                Add your annual revenue & expenses for each year owning your investment property. Resources you can use include:
               </p>
+              <ul className="text-sm text-gray-500 dark:text-gray-400 mt-2 ml-4 list-disc space-y-1">
+                <li>T1, Statement of Real Estate Rentals, Part 3 - Income and Part 4 - Expenses</li>
+                <li>Mortgage (Principal) per your annual mortgage statement</li>
+              </ul>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {isExpensesComplete() && Object.keys(formData.expensesByYear).length > 0 && (
+            {isExpensesComplete() && (
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full">
                 Complete
               </span>
@@ -1094,13 +1181,13 @@ export default function PropertyFinancialDataForm({
         </button>
 
         {expandedSection === 'expenses' && (
-          <div className="p-6 border-t border-black/10 dark:border-white/10 bg-gray-50 dark:bg-gray-900/50">
+          <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
             <div className="space-y-5">
               {/* Add Year Column Button */}
               <div className="flex justify-end">
                 <button
                   onClick={addYear}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#205A3E] hover:bg-[#1a4932] text-white text-sm font-semibold rounded-lg transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   Add Another Year
@@ -1114,14 +1201,14 @@ export default function PropertyFinancialDataForm({
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
-                          <th className="sticky left-0 z-10 bg-white dark:bg-gray-800 border border-black/10 dark:border-white/10 px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white">
+                          <th className="sticky left-0 z-10 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white">
                             Category
                           </th>
-                          <th className="sticky left-[200px] z-10 bg-white dark:bg-gray-800 border border-black/10 dark:border-white/10 px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white min-w-[140px]">
+                          <th className="sticky left-[200px] z-10 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white min-w-[140px]">
                             Payment Frequency
                           </th>
                           {getYears().map((year) => (
-                            <th key={year} className="relative border border-black/10 dark:border-white/10 px-3 py-3 text-center text-xs font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 min-w-[140px]">
+                            <th key={year} className="relative border border-gray-200 dark:border-gray-800 px-3 py-3 text-center text-xs font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 min-w-[140px]">
                               <div className="flex items-center justify-between gap-2">
                                 <input
                                   type="number"
@@ -1142,7 +1229,7 @@ export default function PropertyFinancialDataForm({
                                       e.target.value = year; // Reset if invalid
                                     }
                                   }}
-                                  className="w-16 text-center font-bold bg-transparent border border-transparent hover:border-orange-300 dark:hover:border-orange-600 focus:border-orange-500 dark:focus:border-orange-400 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
+                                  className="w-16 text-center font-bold bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-[#205A3E] dark:focus:border-[#66B894] rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 transition-colors"
                                 />
                                 <button
                                   onClick={() => removeYear(year)}
@@ -1155,17 +1242,17 @@ export default function PropertyFinancialDataForm({
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="bg-white dark:bg-gray-800">
+                      <tbody className="bg-white dark:bg-gray-950">
                         {/* Revenue Row */}
-                        <tr className="border-b border-black/10 dark:border-white/10">
-                          <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-900/20 border-r border-black/10 dark:border-white/10 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                        <tr className="border-b border-gray-200 dark:border-gray-800">
+                          <td className="sticky left-0 z-10 bg-emerald-50 dark:bg-emerald-900/20 border-r border-gray-200 dark:border-gray-800 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
                             Revenue
                           </td>
-                          <td className="sticky left-[200px] z-10 bg-emerald-50 dark:bg-emerald-900/20 border-r border-black/10 dark:border-white/10 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                          <td className="sticky left-[200px] z-10 bg-emerald-50 dark:bg-emerald-900/20 border-r border-gray-200 dark:border-gray-800 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                             {/* Empty cell for Revenue - Payment Frequency does not apply */}
                           </td>
                           {getYears().map((year) => (
-                            <td key={year} className="border-r border-black/10 dark:border-white/10 px-2 py-2">
+                            <td key={year} className="border-r border-gray-200 dark:border-gray-800 px-2 py-2">
                               <input
                                 type="number"
                                 step="0.01"
@@ -1174,8 +1261,8 @@ export default function PropertyFinancialDataForm({
                                 className={`w-full rounded-md border ${
                                   errors.expenses[year]?.revenue 
                                     ? 'border-red-500 dark:border-red-500' 
-                                    : 'border-black/15 dark:border-white/15'
-                                } bg-white dark:bg-gray-800 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
+                                    : 'border-gray-200 dark:border-gray-800'
+                                } bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors`}
                                 placeholder="0.00"
                               />
                               {errors.expenses[year]?.revenue && (
@@ -1186,11 +1273,11 @@ export default function PropertyFinancialDataForm({
                         </tr>
                         {/* Expense Category Rows */}
                         {EXPENSE_CATEGORIES.map((category) => (
-                          <tr key={category} className="border-b border-black/10 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                            <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 border-r border-black/10 dark:border-white/10 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300">
+                          <tr key={category} className="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                            <td className="sticky left-0 z-10 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300">
                               {category}
                             </td>
-                            <td className="sticky left-[200px] z-10 bg-white dark:bg-gray-800 border-r border-black/10 dark:border-white/10 px-2 py-2.5">
+                            <td className="sticky left-[200px] z-10 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 px-2 py-2.5">
                               <select
                                 value={(getYears().length > 0 && formData.expensesByYear?.[getYears()[0]]?.expensePaymentFrequencies?.[category]) || 'Annual'}
                                 onChange={(e) => {
@@ -1199,14 +1286,14 @@ export default function PropertyFinancialDataForm({
                                     updateExpensePaymentFrequency(year, category, e.target.value);
                                   });
                                 }}
-                                className="w-full rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
+                                className="w-full rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors"
                               >
                                 <option value="Monthly">Monthly</option>
                                 <option value="Annual">Annual</option>
                               </select>
                             </td>
                           {getYears().map((year) => (
-                            <td key={year} className="border-r border-black/10 dark:border-white/10 px-2 py-2">
+                            <td key={year} className="border-r border-gray-200 dark:border-gray-800 px-2 py-2">
                               <input
                                 type="number"
                                 step="0.01"
@@ -1215,8 +1302,8 @@ export default function PropertyFinancialDataForm({
                                 className={`w-full rounded-md border ${
                                   errors.expenses?.[year]?.expenses?.[category] 
                                     ? 'border-red-500 dark:border-red-500' 
-                                    : 'border-black/15 dark:border-white/15'
-                                } bg-white dark:bg-gray-800 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
+                                    : 'border-gray-200 dark:border-gray-800'
+                                } bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors`}
                                 placeholder="0.00"
                               />
                               {errors.expenses?.[year]?.expenses?.[category] && (
@@ -1243,7 +1330,7 @@ export default function PropertyFinancialDataForm({
                     onClick={handleSubmitExpenses}
                     loading={loading}
                     disabled={!isExpensesComplete()}
-                    className="min-w-[140px]"
+                    className="min-w-[140px] bg-[#205A3E] text-white hover:bg-[#1a4932]"
                   >
                     Save Section 2
                   </Button>
@@ -1255,7 +1342,7 @@ export default function PropertyFinancialDataForm({
       </div>
 
       {/* Section 3: Mortgage Details */}
-      <div className="border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:opacity-95 transition-opacity bg-white dark:bg-neutral-900">
+      <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:opacity-95 transition-opacity bg-white dark:bg-gray-950">
         <button
           onClick={() => setExpandedSection(expandedSection === 'mortgage' ? null : 'mortgage')}
           className="w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
@@ -1264,12 +1351,12 @@ export default function PropertyFinancialDataForm({
             <div className={`flex items-center justify-center w-10 h-10 rounded-lg font-bold text-lg ${
               isMortgageComplete() 
                 ? 'bg-emerald-500 text-white' 
-                : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
             }`}>
               3
             </div>
-            <div className={`p-2.5 rounded-lg ${isMortgageComplete() ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-purple-100 dark:bg-purple-900/30'}`}>
-              <Home className={`w-6 h-6 ${isMortgageComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'}`} />
+            <div className={`p-2.5 rounded-lg ${isMortgageComplete() ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
+              <Home className={`w-6 h-6 ${isMortgageComplete() ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`} />
             </div>
             <div className="text-left">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
@@ -1295,30 +1382,23 @@ export default function PropertyFinancialDataForm({
         </button>
 
         {expandedSection === 'mortgage' && (
-          <div className="p-6 border-t border-black/10 dark:border-white/10 bg-gray-50 dark:bg-gray-900/50">
+          <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Input
+                  label="Lender Name *"
+                  id="lender"
+                  type="text"
+                  value={formData.mortgage.lender}
+                  onChange={(e) => updateFormData('mortgage', { lender: e.target.value })}
+                  className={errors.mortgage.lender ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' : ''}
+                  placeholder="e.g., Bank of Canada"
+                />
+                {errors.mortgage.lender && (
+                  <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.mortgage.lender}</p>
+                )}
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
-                    Lender Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.mortgage.lender}
-                    onChange={(e) => updateFormData('mortgage', { lender: e.target.value })}
-                    className={`w-full rounded-lg border ${
-                      errors.mortgage.lender 
-                        ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
-                        : 'border-black/15 dark:border-white/15'
-                    } bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
-                    placeholder="e.g., Bank of Canada"
-                  />
-                  {errors.mortgage.lender && (
-                    <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.mortgage.lender}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                     Original Loan Amount <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1329,8 +1409,8 @@ export default function PropertyFinancialDataForm({
                     className={`w-full rounded-lg border ${
                       errors.mortgage.originalAmount 
                         ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
-                        : 'border-black/15 dark:border-white/15'
-                    } bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
+                        : 'border-gray-200 dark:border-gray-800'
+                    } bg-white dark:bg-gray-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors`}
                     placeholder="0.00"
                   />
                   {errors.mortgage.originalAmount && (
@@ -1338,7 +1418,7 @@ export default function PropertyFinancialDataForm({
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                     Interest Rate (%) <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1349,52 +1429,46 @@ export default function PropertyFinancialDataForm({
                     className={`w-full rounded-lg border ${
                       errors.mortgage.interestRate 
                         ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
-                        : 'border-black/15 dark:border-white/15'
-                    } bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
+                        : 'border-gray-200 dark:border-gray-800'
+                    } bg-white dark:bg-gray-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors`}
                     placeholder="0.00"
                   />
                   {errors.mortgage.interestRate && (
                     <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.mortgage.interestRate}</p>
                   )}
                 </div>
+                <SelectInput
+                  label="Rate Type"
+                  id="rateType"
+                  value={formData.mortgage.rateType}
+                  onChange={(e) => updateFormData('mortgage', { rateType: e.target.value })}
+                >
+                  {RATE_TYPES.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </SelectInput>
+                <SelectInput
+                  label="Term"
+                  id="termMonths"
+                  value={formData.mortgage.termMonths}
+                  onChange={(e) => updateFormData('mortgage', { termMonths: e.target.value })}
+                >
+                  {TERM_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </SelectInput>
+                <SelectInput
+                  label="Amortization Period"
+                  id="amortizationYears"
+                  value={formData.mortgage.amortizationYears}
+                  onChange={(e) => updateFormData('mortgage', { amortizationYears: e.target.value })}
+                >
+                  {AMORTIZATION_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </SelectInput>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Rate Type</label>
-                  <select
-                    value={formData.mortgage.rateType}
-                    onChange={(e) => updateFormData('mortgage', { rateType: e.target.value })}
-                    className="w-full rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
-                  >
-                    {RATE_TYPES.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Term</label>
-                  <select
-                    value={formData.mortgage.termMonths}
-                    onChange={(e) => updateFormData('mortgage', { termMonths: e.target.value })}
-                    className="w-full rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
-                  >
-                    {TERM_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Amortization Period</label>
-                  <select
-                    value={formData.mortgage.amortizationYears}
-                    onChange={(e) => updateFormData('mortgage', { amortizationYears: e.target.value })}
-                    className="w-full rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
-                  >
-                    {AMORTIZATION_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                     Current Balance (Optional)
                     <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 font-normal">For existing mortgages</span>
                   </label>
@@ -1403,7 +1477,7 @@ export default function PropertyFinancialDataForm({
                     step="0.01"
                     value={formData.mortgage.currentBalance || ''}
                     onChange={(e) => updateFormData('mortgage', { currentBalance: e.target.value })}
-                    className="w-full rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-[#205A3E]/20 dark:focus:ring-[#205A3E]/30 focus:border-[#205A3E] dark:focus:border-[#66B894] transition-colors"
                     placeholder="Leave empty for new mortgages"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
@@ -1413,43 +1487,33 @@ export default function PropertyFinancialDataForm({
                     Note: For full amortization schedule accuracy, full payment history from the lender is required
                   </p>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
-                    Start Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.mortgage.startDate}
-                    onChange={(e) => updateFormData('mortgage', { startDate: e.target.value })}
-                    className={`w-full rounded-lg border ${
-                      errors.mortgage.startDate 
-                        ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' 
-                        : 'border-black/15 dark:border-white/15'
-                    } bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors`}
-                  />
-                  {errors.mortgage.startDate && (
-                    <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.mortgage.startDate}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Payment Frequency</label>
-                  <select
-                    value={formData.mortgage.paymentFrequency}
-                    onChange={(e) => updateFormData('mortgage', { paymentFrequency: e.target.value })}
-                    className="w-full rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-gray-800 px-4 py-2.5 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 transition-colors"
-                  >
-                    {PAYMENT_FREQUENCY_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
+                <DateInput
+                  label="Start Date *"
+                  id="startDate"
+                  value={formData.mortgage.startDate}
+                  onChange={(e) => updateFormData('mortgage', { startDate: e.target.value })}
+                  className={errors.mortgage.startDate ? 'border-red-500 dark:border-red-500 focus:border-red-600 dark:focus:border-red-400' : ''}
+                />
+                {errors.mortgage.startDate && (
+                  <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.mortgage.startDate}</p>
+                )}
+                <SelectInput
+                  label="Payment Frequency"
+                  id="paymentFrequency"
+                  value={formData.mortgage.paymentFrequency}
+                  onChange={(e) => updateFormData('mortgage', { paymentFrequency: e.target.value })}
+                >
+                  {PAYMENT_FREQUENCY_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </SelectInput>
               </div>
               <div className="flex justify-end pt-2">
                 <Button
                   onClick={handleSubmitMortgage}
                   loading={loading}
                   disabled={!isMortgageComplete()}
-                  className="min-w-[140px]"
+                  className="min-w-[140px] bg-[#205A3E] text-white hover:bg-[#1a4932]"
                 >
                   Save Section 3
                 </Button>
@@ -1460,7 +1524,7 @@ export default function PropertyFinancialDataForm({
       </div>
 
       {/* Navigation */}
-      <div className="flex justify-between items-center pt-6 mt-6 border-t border-black/10 dark:border-white/10">
+      <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-200 dark:border-gray-800">
         <Button variant="secondary" onClick={onBack} className="px-6">
           Back
         </Button>

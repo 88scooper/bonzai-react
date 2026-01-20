@@ -29,7 +29,8 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
       const savedStep = sessionStorage.getItem('onboarding_current_step');
       if (savedStep) {
         const step = parseInt(savedStep, 10);
-        if (step > 1 && step <= totalSteps) {
+        // Restore any saved step (1-5), as long as it's valid
+        if (step >= 1 && step <= totalSteps) {
           setCurrentStep(step);
         }
       }
@@ -48,7 +49,8 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
       const savedStep = sessionStorage.getItem('onboarding_current_step');
       if (savedStep) {
         const step = parseInt(savedStep, 10);
-        if (step > 1 && step <= 5) {
+        // Restore any saved step (1-5), as long as it's valid
+        if (step >= 1 && step <= 5) {
           return step;
         }
       }
@@ -57,8 +59,9 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   });
   
   // Save current step to sessionStorage whenever it changes
+  // Save all steps (including step 1) so we can restore to the exact position
   useEffect(() => {
-    if (typeof window !== 'undefined' && currentStep > 1) {
+    if (typeof window !== 'undefined') {
       sessionStorage.setItem('onboarding_current_step', currentStep.toString());
     }
   }, [currentStep]);
@@ -80,6 +83,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   const [editingPropertyId, setEditingPropertyId] = useState(null); // Property being edited
   const [deletingPropertyId, setDeletingPropertyId] = useState(null); // Property to be deleted (for confirmation)
   const [pendingPropertyData, setPendingPropertyData] = useState(null); // Property data pending confirmation
+  const [editFromConfirmData, setEditFromConfirmData] = useState(null); // Data when editing from confirmation dialog
   const [showAddPropertyForm, setShowAddPropertyForm] = useState(false); // Show form to add another property
   const [mortgageAdded, setMortgageAdded] = useState(false);
   const [tenantAdded, setTenantAdded] = useState(false);
@@ -204,6 +208,18 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   // Cancel property confirmation
   const handleCancelPropertyConfirm = () => {
     setPendingPropertyData(null);
+  };
+
+  // Handle edit from confirmation dialog - go back to form with pending data
+  const handleEditFromConfirm = () => {
+    // Store the pending data for the form to use as initialData
+    setEditFromConfirmData({ ...pendingPropertyData });
+    // Hide the confirmation dialog
+    setPendingPropertyData(null);
+    // Show the form
+    setShowAddPropertyForm(true);
+    // Force form reset with new data
+    setPropertyFormKey(prev => prev + 1);
   };
 
   // Handle edit property
@@ -609,6 +625,15 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                       Cancel
                     </Button>
                     <Button
+                      variant="secondary"
+                      onClick={handleEditFromConfirm}
+                      disabled={loading}
+                      className="min-w-[100px] flex items-center gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit
+                    </Button>
+                    <Button
                       onClick={() => handleAddProperty(pendingPropertyData)}
                       loading={loading}
                       disabled={loading}
@@ -625,10 +650,36 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                 <PropertyForm
                   key={propertyFormKey}
                   accountId={accountId}
-                  initialData={editingPropertyId ? properties.find(p => p.id === editingPropertyId) : {}}
-                  onSubmit={handlePropertyFormSubmit}
-                  onCancel={editingPropertyId ? handleCancelEdit : (properties.length > 0 ? () => setShowAddPropertyForm(false) : () => setCurrentStep(2))}
+                  initialData={
+                    editingPropertyId 
+                      ? properties.find(p => p.id === editingPropertyId) 
+                      : editFromConfirmData || {}
+                  }
+                  onSubmit={(data) => {
+                    // Clear editFromConfirmData after form submission starts
+                    if (editFromConfirmData) {
+                      setEditFromConfirmData(null);
+                    }
+                    handlePropertyFormSubmit(data);
+                  }}
+                  onCancel={() => {
+                    // Clear editFromConfirmData when canceling
+                    if (editFromConfirmData) {
+                      setEditFromConfirmData(null);
+                    }
+                    if (editingPropertyId) {
+                      handleCancelEdit();
+                    } else if (properties.length > 0) {
+                      setShowAddPropertyForm(false);
+                    } else {
+                      setCurrentStep(2);
+                    }
+                  }}
                   onContinue={() => {
+                    // Clear editFromConfirmData when continuing
+                    if (editFromConfirmData) {
+                      setEditFromConfirmData(null);
+                    }
                     if (properties.length > 0) {
                       setCurrentStep(4);
                     } else {
@@ -684,6 +735,19 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
               onExpenseAdded={() => setExpenseAdded(true)}
               onComplete={handleComplete}
               onBack={() => setCurrentStep(4)}
+              onExit={() => {
+                // Exit wizard without clearing sessionStorage (preserve draft and step)
+                // Only clear onboarding_in_progress to prevent auto-show
+                if (typeof window !== 'undefined') {
+                  sessionStorage.removeItem('onboarding_in_progress');
+                  // Keep onboarding_current_step so user can resume later
+                }
+                // Close modal by calling onComplete, but it should preserve onboarding_current_step
+                // We'll handle this by not clearing it in the modal's close handler
+                if (onComplete) {
+                  onComplete();
+                }
+              }}
             />
           )}
         </div>
@@ -722,7 +786,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div 
-          className="bg-white dark:bg-neutral-950 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col border border-black/10 dark:border-white/10"
+          className="bg-white dark:bg-neutral-950 rounded-xl shadow-xl max-w-[73rem] w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col border border-black/10 dark:border-white/10"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header */}
@@ -755,7 +819,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
   // Render as full page for steps 1-3
   return (
     <div className="min-h-screen bg-white dark:bg-neutral-950 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-[54.6rem]">
         {wizardContent}
       </div>
     </div>

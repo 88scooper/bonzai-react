@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
@@ -33,14 +33,27 @@ export default function HomePage() {
     setIsSignupOpen(false);
     setIsLoginOpen(true);
   }
-  function openSignup() {
+  const openSignup = useCallback(() => {
     setIsLoginOpen(false);
     setIsSignupOpen(true);
-  }
+  }, []);
   function closeModals() {
     setIsLoginOpen(false);
     setIsSignupOpen(false);
   }
+
+  // Check for signup query parameter and open signup modal
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const signupParam = urlParams.get('signup');
+      if (signupParam === 'true') {
+        openSignup();
+        // Clean up URL by removing the query parameter
+        window.history.replaceState({}, '', '/');
+      }
+    }
+  }, [openSignup]);
 
   function handleDemoPortfolio() {
     // Set demo mode flag for read-only access
@@ -354,6 +367,13 @@ function SignupModal({ onClose, onSwitchToLogin }) {
       const name = String(form.get("name") || email.split('@')[0] || "");
       
       await signUp(email, password, name || null);
+      // Clear demo mode flag immediately after signup to prevent demo data from loading
+      // Set onboarding_in_progress flag to prevent redirect to portfolio-summary
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('demoMode');
+        sessionStorage.removeItem('readOnlyMode');
+        sessionStorage.setItem('onboarding_in_progress', 'true');
+      }
       addToast("Account created!", { type: "success" });
       onClose();
       // Redirect to onboarding for new users

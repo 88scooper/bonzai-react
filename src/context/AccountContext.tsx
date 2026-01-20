@@ -414,10 +414,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           ? accountsData.map(mapApiAccountToContext)
           : [];
         
-        setAccounts(mappedAccounts);
+        // Filter out demo accounts for authenticated users - they should only see their real accounts
+        const nonDemoAccounts = mappedAccounts.filter(acc => !acc.isDemo);
+        setAccounts(nonDemoAccounts);
 
         // If no accounts exist, clear current account to trigger onboarding
-        if (mappedAccounts.length === 0) {
+        if (nonDemoAccounts.length === 0) {
           setCurrentAccountId(null);
           setCurrentAccount(null);
           if (typeof window !== 'undefined') {
@@ -425,7 +427,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           }
         }
         // Set current account if not set
-        else if (!currentAccountId && mappedAccounts.length > 0) {
+        else if (!currentAccountId && nonDemoAccounts.length > 0) {
           const savedId = typeof window !== 'undefined' 
             ? localStorage.getItem('current_account_id') 
             : null;
@@ -434,7 +436,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           
           // For cooper.stuartc@gmail.com, always prefer "SC Properties" as default
           if (user?.email === 'cooper.stuartc@gmail.com') {
-            const scPropertiesAccount = mappedAccounts.find(a => 
+            const scPropertiesAccount = nonDemoAccounts.find(a => 
               a.name === 'SC Properties' || a.name?.toLowerCase().includes('sc properties')
             );
             if (scPropertiesAccount) {
@@ -444,7 +446,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           
           // Fallback to saved account or first account
           if (!accountToUse) {
-            accountToUse = mappedAccounts.find(a => a.id === savedId) || mappedAccounts[0];
+            accountToUse = nonDemoAccounts.find(a => a.id === savedId) || nonDemoAccounts[0];
           }
           
           setCurrentAccountId(accountToUse.id);
@@ -456,7 +458,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         } else if (currentAccountId && user?.email === 'cooper.stuartc@gmail.com') {
           // If account is already set but user is cooper.stuartc@gmail.com,
           // check if we should switch to SC Properties
-          const scPropertiesAccount = mappedAccounts.find(a => 
+          const scPropertiesAccount = nonDemoAccounts.find(a => 
             (a.name === 'SC Properties' || a.name?.toLowerCase().includes('sc properties')) &&
             a.id !== currentAccountId
           );
@@ -877,6 +879,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   // This ensures demo mode works even if there's a stale auth token
   useEffect(() => {
     if (typeof window !== 'undefined' && !user) {
+      // Don't load demo data if user is authenticated (has token) but user state hasn't loaded yet
+      // This prevents demo data from loading after signup before user state is set
+      const userAuthenticated = isAuthenticated();
+      if (userAuthenticated) {
+        console.log('[AccountContext] User has auth token but user state not loaded yet, skipping demo mode check');
+        return;
+      }
+      
       const demoMode = sessionStorage.getItem('demoMode') === 'true';
       if (demoMode && !currentAccountId && !loading) {
         console.log('[AccountContext] Demo mode detected on mount, loading demo data...');

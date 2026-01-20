@@ -48,9 +48,10 @@ export default function OnboardingPage() {
       const onboardingInProgress = onboardingStartedRef.current || 
         (typeof window !== 'undefined' && sessionStorage.getItem('onboarding_in_progress') === 'true');
 
-      // Only redirect if accounts have explicitly finished loading AND user has accounts
+      // Only redirect if accounts have explicitly finished loading AND user has accounts (excluding demo accounts)
       // AND onboarding is not currently in progress
-      if (accountsLoading === false && Array.isArray(accounts) && accounts.length > 0 && !onboardingInProgress) {
+      const nonDemoAccounts = Array.isArray(accounts) ? accounts.filter(acc => !acc.isDemo) : [];
+      if (accountsLoading === false && nonDemoAccounts.length > 0 && !onboardingInProgress) {
         // User has accounts and is not in active onboarding, redirect to portfolio
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('onboarding_in_progress');
@@ -84,10 +85,12 @@ export default function OnboardingPage() {
   // 2. Both auth and accounts have finished loading
   // 3. Either accounts array is empty (new user) OR onboarding is in progress
   if (user && !authLoading && accountsLoading === false) {
-    // Show wizard if accounts is empty OR if onboarding is actively in progress
+    // Filter out demo accounts - we only care about real user accounts
+    const nonDemoAccounts = Array.isArray(accounts) ? accounts.filter(acc => !acc.isDemo) : [];
+    // Show wizard if no real accounts exist OR if onboarding is actively in progress
     // IMPORTANT: Always show wizard if onboarding is in progress, even if accounts exist
     // This prevents the wizard from being unmounted when an account is created
-    if (Array.isArray(accounts) && (accounts.length === 0 || onboardingInProgress)) {
+    if (nonDemoAccounts.length === 0 || onboardingInProgress) {
       return (
         <RequireAuth>
           <div className="min-h-screen flex flex-col">

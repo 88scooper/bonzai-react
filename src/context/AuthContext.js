@@ -132,6 +132,14 @@ export function AuthProvider({ children }) {
       const response = await apiClient.register(email, password, name);
       
       if (response.success && response.data) {
+        // Clear demo mode flag immediately after signup to prevent demo data from loading
+        // Set onboarding_in_progress flag to prevent redirect to portfolio-summary
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('demoMode');
+          sessionStorage.removeItem('readOnlyMode');
+          sessionStorage.setItem('onboarding_in_progress', 'true');
+        }
+        
         // Fetch full user data including is_admin
         try {
           const userResponse = await apiClient.getUserProfile();

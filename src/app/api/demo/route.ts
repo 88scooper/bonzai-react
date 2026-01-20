@@ -66,28 +66,41 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const propertyIds = propertiesResult.map(p => p.id);
     let mortgagesResult: any[] = [];
     if (propertyIds.length > 0) {
-      const mortgagesResultRaw = await sql`
-        SELECT id, property_id, lender_name, original_amount, current_balance,
-               interest_rate, term_months, start_date, payment_frequency,
-               payment_amount, mortgage_data, created_at, updated_at
-        FROM mortgages
-        WHERE property_id = ANY(${propertyIds})
-        ORDER BY created_at DESC
-      `;
-      mortgagesResult = mortgagesResultRaw as Array<any>;
+      // For Neon, we need to use a different approach for array queries
+      // Build individual queries or use a workaround
+      // Since propertyIds is an array of strings, we'll query each property individually
+      // and combine results (more efficient than multiple queries would be to use IN with proper formatting)
+      const mortgagesPromises = propertyIds.map(propertyId => 
+        sql`
+          SELECT id, property_id, lender_name, original_amount, current_balance,
+                 interest_rate, term_months, start_date, payment_frequency,
+                 payment_amount, mortgage_data, created_at, updated_at
+          FROM mortgages
+          WHERE property_id = ${propertyId}
+        `
+      );
+      const mortgagesResults = await Promise.all(mortgagesPromises);
+      mortgagesResult = mortgagesResults.flat() as Array<any>;
+      // Sort by created_at DESC
+      mortgagesResult.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
     // Get expenses for demo account properties
     let expensesResult: any[] = [];
     if (propertyIds.length > 0) {
-      const expensesResultRaw = await sql`
-        SELECT id, property_id, expense_type, amount, expense_date, description,
-               category, is_recurring, recurring_frequency, created_at, updated_at
-        FROM expenses
-        WHERE property_id = ANY(${propertyIds})
-        ORDER BY expense_date DESC
-      `;
-      expensesResult = expensesResultRaw as Array<any>;
+      // Query expenses for each property and combine
+      const expensesPromises = propertyIds.map(propertyId =>
+        sql`
+          SELECT id, property_id, expense_type, amount, expense_date, description,
+                 category, is_recurring, recurring_frequency, created_at, updated_at
+          FROM expenses
+          WHERE property_id = ${propertyId}
+        `
+      );
+      const expensesResults = await Promise.all(expensesPromises);
+      expensesResult = expensesResults.flat() as Array<any>;
+      // Sort by expense_date DESC
+      expensesResult.sort((a, b) => new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime());
     }
 
     return NextResponse.json({

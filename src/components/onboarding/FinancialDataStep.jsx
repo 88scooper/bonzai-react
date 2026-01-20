@@ -19,7 +19,8 @@ export default function FinancialDataStep({
   onTenantAdded,
   onExpenseAdded,
   onComplete,
-  onBack
+  onBack,
+  onExit // New prop for exiting without completing
 }) {
   const { accounts, currentAccountId, properties: accountProperties } = useAccount();
   const { addToast } = useToast();
@@ -116,6 +117,7 @@ export default function FinancialDataStep({
       accountId={accountId}
       onComplete={onComplete}
       onBack={onBack}
+      onExit={onExit}
     />
   );
 }
