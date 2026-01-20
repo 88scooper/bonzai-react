@@ -6,7 +6,9 @@ import { parsePaginationParams, createPaginatedResponse, getOffset } from '@/lib
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 import { preventDemoModification } from '@/lib/demo-protection';
 import { validateRequest } from '@/lib/validate-request';
-import { properties } from '@/data/properties';
+// Demo seed properties used only for auto-seeding demo accounts
+// Alias to avoid naming conflicts with DB properties variables below
+import { properties as demoSeedProperties } from '@/data/properties';
 
 interface Property {
   id: string;
@@ -100,7 +102,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             if (demoAccountCheck[0]) {
               // Import seeding logic from the demo route
               const demoPropertyIds = ['first-st-1', 'second-dr-1', 'third-ave-1'];
-              const demoProperties = properties.filter(p => demoPropertyIds.includes(p.id));
+              const demoProperties = demoSeedProperties.filter(p => demoPropertyIds.includes(p.id));
               
               for (const property of demoProperties) {
                 try {
@@ -263,9 +265,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const countResult = await countQuery as Array<{ count: bigint }>;
     const total = Number(countResult[0]?.count || 0);
 
-    const properties = await dataQuery as Property[];
-
-    const paginatedResponse = createPaginatedResponse(properties, total, page, limit);
+    // Use a different variable name to avoid shadowing the imported `properties` demo data
+    const dbProperties = await dataQuery as Property[];
+    
+    const paginatedResponse = createPaginatedResponse(dbProperties, total, page, limit);
 
     return NextResponse.json(
       createSuccessResponse(paginatedResponse),
