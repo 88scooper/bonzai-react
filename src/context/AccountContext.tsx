@@ -953,7 +953,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // CRITICAL: demo@bonzai.io MUST be able to load properties for their demo account
       if (isAuthenticated()) {
         // Special handling: if user is demo@bonzai.io and account is demo, ensure properties load
-        if (isDemoUser(user?.email) && currentAccount?.isDemo) {
+        const userEmail = user?.email || '';
+        if (isDemoUser(userEmail) && currentAccount?.isDemo) {
           console.log('[AccountContext] Loading properties for demo@bonzai.io demo account');
         }
         loadProperties(currentAccountId);
@@ -962,7 +963,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     } else {
       setProperties([]);
     }
-  }, [currentAccountId, currentAccount?.isDemo, loadProperties, user?.email]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentAccountId, currentAccount?.isDemo, loadProperties]);
 
   // Refresh accounts
   const refreshAccounts = useCallback(async () => {
