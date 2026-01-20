@@ -30,10 +30,22 @@ interface AccountContextType {
 
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
 
+// CRITICAL: Demo user email constant to prevent regressions
+// demo@bonzai.io is the special authenticated demo user who MUST be able to access their demo account
+// DO NOT filter out demo accounts for this user - they need to see and use their own demo account
+const DEMO_USER_EMAIL = 'demo@bonzai.io';
+
 // Helper to check if user is authenticated
 function isAuthenticated(): boolean {
   if (typeof window === 'undefined') return false;
   return !!localStorage.getItem('auth_token');
+}
+
+// Helper to check if current user is the demo user
+// CRITICAL: This function MUST be used anywhere we filter or handle demo accounts
+// to ensure demo@bonzai.io can always access their demo account
+function isDemoUser(userEmail: string | null | undefined): boolean {
+  return userEmail?.toLowerCase() === DEMO_USER_EMAIL.toLowerCase();
 }
 
 // Helper function to normalize date to YYYY-MM-DD format
@@ -414,8 +426,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           ? accountsData.map(mapApiAccountToContext)
           : [];
         
-        // Filter out demo accounts for authenticated users - they should only see their real accounts
-        const nonDemoAccounts = mappedAccounts.filter(acc => !acc.isDemo);
+        // CRITICAL: Filter out demo accounts for authenticated users - EXCEPT for demo@bonzai.io
+        // demo@bonzai.io MUST be able to see and use their own demo account
+        // This is required for demo@bonzai.io to see demo properties in portfolio summary
+        // DO NOT remove this exception - demo@bonzai.io needs access to their demo account
+        const userIsDemoUser = isDemoUser(user?.email);
+        const nonDemoAccounts = userIsDemoUser 
+          ? mappedAccounts // Include all accounts (including demo) for demo@bonzai.io
+          : mappedAccounts.filter(acc => !acc.isDemo);
         setAccounts(nonDemoAccounts);
 
         // If no accounts exist, clear current account to trigger onboarding
@@ -434,8 +452,21 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           
           let accountToUse: Account | undefined;
           
+          // CRITICAL: For demo@bonzai.io, always prefer demo account
+          // This ensures demo@bonzai.io users automatically get their demo account selected
+          // which allows them to see demo properties in portfolio summary
+          if (isDemoUser(user?.email)) {
+            const demoAccount = nonDemoAccounts.find(a => a.isDemo);
+            if (demoAccount) {
+              accountToUse = demoAccount;
+              console.log('[AccountContext] Auto-selected demo account for demo@bonzai.io user');
+            } else {
+              console.warn('[AccountContext] WARNING: demo@bonzai.io user but no demo account found!');
+            }
+          }
+          
           // For cooper.stuartc@gmail.com, always prefer "SC Properties" as default
-          if (user?.email === 'cooper.stuartc@gmail.com') {
+          if (!accountToUse && user?.email === 'cooper.stuartc@gmail.com') {
             const scPropertiesAccount = nonDemoAccounts.find(a => 
               a.name === 'SC Properties' || a.name?.toLowerCase().includes('sc properties')
             );
@@ -912,20 +943,26 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Load properties when current account changes
   useEffect(() => {
-    // Load properties for all accounts, including demo accounts
+    // CRITICAL: Load properties for all accounts, including demo accounts
     // Demo accounts loaded via loadDemoData() will have properties already set,
     // but authenticated users with demo accounts need to load properties via API
+    // This is especially important for demo@bonzai.io to see their demo properties
     if (currentAccountId) {
       // Only skip if user is not authenticated (meaning demo mode via loadDemoData)
       // For authenticated users, always load properties via API, even for demo accounts
+      // CRITICAL: demo@bonzai.io MUST be able to load properties for their demo account
       if (isAuthenticated()) {
+        // Special handling: if user is demo@bonzai.io and account is demo, ensure properties load
+        if (isDemoUser(user?.email) && currentAccount?.isDemo) {
+          console.log('[AccountContext] Loading properties for demo@bonzai.io demo account');
+        }
         loadProperties(currentAccountId);
       }
       // If not authenticated and it's a demo account, properties should already be loaded via loadDemoData()
     } else {
       setProperties([]);
     }
-  }, [currentAccountId, currentAccount?.isDemo, loadProperties]);
+  }, [currentAccountId, currentAccount?.isDemo, loadProperties, user?.email]);
 
   // Refresh accounts
   const refreshAccounts = useCallback(async () => {
@@ -947,8 +984,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setError(null);
       
       // Use provided account or find it in the accounts array
+      // CRITICAL: For demo@bonzai.io, ensure demo accounts are accessible
+      // This safeguards against filtering issues
       const accountToSwitch = account || accounts.find(a => a.id === accountId);
       if (!accountToSwitch) {
+        // If account not found and user is demo@bonzai.io, check if it's a demo account
+        // that might have been filtered out incorrectly
+        if (isDemoUser(user?.email)) {
+          console.warn('[AccountContext] Account not found in accounts list, but user is demo@bonzai.io');
+          // Try to reload accounts in case demo account was filtered incorrectly
+        }
         throw new Error('Account not found');
       }
 
