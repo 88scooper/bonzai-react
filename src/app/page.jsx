@@ -5,7 +5,7 @@ import Link from "next/link";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
-import { ChevronDown, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Footer from "@/components/Footer";
 
@@ -128,7 +128,7 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
         <div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Institutional-grade data for the independent landlord.</h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-            You don't need to be a finance expert to run a professional portfolio. Bonzai gives you a clear, accessible way to centralize your data and stop guessing your returns. Whether you're currently using a spreadsheet or nothing at all, we give you the instant insight you need to track cash flow and see your equity grow in real-time.
+            You don't need to be a finance expert to run a professional portfolio. Bonzai gives you a clear, accessible way to centralize your data and stop guessing your returns. Whether you're currently using a spreadsheet or nothing at all, we give you the instant insight you need to track cash flow and see your equity grow in real-time across your real estate investment portfolio.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button onClick={onGetStarted} className="!px-8 !py-4 !text-lg">Get started for free</Button>
@@ -203,33 +203,13 @@ function FeaturesSection() {
 }
 
 function FeatureCard({ title, description }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
   return (
     <div className="group relative rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 hover:border-emerald-300/50 dark:hover:border-emerald-500/30 hover:shadow-lg transition-all duration-300">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-start justify-between gap-4 text-left"
-      >
-        <div className="text-lg font-semibold flex-1 text-gray-900 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-          {title}
-        </div>
-        <div className={`flex-shrink-0 p-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 transition-all duration-200 ${
-          isExpanded ? "bg-emerald-100 dark:bg-emerald-900/40" : ""
-        }`}>
-          <ChevronDown
-            className={`w-4 h-4 text-emerald-600 dark:text-emerald-400 transition-transform duration-200 ${
-              isExpanded ? "rotate-180" : ""
-            }`}
-          />
-        </div>
-      </button>
+      <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+        {title}
+      </div>
       <div className="mt-4">
-        {isExpanded ? (
-          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">{description}</p>
-        ) : (
-          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300 line-clamp-2">{description}</p>
-        )}
+        <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">{description}</p>
       </div>
     </div>
   );
