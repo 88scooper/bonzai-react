@@ -126,9 +126,9 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
     <section className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Your key tool for growth, optimization, and peace of mind for your real estate investments</h1>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Institutional-grade data for the independent landlord.</h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-            Empower yourself with full visibility into your small-scale real estate investment portfolio allowing you understand and optimize your returns. Track revenue & expenses, equity built, forecast cash flow, and analyze scenarios — all in one powerful platform designed for real estate investors.
+            You don't need to be a finance expert to run a professional portfolio. Bonzai gives you a clear, accessible way to centralize your data and stop guessing your returns. Whether you're currently using a spreadsheet or nothing at all, we give you the instant insight you need to track cash flow and see your equity grow in real-time.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button onClick={onGetStarted} className="!px-8 !py-4 !text-lg">Get started for free</Button>
@@ -154,7 +154,7 @@ function FeaturesSection() {
   return (
     <section id="features" className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="text-center mb-16">
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Take control with Bonzai - a free service designed for individual investors, providing everything you need to simplify financial management and fully leverage your real estate investment portfolio!</h2>
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Real estate is often your biggest investment, yet the "real numbers" usually stay buried in a shoebox of receipts or a spreadsheet that hasn't been updated in months. If you can't see your actual cash flow and equity, you're missing the insights that help you grow. Bonzai replaces that uncertainty with total clarity.</h2>
       </div>
       
       <div className="space-y-16 md:space-y-20">
