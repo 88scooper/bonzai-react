@@ -160,10 +160,7 @@ function FeaturesSection() {
       <div className="space-y-16 md:space-y-20">
         {/* Seamless Portfolio Transparency & Management */}
         <div className="relative">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="h-1 w-12 bg-emerald-500 rounded-full"></div>
-            <h3 className="text-2xl md:text-3xl font-bold tracking-tight">Seamless Portfolio Transparency & Management</h3>
-          </div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Seamless Portfolio Transparency & Management</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Portfolio transparency & tracking" description="Get a complete view of your portfolio with cash flow, occupancy rates, cap rates, and key performance indicators. Compare actual performance against forecasts and track revenue, tax deductible expenses, and cash flow growth trends." />
             <FeatureCard title="Track equity growth" description="Project your property's equity growth by modeling appreciation, interest rates, and principal paydown over time." />
@@ -173,13 +170,10 @@ function FeaturesSection() {
 
         {/* Powerful Analysis, Insights, and Forecasting */}
         <div className="relative">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="h-1 w-12 bg-emerald-500 rounded-full"></div>
-            <h3 className="text-2xl md:text-3xl font-bold tracking-tight">Powerful Analysis, Insights, and Forecasting</h3>
-          </div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Powerful Analysis, Insights, and Forecasting</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Portfolio insights" description="Get actionable intelligence on top-performing properties, diversification opportunities, and risk assessment." />
-            <FeatureCard title="10-year forecasting" description="Project cash flow and equity growth over 10 years with adjustable assumptions for rent growth, expenses, appreciation, and vacancy rates." />
+            <FeatureCard title="Forecasting" description="Project cash flow and equity growth over 10 years with adjustable assumptions for rent growth, expenses, appreciation, and vacancy rates." />
             <FeatureCard title="Sensitivity analysis" description="Model different market scenarios by adjusting assumptions and instantly see the impact on IRR, cash flow, and total profit." />
             <FeatureCard title="Scenario planning" description="No more repetitve data entry - save and compare multiple investment scenarios to model optimistic, realistic, and conservative market conditions side-by-side." />
           </div>
@@ -187,10 +181,7 @@ function FeaturesSection() {
 
         {/* Consolidation of Property Details & Data */}
         <div className="relative">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="h-1 w-12 bg-emerald-500 rounded-full"></div>
-            <h3 className="text-2xl md:text-3xl font-bold tracking-tight">Consolidation of Property Details & Data</h3>
-          </div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Consolidation of Property Details & Data</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Property records & secure cloud sync" description="Centralized property management with income tracking, expense records, document storage, and historical data, all securely stored in the cloud and automatically synced across all your devices." />
             <FeatureCard title="Mortgage management" description="Track all mortgages, view detailed amortization schedules, calculate refinancing opportunities, and analyze break penalties." />
@@ -204,12 +195,12 @@ function FeaturesSection() {
 
 function FeatureCard({ title, description }) {
   return (
-    <div className="group relative rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 hover:border-emerald-300/50 dark:hover:border-emerald-500/30 hover:shadow-lg transition-all duration-300">
-      <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-6 hover:shadow-md transition-shadow">
+      <div className="text-lg font-bold text-slate-900">
         {title}
       </div>
-      <div className="mt-4">
-        <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">{description}</p>
+      <div className="mt-2">
+        <p className="text-sm leading-relaxed text-slate-600">{description}</p>
       </div>
     </div>
   );
