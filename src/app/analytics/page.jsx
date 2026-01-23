@@ -14,7 +14,7 @@ import SensitivityDashboard from "@/components/calculators/SensitivityDashboard"
 import YoYAnalysis from "@/components/calculators/YoYAnalysis";
 import SaveScenarioModal from "@/components/calculators/SaveScenarioModal";
 import SavedScenariosPanel from "@/components/calculators/SavedScenariosPanel";
-import SettingsSidebar from "@/components/calculators/SettingsSidebar";
+import InlineSettingsPanel from "@/components/calculators/InlineSettingsPanel";
 import { DEFAULT_ASSUMPTIONS, CASH_FLOW_DEFAULT_ASSUMPTIONS, EQUITY_DEFAULT_ASSUMPTIONS } from "@/lib/sensitivity-analysis";
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
 import { useToast } from "@/context/ToastContext";
@@ -103,10 +103,10 @@ export default function AnalyticsPage() {
   return (
     <RequireAuth>
       <Layout>
-        {/* Main container with sidebar layout */}
+        {/* Main container */}
         <div className="flex relative" style={{ minHeight: 'calc(100vh - 200px)', background: '#F9FAFB' }}>
-          {/* Main content area with right padding for sidebar */}
-          <div className="flex-1 pr-[300px]">
+          {/* Main content area */}
+          <div className="flex-1">
             <div className="space-y-6 p-6">
               <header className="space-y-4">
             <div>
@@ -203,6 +203,13 @@ export default function AnalyticsPage() {
                         />
                       )}
                     </div>
+
+                    {/* Inline Settings Panel - directly above chart */}
+                    <InlineSettingsPanel
+                      assumptions={assumptions}
+                      onAssumptionsChange={setAssumptions}
+                      analysisMode={analysisMode}
+                    />
 
                     {/* Forecast Chart - already has its own card wrapper */}
                     {analysisMode === 'cash-flow' ? (
@@ -331,14 +338,6 @@ export default function AnalyticsPage() {
           </div>
             </div>
           </div>
-
-          {/* Settings Sidebar */}
-          {selectedProperty && activeTab === 'sensitivity' && (
-            <SettingsSidebar
-              assumptions={assumptions}
-              onAssumptionsChange={setAssumptions}
-            />
-          )}
         </div>
       </Layout>
     </RequireAuth>
