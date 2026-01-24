@@ -61,10 +61,6 @@ export default function Layout({ children }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 </button>
-                
-                <span className="font-semibold tracking-tight">
-                  Bonzai
-                </span>
               </div>
               
               <div className="flex items-center gap-3">

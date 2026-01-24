@@ -137,7 +137,7 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
         </div>
         <div className="h-64 md:h-80 rounded-xl overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 flex items-center justify-center">
           <Image
-            src="/bonzai-logo.png"
+            src="/Bonzai Primary Logo.png"
             alt="Bonzai - Real Estate Investment Management"
             width={720}
             height={480}

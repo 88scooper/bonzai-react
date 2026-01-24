@@ -26,9 +26,9 @@ export const metadata = {
   title: "Bonzai",
   description: "Real estate investment management, reimagined.",
   icons: {
-    icon: "/icon.png",
-    shortcut: "/icon.png",
-    apple: "/icon.png",
+    icon: "/Bonzia Round Logo.png",
+    shortcut: "/Bonzia Round Logo.png",
+    apple: "/Bonzia Round Logo.png",
   },
 };
 

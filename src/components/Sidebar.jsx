@@ -137,9 +137,9 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
           
           {/* Logo Image */}
           <img 
-            src="/Bonzai Logo - Alternate 1.png" 
+            src="/Bonzia Round Logo.png" 
             alt="Bonzai logo" 
-            className="h-[68px] w-auto object-contain dark:mix-blend-lighten"
+            className="h-[48px] w-auto object-contain dark:mix-blend-lighten"
           />
           
           {/* Close Button - Mobile Only */}
