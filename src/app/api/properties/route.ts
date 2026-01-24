@@ -9,6 +9,7 @@ import { validateRequest } from '@/lib/validate-request';
 // Demo seed properties used only for auto-seeding demo accounts
 // Alias to avoid naming conflicts with DB properties variables below
 import { properties as demoSeedProperties } from '@/data/properties';
+import { scProperties as scSeedProperties } from '@/data/scProperties';
 
 interface Property {
   id: string;
