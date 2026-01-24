@@ -29,53 +29,60 @@ export function SettingsProvider({ children }) {
 
   // Apply dark mode to document based on settings (immediately on mount and when changed)
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/145e2d2e-07b8-4a3d-a84a-d884a82426a1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SettingsContext.jsx:useEffect:entry',message:'dark mode useEffect running',data:{settingsDarkMode:settings.darkMode,windowDefined:typeof window !== 'undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
     if (typeof window === 'undefined') {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/145e2d2e-07b8-4a3d-a84a-d884a82426a1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SettingsContext.jsx:useEffect:early-return',message:'window undefined, returning',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
       return;
     }
 
-    const beforeApply = document.documentElement.classList.contains('dark');
-    // Use the utility function to apply dark mode
-    const shouldBeDark = applyDarkMode(settings.darkMode);
-    const afterApply = document.documentElement.classList.contains('dark');
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/145e2d2e-07b8-4a3d-a84a-d884a82426a1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SettingsContext.jsx:useEffect:after-apply',message:'after applyDarkMode call',data:{settingsDarkMode:settings.darkMode,shouldBeDark,beforeApply,afterApply,success:afterApply === shouldBeDark},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
+    // Flag to prevent infinite loops in MutationObserver
+    let isApplying = false;
+
+    // Calculate expected dark mode state
+    const getExpectedDarkMode = () => {
+      if (settings.darkMode === null) {
+        // System preference
+        return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
+      return settings.darkMode === true;
+    };
+
+    const shouldBeDark = getExpectedDarkMode();
     
-    console.log('[SettingsContext] Applied dark mode:', {
-      darkMode: settings.darkMode,
-      shouldBeDark,
-      hasDarkClass: document.documentElement.classList.contains('dark'),
-      htmlClasses: document.documentElement.className
-    });
+    // Apply dark mode immediately
+    applyDarkMode(settings.darkMode);
 
     // Set up a MutationObserver to watch for unexpected class changes
     // This helps catch cases where something else might be removing the dark class
+    // IMPORTANT: Only restore if the change was NOT made by our own code
     const observer = new MutationObserver((mutations) => {
+      // Prevent infinite loops by checking if we're currently applying
+      if (isApplying) return;
+
       mutations.forEach((mutation) => {
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          // Recalculate shouldBeDark based on current settings to avoid stale closure
-          let currentShouldBeDark = false;
-          if (settings.darkMode === null) {
-            currentShouldBeDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-          } else {
-            currentShouldBeDark = settings.darkMode === true;
-          }
-          
+          const currentShouldBeDark = getExpectedDarkMode();
           const currentHasDark = document.documentElement.classList.contains('dark');
-          if (currentHasDark !== currentShouldBeDark) {
+          
+          // Only restore if there's a mismatch AND we didn't just apply it
+          // Check the data attribute to see if it was our code that made the change
+          const dataAttr = document.documentElement.getAttribute('data-dark-mode-applied');
+          const expectedDataAttr = currentShouldBeDark ? 'true' : 'false';
+          
+          if (currentHasDark !== currentShouldBeDark && dataAttr !== expectedDataAttr) {
+            // Only warn and restore if the change was unexpected (data attribute mismatch)
             console.warn('[SettingsContext] Dark class was unexpectedly changed! Restoring...', {
               expected: currentShouldBeDark,
               actual: currentHasDark,
-              settingsDarkMode: settings.darkMode
+              settingsDarkMode: settings.darkMode,
+              dataAttr
             });
-            // Restore the correct state
+            
+            // Set flag to prevent observer from triggering during apply
+            isApplying = true;
             applyDarkMode(settings.darkMode);
+            // Reset flag after a brief delay
+            setTimeout(() => {
+              isApplying = false;
+            }, 10);
           }
         }
       });
@@ -90,56 +97,50 @@ export function SettingsProvider({ children }) {
     // Also apply after a short delay to catch any hydration issues
     const timeoutId = setTimeout(() => {
       const currentHasDark = document.documentElement.classList.contains('dark');
-      if (currentHasDark !== shouldBeDark) {
+      const expectedDark = getExpectedDarkMode();
+      if (currentHasDark !== expectedDark) {
         console.warn('[SettingsContext] Post-hydration check: dark class mismatch. Fixing...');
+        isApplying = true;
         applyDarkMode(settings.darkMode);
+        setTimeout(() => {
+          isApplying = false;
+        }, 10);
       }
     }, 100);
 
     // Listen for system preference changes when darkMode is null (system mode)
     let mediaQuery = null;
+    let mediaQueryHandler = null;
+    
     if (settings.darkMode === null && window.matchMedia) {
       mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handleChange = (e) => {
+      mediaQueryHandler = (e) => {
         console.log('[SettingsContext] System preference changed, dark mode:', e.matches);
+        isApplying = true;
         applyDarkMode(null); // Re-apply with system preference
+        setTimeout(() => {
+          isApplying = false;
+        }, 10);
       };
 
-      mediaQuery.addEventListener('change', handleChange);
-      
-      return () => {
-        clearTimeout(timeoutId);
-        observer.disconnect();
-        if (mediaQuery) {
-          mediaQuery.removeEventListener('change', handleChange);
-        }
-      };
+      mediaQuery.addEventListener('change', mediaQueryHandler);
     }
 
+    // Cleanup function
     return () => {
       clearTimeout(timeoutId);
       observer.disconnect();
+      if (mediaQuery && mediaQueryHandler) {
+        mediaQuery.removeEventListener('change', mediaQueryHandler);
+      }
     };
   }, [settings.darkMode]);
 
   const updateSetting = (key, value) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/145e2d2e-07b8-4a3d-a84a-d884a82426a1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SettingsContext.jsx:updateSetting:entry',message:'updateSetting called',data:{key,value,currentSettings:settings},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     setSetting(key, value);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/145e2d2e-07b8-4a3d-a84a-d884a82426a1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SettingsContext.jsx:updateSetting:before-state-update',message:'before setSettingsState',data:{key,value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     setSettingsState((prev) => {
-      const newState = { ...prev, [key]: value };
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/145e2d2e-07b8-4a3d-a84a-d884a82426a1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SettingsContext.jsx:updateSetting:state-update',message:'setSettingsState callback executing',data:{prev,newState,key,value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
-      return newState;
+      return { ...prev, [key]: value };
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/145e2d2e-07b8-4a3d-a84a-d884a82426a1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SettingsContext.jsx:updateSetting:after-state-update',message:'after setSettingsState call',data:{key,value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
   };
 
   const value = {

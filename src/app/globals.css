@@ -1,78 +1,13 @@
 @import "tailwindcss";
 
+/* Tailwind v4: Define dark variant to work with .dark class */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light mode variables (also defined in @theme for Tailwind) */
 :root {
-  /* Base colors */
+  /* These are now primarily in @theme, but kept here for CSS variable fallback */
   --background: #ffffff;
   --foreground: #171717;
-
-  /* Brand colors - Emerald Green (Primary) */
-  --brand-primary: #205A3E;
-  --brand-primary-hover: #1a4730;
-  --brand-primary-light: #2F7E57;
-  --brand-primary-lighter: #66B894;
-  --brand-primary-dark: #1C4F39;
-  --brand-primary-darker: #0F1F17;
-
-  /* Semantic colors */
-  --success: #10b981;
-  --success-light: #34d399;
-  --success-dark: #059669;
-  --success-bg: #d1fae5;
-
-  --warning: #f59e0b;
-  --warning-light: #fbbf24;
-  --warning-dark: #d97706;
-  --warning-bg: #fef3c7;
-
-  --error: #ef4444;
-  --error-light: #f87171;
-  --error-dark: #dc2626;
-  --error-bg: #fee2e2;
-
-  --info: #3b82f6;
-  --info-light: #60a5fa;
-  --info-dark: #2563eb;
-  --info-bg: #dbeafe;
-
-  /* Neutral grays */
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
-  --gray-700: #374151;
-  --gray-800: #1f2937;
-  --gray-900: #111827;
-
-  /* Accent colors for variety */
-  --accent-teal: #1A4A5A;
-  --accent-teal-light: #7AC0CF;
-  --accent-amber: #B57A33;
-  --accent-amber-light: #E9C08A;
-
-  /* Border and surface colors */
-  --border-light: rgba(0, 0, 0, 0.1);
-  --border-dark: rgba(255, 255, 255, 0.1);
-  --surface-elevated: #ffffff;
-  --surface-subtle: #f9fafb;
-
-  /* Spacing scale based on 4px base unit */
-  --spacing-0: 0;
-  --spacing-1: 0.25rem; /* 4px */
-  --spacing-2: 0.5rem; /* 8px */
-  --spacing-3: 0.75rem; /* 12px */
-  --spacing-4: 1rem; /* 16px */
-  --spacing-5: 1.25rem; /* 20px */
-  --spacing-6: 1.5rem; /* 24px */
-  --spacing-8: 2rem; /* 32px */
-  --spacing-10: 2.5rem; /* 40px */
-  --spacing-12: 3rem; /* 48px */
-  --spacing-16: 4rem; /* 64px */
-  --spacing-20: 5rem; /* 80px */
-  --spacing-24: 6rem; /* 96px */
-  --spacing-32: 8rem; /* 128px */
 }
 
 /* Dark mode via class selector (for manual dark mode toggle) */
@@ -141,8 +76,68 @@
 }
 
 @theme inline {
+  /* Base colors - registered for Tailwind v4 */
+  --background: #ffffff;
+  --foreground: #171717;
+  
+  /* Tailwind color mappings */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  /* Brand colors - Emerald Green (Primary) */
+  --brand-primary: #205A3E;
+  --brand-primary-hover: #1a4730;
+  --brand-primary-light: #2F7E57;
+  --brand-primary-lighter: #66B894;
+  --brand-primary-dark: #1C4F39;
+  --brand-primary-darker: #0F1F17;
+
+  /* Semantic colors */
+  --success: #10b981;
+  --success-light: #34d399;
+  --success-dark: #059669;
+  --success-bg: #d1fae5;
+
+  --warning: #f59e0b;
+  --warning-light: #fbbf24;
+  --warning-dark: #d97706;
+  --warning-bg: #fef3c7;
+
+  --error: #ef4444;
+  --error-light: #f87171;
+  --error-dark: #dc2626;
+  --error-bg: #fee2e2;
+
+  --info: #3b82f6;
+  --info-light: #60a5fa;
+  --info-dark: #2563eb;
+  --info-bg: #dbeafe;
+
+  /* Neutral grays */
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+
+  /* Accent colors for variety */
+  --accent-teal: #1A4A5A;
+  --accent-teal-light: #7AC0CF;
+  --accent-amber: #B57A33;
+  --accent-amber-light: #E9C08A;
+
+  /* Border and surface colors */
+  --border-light: rgba(0, 0, 0, 0.1);
+  --border-dark: rgba(255, 255, 255, 0.1);
+  --surface-elevated: #ffffff;
+  --surface-subtle: #f9fafb;
+
+  /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-jakarta: var(--font-plus-jakarta-sans);
@@ -152,7 +147,7 @@
   --font-size-5xl: clamp(2.25rem, 1.75rem + 2vw, 3rem);      /* 36px → 48px */
   --font-size-6xl: clamp(3rem, 2rem + 3vw, 3.75rem);         /* 48px → 60px */
 
-  /* Brand colors */
+  /* Brand colors mapped for Tailwind */
   --color-brand-primary: var(--brand-primary);
   --color-brand-primary-hover: var(--brand-primary-hover);
   --color-brand-primary-light: var(--brand-primary-light);
@@ -160,7 +155,7 @@
   --color-brand-primary-dark: var(--brand-primary-dark);
   --color-brand-primary-darker: var(--brand-primary-darker);
 
-  /* Semantic colors */
+  /* Semantic colors mapped for Tailwind */
   --color-success: var(--success);
   --color-success-light: var(--success-light);
   --color-success-dark: var(--success-dark);
@@ -181,19 +176,35 @@
   --color-info-dark: var(--info-dark);
   --color-info-bg: var(--info-bg);
 
-  /* Accent colors */
+  /* Accent colors mapped for Tailwind */
   --color-accent-teal: var(--accent-teal);
   --color-accent-teal-light: var(--accent-teal-light);
   --color-accent-amber: var(--accent-amber);
   --color-accent-amber-light: var(--accent-amber-light);
 
-  /* Border colors */
+  /* Border colors mapped for Tailwind */
   --color-border-light: var(--border-light);
   --color-border-dark: var(--border-dark);
 
-  /* Surface colors */
+  /* Surface colors mapped for Tailwind */
   --color-surface-elevated: var(--surface-elevated);
   --color-surface-subtle: var(--surface-subtle);
+
+  /* Spacing scale based on 4px base unit */
+  --spacing-0: 0;
+  --spacing-1: 0.25rem; /* 4px */
+  --spacing-2: 0.5rem; /* 8px */
+  --spacing-3: 0.75rem; /* 12px */
+  --spacing-4: 1rem; /* 16px */
+  --spacing-5: 1.25rem; /* 20px */
+  --spacing-6: 1.5rem; /* 24px */
+  --spacing-8: 2rem; /* 32px */
+  --spacing-10: 2.5rem; /* 40px */
+  --spacing-12: 3rem; /* 48px */
+  --spacing-16: 4rem; /* 64px */
+  --spacing-20: 5rem; /* 80px */
+  --spacing-24: 6rem; /* 96px */
+  --spacing-32: 8rem; /* 128px */
 }
 
 body {
@@ -206,7 +217,8 @@ body {
 }
 
 /* Dark mode body styles */
-.dark body {
+.dark body,
+body.dark {
   background-color: #030712; /* gray-950 */
   color: #F9FAFB; /* gray-50 */
 }

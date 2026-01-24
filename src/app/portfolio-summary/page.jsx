@@ -1428,8 +1428,8 @@ function PortfolioSummaryContent() {
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Tenants & Rent</h2>
               
               {/* Current Tenants */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6 bg-white dark:bg-neutral-900">
-                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-4">Current Tenants</h3>
+              <div className="rounded-lg border border-black/10 dark:border-white/5 p-6 bg-white dark:bg-[#0f172a]">
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500 mb-4">Current Tenants</h3>
                 {properties.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Add a property to start tracking occupancy, leases, and rent collection.
@@ -1535,8 +1535,8 @@ function PortfolioSummaryContent() {
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Upcoming Events</h2>
               
               {/* Key Upcoming Dates */}
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-6 bg-white dark:bg-neutral-900">
-                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-4">Key Dates</h3>
+              <div className="rounded-lg border border-black/10 dark:border-white/5 p-6 bg-white dark:bg-[#0f172a]">
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500 mb-4">Key Dates</h3>
                 
                 <ScheduleEvents properties={properties} />
               </div>
@@ -1673,10 +1673,10 @@ function TopMetricCard({
   }, [isHovered, updateTooltipPosition]);
 
   return (
-    <div className="relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 transition-shadow duration-300 ease-in-out hover:shadow-[0_12px_40px_rgb(0,0,0,0.06)]">
+    <div className="relative bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/5 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 transition-shadow duration-300 ease-in-out hover:shadow-[0_12px_40px_rgb(0,0,0,0.06)]">
       <div className="flex items-start justify-between gap-3.5">
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500">
             {title}
           </h3>
         </div>
@@ -1810,10 +1810,10 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
   };
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-900">
+    <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-[#0f172a]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500">
             Income & Expenses (Forecasted)
           </h3>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -1835,7 +1835,7 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
         className={`mt-6 flex items-start justify-between rounded-md border px-4 py-3 text-lg ${
           netPositive
             ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
-            : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
+            : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border dark:border-white/5 dark:bg-[#0f172a] dark:border-l-4 dark:border-l-red-500/50'
         }`}
       >
         <div>
@@ -1843,7 +1843,7 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
           <p className="text-base opacity-80">After operating expenses and debt service</p>
         </div>
         <div className="text-right">
-          <p className="text-[1.375rem] font-bold">{formatCurrency(netCashFlow)}</p>
+          <p className={`text-[1.375rem] font-bold ${!netPositive ? 'dark:text-red-400' : ''}`}>{formatCurrency(netCashFlow)}</p>
           {expenseShare !== null && Number.isFinite(expenseShare) && (
             <p className="text-base font-medium opacity-80">
               {percentFormatter.format(expenseShare)} of revenue consumed
@@ -1929,9 +1929,9 @@ function AnnualRentalIncomeCard({ properties = [], totalMonthlyRent = 0 }) {
   };
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-900">
+    <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-[#0f172a]">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">Annual Rental Income</h3>
+        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500">Annual Rental Income</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setChartType('pie')}
@@ -2119,9 +2119,9 @@ function AnnualExpensesCard({
   }));
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-900">
+    <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-[#0f172a]">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
+        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500">
           Annual Expenses
         </h3>
         <div className="flex items-center gap-2">
@@ -2405,10 +2405,10 @@ function AnnualDeductibleExpensesCard({
   }));
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-900">
+    <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-[#0f172a]">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500">
             Annual Deductible Expenses
           </h3>
           <div className="relative group">
@@ -2680,11 +2680,11 @@ function MetricCard({
   const statusStyles = statusToneConfig[statusTone] || statusToneConfig.neutral;
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+    <div className="bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-white/5 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">{title}</h3>
+            <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500">{title}</h3>
             {showInfoIcon && (
               <div className="relative group">
                 <div className="w-4 h-4 rounded-full bg-white dark:bg-gray-100 border-2 border-[#205A3E] dark:border-[#4ade80] flex items-center justify-center cursor-help">

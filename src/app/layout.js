@@ -46,22 +46,30 @@ export default function RootLayout({ children }) {
                 try {
                   const settings = localStorage.getItem('bonzai_settings');
                   let darkMode = false;
+                  
+                  // This logic MUST match applyDarkMode() in settings-storage.js exactly
                   if (settings) {
                     const parsed = JSON.parse(settings);
                     if (parsed.darkMode === true) {
+                      // Explicit dark mode
                       darkMode = true;
                     } else if (parsed.darkMode === null) {
+                      // System preference - check matchMedia
                       darkMode = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
                     }
+                    // If parsed.darkMode === false, darkMode remains false
                   }
+                  
                   const root = document.documentElement;
                   if (darkMode) {
                     root.classList.add('dark');
+                    root.setAttribute('data-dark-mode-applied', 'true');
                   } else {
                     root.classList.remove('dark');
+                    root.setAttribute('data-dark-mode-applied', 'false');
                   }
-                  root.setAttribute('data-dark-mode-applied', darkMode ? 'true' : 'false');
                 } catch (e) {
+                  // On error, default to light mode
                   const root = document.documentElement;
                   root.classList.remove('dark');
                   root.setAttribute('data-dark-mode-applied', 'false');

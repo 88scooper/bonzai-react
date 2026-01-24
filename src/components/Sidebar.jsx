@@ -129,17 +129,17 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
         fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
         md:sticky md:top-0 md:translate-x-0 md:z-auto
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
+        w-64 bg-white dark:bg-[#020617] border-r border-gray-200 dark:border-gray-800
         flex flex-col shadow-lg h-screen
       `}>
-        <div className="px-6 py-6 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3">
+        <div className="px-6 py-6 border-b border-gray-200 dark:border-white/5 flex items-center gap-3">
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Bonzai</h1>
           
           {/* Logo Image */}
           <img 
             src="/Bonzai Logo - Alternate 1.png" 
             alt="Bonzai logo" 
-            className="h-[68px] w-auto object-contain"
+            className="h-[68px] w-auto object-contain dark:mix-blend-lighten"
           />
           
           {/* Close Button - Mobile Only */}
