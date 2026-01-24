@@ -393,8 +393,8 @@ class ApiClient {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            ...(this.getToken() ? { Authorization: `Bearer ${this.getToken()}` } : {}),
           },
+          credentials: 'include',
         }
       );
 
