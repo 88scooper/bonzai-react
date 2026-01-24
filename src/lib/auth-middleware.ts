@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, getUserById } from './auth';
+import { verifyToken, getUserById, hashToken } from './auth';
+import { sql } from './db';
 import { createErrorResponse } from './api-utils';
 
 export interface AuthenticatedUser {
@@ -16,22 +17,32 @@ export async function authenticateRequest(
   request: NextRequest
 ): Promise<AuthenticatedUser | null> {
   try {
-    // Get Authorization header
+    // Get Authorization header or session cookie
     const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return null;
-    }
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split('Bearer ')[1]
+      : null;
+    const cookieToken = request.cookies.get('bonzai_auth')?.value || null;
+    const token = bearerToken || cookieToken;
 
-    // Extract token
-    const token = authHeader.split('Bearer ')[1];
-    
     if (!token) {
       return null;
     }
 
     // Verify token
     const payload = verifyToken(token);
+
+    // Validate session exists and is not expired
+    const tokenHash = hashToken(token);
+    const sessionResult = await sql`
+      SELECT 1
+      FROM sessions
+      WHERE token_hash = ${tokenHash} AND expires_at > CURRENT_TIMESTAMP
+      LIMIT 1
+    `;
+    if (!sessionResult[0]) {
+      return null;
+    }
     
     // Get user from database to ensure they still exist
     const user = await getUserById(payload.userId);

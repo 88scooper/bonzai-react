@@ -92,15 +92,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiration
     await createSession(user.id, tokenHash, expiresAt);
 
-    // Return user and token
-    return NextResponse.json(
+    const response = NextResponse.json(
       createSuccessResponse({
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
         },
-        token,
       }),
       { 
         status: 200,
@@ -111,6 +109,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       }
     );
+
+    response.cookies.set('bonzai_auth', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    return response;
   } catch (error) {
     console.error('Error logging in user:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

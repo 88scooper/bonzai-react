@@ -186,24 +186,7 @@ export default function MyAccountModal({ isOpen, onClose }) {
   // Load user profile when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Only load profile if we have an auth token
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      if (token) {
-        loadProfile();
-      } else if (authUser) {
-        // Use authUser as fallback if no token but user is available
-        setProfile({
-          id: authUser.id || '',
-          email: authUser.email || '',
-          name: authUser.name || null,
-          created_at: authUser.createdAt || new Date().toISOString(),
-        });
-        setProfileForm({
-          name: authUser.name || "",
-          email: authUser.email || "",
-        });
-        setLoadingProfile(false);
-      }
+      loadProfile();
     } else {
       // Reset state when modal closes
       setEditingProfile(false);

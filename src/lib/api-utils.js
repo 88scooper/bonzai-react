@@ -1,23 +1,45 @@
 // NOTE: This file is kept for backward compatibility with legacy API routes
 // New API routes should use @/lib/auth-middleware.ts instead
 
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, hashToken } from '@/lib/auth';
+import { sql } from '@/lib/db';
 
 // Authentication middleware for API routes (legacy - use auth-middleware.ts for new routes)
 export async function authenticateRequest(req) {
   try {
     const authHeader = req.headers.get?.('authorization') || req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split('Bearer ')[1]
+      : null;
+    const cookieHeader = req.headers.get?.('cookie') || req.headers.cookie || '';
+    const cookieToken = cookieHeader
+      .split(';')
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith('bonzai_auth='))
+      ?.split('=')[1];
+    const token = bearerToken || cookieToken;
+
+    if (!token) {
       throw new Error('No authorization token provided');
     }
-
-    const token = authHeader.split('Bearer ')[1];
     
     // Validate JWT token using the new auth system
     const decoded = verifyToken(token);
     
     if (!decoded) {
       throw new Error('Invalid or expired token');
+    }
+
+    // Validate session exists and is not expired
+    const tokenHash = hashToken(token);
+    const sessionResult = await sql`
+      SELECT 1
+      FROM sessions
+      WHERE token_hash = ${tokenHash} AND expires_at > CURRENT_TIMESTAMP
+      LIMIT 1
+    `;
+    if (!sessionResult[0]) {
+      throw new Error('Invalid session');
     }
 
     return {

@@ -35,12 +35,6 @@ const AccountContext = createContext<AccountContextType | undefined>(undefined);
 // DO NOT filter out demo accounts for this user - they need to see and use their own demo account
 const DEMO_USER_EMAIL = 'demo@bonzai.io';
 
-// Helper to check if user is authenticated
-function isAuthenticated(): boolean {
-  if (typeof window === 'undefined') return false;
-  return !!localStorage.getItem('auth_token');
-}
-
 // Helper to check if current user is the demo user
 // CRITICAL: This function MUST be used anywhere we filter or handle demo accounts
 // to ensure demo@bonzai.io can always access their demo account
@@ -84,6 +78,7 @@ function mapApiAccountToContext(apiAccount: any): Account {
 
 export function AccountProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const isAuthenticated = useCallback(() => !!user, [user]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
   const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
@@ -434,10 +429,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         const nonDemoAccounts = userIsDemoUser 
           ? mappedAccounts // Include all accounts (including demo) for demo@bonzai.io
           : mappedAccounts.filter(acc => !acc.isDemo);
-        setAccounts(nonDemoAccounts);
+        const visibleAccounts = nonDemoAccounts.length > 0 ? nonDemoAccounts : mappedAccounts;
+        setAccounts(visibleAccounts);
 
         // If no accounts exist, clear current account to trigger onboarding
-        if (nonDemoAccounts.length === 0) {
+        if (visibleAccounts.length === 0) {
           setCurrentAccountId(null);
           setCurrentAccount(null);
           if (typeof window !== 'undefined') {
@@ -445,7 +441,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           }
         }
         // Set current account if not set
-        else if (!currentAccountId && nonDemoAccounts.length > 0) {
+        else if (!currentAccountId && visibleAccounts.length > 0) {
           const savedId = typeof window !== 'undefined' 
             ? localStorage.getItem('current_account_id') 
             : null;
@@ -465,19 +461,39 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             }
           }
           
-          // For cooper.stuartc@gmail.com, always prefer "SC Properties" as default
-          if (!accountToUse && user?.email === 'cooper.stuartc@gmail.com') {
-            const scPropertiesAccount = nonDemoAccounts.find(a => 
-              a.name === 'SC Properties' || a.name?.toLowerCase().includes('sc properties')
-            );
-            if (scPropertiesAccount) {
-              accountToUse = scPropertiesAccount;
-            }
-          }
-          
           // Fallback to saved account or first account
           if (!accountToUse) {
-            accountToUse = nonDemoAccounts.find(a => a.id === savedId) || nonDemoAccounts[0];
+            accountToUse = visibleAccounts.find(a => a.id === savedId) || visibleAccounts[0];
+          }
+
+          // If selected account has no properties, try to find one that does
+          if (accountToUse && visibleAccounts.length > 1) {
+            try {
+              const initialCheck = await apiClient.getProperties(accountToUse.id, 1, 1);
+              const initialCount = Array.isArray(initialCheck.data?.data)
+                ? initialCheck.data.data.length
+                : Array.isArray(initialCheck.data)
+                  ? initialCheck.data.length
+                  : 0;
+
+              if (initialCount === 0) {
+                const otherAccounts = visibleAccounts.filter(a => a.id !== accountToUse?.id);
+                for (const candidate of otherAccounts) {
+                  const candidateCheck = await apiClient.getProperties(candidate.id, 1, 1);
+                  const candidateCount = Array.isArray(candidateCheck.data?.data)
+                    ? candidateCheck.data.data.length
+                    : Array.isArray(candidateCheck.data)
+                      ? candidateCheck.data.length
+                      : 0;
+                  if (candidateCount > 0) {
+                    accountToUse = candidate;
+                    break;
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('AccountContext: Failed to auto-select account with properties:', err);
+            }
           }
           
           setCurrentAccountId(accountToUse.id);
@@ -486,19 +502,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           if (typeof window !== 'undefined') {
             localStorage.setItem('current_account_id', accountToUse.id);
           }
-        } else if (currentAccountId && user?.email === 'cooper.stuartc@gmail.com') {
-          // If account is already set but user is cooper.stuartc@gmail.com,
-          // check if we should switch to SC Properties
-          const scPropertiesAccount = nonDemoAccounts.find(a => 
-            (a.name === 'SC Properties' || a.name?.toLowerCase().includes('sc properties')) &&
-            a.id !== currentAccountId
-          );
-          if (scPropertiesAccount) {
-            // Switch to SC Properties if it exists and is different from current
-            setCurrentAccountId(scPropertiesAccount.id);
-            setCurrentAccount(scPropertiesAccount);
+        } else if (currentAccountId && visibleAccounts.length > 0) {
+          const currentIsValid = visibleAccounts.some(a => a.id === currentAccountId);
+          if (!currentIsValid) {
+            const fallbackAccount = visibleAccounts[0];
+            setCurrentAccountId(fallbackAccount.id);
+            setCurrentAccount(fallbackAccount);
             if (typeof window !== 'undefined') {
-              localStorage.setItem('current_account_id', scPropertiesAccount.id);
+              localStorage.setItem('current_account_id', fallbackAccount.id);
             }
           }
         }
@@ -669,10 +680,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      if (response.success && response.data) {
-        const propertiesData = response.data.data || response.data;
+      if (response.success) {
+        const propertiesData = response.data?.data || response.data || [];
         const propertiesArray = Array.isArray(propertiesData) ? propertiesData : [];
-        
+
         // Map each property and load mortgage data
         const mappedProperties = await Promise.all(
           propertiesArray.map(async (apiProperty: any) => {
@@ -904,7 +915,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setProperties([]);
       }
     }
-  }, []);
+  }, [isAuthenticated, user?.id]);
 
   // Check for demo mode immediately on mount (before AuthContext fully initializes)
   // This ensures demo mode works even if there's a stale auth token
@@ -964,7 +975,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setProperties([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentAccountId, currentAccount?.isDemo, loadProperties]);
+  }, [currentAccountId, currentAccount?.isDemo, user?.id, loadProperties]);
 
   // Refresh accounts
   const refreshAccounts = useCallback(async () => {

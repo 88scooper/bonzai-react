@@ -907,16 +907,22 @@ function PortfolioSummaryContent() {
         {/* Demo Mode Banner */}
         {isDemoMode && (
           <div className="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800 px-4 py-3">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-800 dark:text-emerald-200 font-medium">Demo Mode - Read Only</span>
-                <span className="text-sm text-emerald-700 dark:text-emerald-300">You're viewing a read-only demo portfolio. Sign up to create your own portfolio!</span>
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex h-2 w-2">
+                    <div className="absolute h-2 w-2 rounded-full bg-[#205A3E] animate-pulse"></div>
+                    <div className="absolute h-2 w-2 rounded-full bg-[#205A3E]/40 animate-ping"></div>
+                  </div>
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] dark:text-[#66B894]">DEMO MODE</span>
+                </div>
+                <span className="text-sm text-gray-500 dark:text-gray-400">You're viewing a read-only demo portfolio.</span>
               </div>
               <a 
                 href="/?signup=true" 
-                className="text-sm text-emerald-700 dark:text-emerald-300 hover:underline font-medium"
+                className="text-xs font-semibold px-3 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
-                Get Started →
+                Create Account
               </a>
             </div>
           </div>
@@ -1414,7 +1420,7 @@ function PortfolioSummaryContent() {
               
               {/* Current Tenants */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 p-6 bg-white dark:bg-neutral-900">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Current Tenants</h3>
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-4">Current Tenants</h3>
                 {properties.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Add a property to start tracking occupancy, leases, and rent collection.
@@ -1465,10 +1471,8 @@ function PortfolioSummaryContent() {
                         return (
                           <div
                             key={property.id}
-                            className={`rounded-lg border p-4 transition-colors ${
-                              isOccupied
-                                ? 'border-gray-200 bg-gray-50/80 hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900/40 dark:hover:border-gray-600'
-                                : 'border-red-200 bg-red-50/60 hover:border-red-300 dark:border-red-800 dark:bg-red-900/20 dark:hover:border-red-700'
+                            className={`rounded-lg border border-gray-200 dark:border-gray-800 border-l-4 p-4 transition-colors hover:border-gray-300 dark:hover:border-gray-600 ${
+                              isOccupied ? 'border-l-[#205A3E]' : 'border-l-red-500'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-3">
@@ -1523,7 +1527,7 @@ function PortfolioSummaryContent() {
               
               {/* Key Upcoming Dates */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 p-6 bg-white dark:bg-neutral-900">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Key Upcoming Dates (30 days)</h3>
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-4">Key Upcoming Dates (30 days)</h3>
                 
                 <ScheduleEvents properties={properties} />
               </div>
@@ -1663,7 +1667,7 @@ function TopMetricCard({
     <div className="relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 transition-shadow duration-300 ease-in-out hover:shadow-[0_12px_40px_rgb(0,0,0,0.06)]">
       <div className="flex items-start justify-between gap-3.5">
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
             {title}
           </h3>
         </div>
@@ -1715,7 +1719,7 @@ function TopMetricCard({
           </div>
         )}
       </div>
-      <div className="mt-5 text-3xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+      <div className="mt-5 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
         {value}
       </div>
       {supporting && (
@@ -1800,7 +1804,7 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
     <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-900">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
             Income & Expenses (Forecasted)
           </h3>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -1918,7 +1922,7 @@ function AnnualRentalIncomeCard({ properties = [], totalMonthlyRent = 0 }) {
   return (
     <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-900">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Annual Rental Income</h3>
+        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">Annual Rental Income</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setChartType('pie')}
@@ -2108,7 +2112,7 @@ function AnnualExpensesCard({
   return (
     <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-900">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
           Annual Expenses
         </h3>
         <div className="flex items-center gap-2">
@@ -2395,7 +2399,7 @@ function AnnualDeductibleExpensesCard({
     <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-neutral-900">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
             Annual Deductible Expenses
           </h3>
           <div className="relative group">
@@ -2646,27 +2650,21 @@ function MetricCard({
     if (customColor) {
       return customColor;
     }
-    if (isExpense) {
-      return 'text-red-600 dark:text-red-400';
-    }
-    return 'text-gray-900 dark:text-gray-100';
+    return 'text-slate-900 dark:text-slate-100';
   };
 
   const statusToneConfig = {
     positive: {
-      text: 'text-emerald-700 dark:text-emerald-300',
-      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-      border: 'border-emerald-100 dark:border-emerald-800/60',
+      text: 'text-[#205A3E] dark:text-[#66B894]',
+      accent: 'border-l-[#205A3E]',
     },
     neutral: {
       text: 'text-gray-600 dark:text-gray-300',
-      bg: 'bg-gray-50 dark:bg-gray-900/40',
-      border: 'border-gray-100 dark:border-gray-700',
+      accent: 'border-l-gray-200 dark:border-l-gray-700',
     },
     warning: {
       text: 'text-amber-700 dark:text-amber-300',
-      bg: 'bg-amber-50 dark:bg-amber-900/20',
-      border: 'border-amber-200 dark:border-amber-800/60',
+      accent: 'border-l-amber-500',
     },
   };
 
@@ -2677,7 +2675,7 @@ function MetricCard({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</h3>
+            <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">{title}</h3>
             {showInfoIcon && (
               <div className="relative group">
                 <div className="w-4 h-4 rounded-full bg-white dark:bg-gray-100 border-2 border-[#205A3E] dark:border-[#4ade80] flex items-center justify-center cursor-help">
@@ -2701,7 +2699,7 @@ function MetricCard({
               ))}
             </div>
           ) : (
-            <p className={`text-3xl font-semibold tabular-nums ${getValueColor()}`}>{value}</p>
+            <p className={`text-3xl font-bold tabular-nums ${getValueColor()}`}>{value}</p>
           )}
 
           {subtitle && (
@@ -2712,7 +2710,7 @@ function MetricCard({
 
           {statusMessage && (
             <div
-              className={`mt-4 rounded-md border px-3 py-2 text-xs leading-5 ${statusStyles.bg} ${statusStyles.border} ${statusStyles.text}`}
+              className={`mt-4 rounded-md border border-gray-100 dark:border-gray-800 border-l-4 px-3 py-2 text-xs leading-5 ${statusStyles.accent} ${statusStyles.text}`}
             >
               {statusMessage}
             </div>
@@ -2791,7 +2789,7 @@ function ScheduleEvents({ properties = [] }) {
     if (diffDays < 0) {
       return {
         dot: 'border-red-500 bg-red-100 dark:bg-red-900/40',
-        card: 'border-red-100 bg-red-50 dark:border-red-800/60 dark:bg-red-900/20',
+        card: 'border-red-200 dark:border-red-800/60 border-l-4 border-l-red-500',
         badge: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
         label: 'Past due',
       };
@@ -2800,7 +2798,7 @@ function ScheduleEvents({ properties = [] }) {
     if (diffDays <= 7) {
       return {
         dot: 'border-amber-500 bg-amber-100 dark:bg-amber-900/40',
-        card: 'border-amber-100 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-900/20',
+        card: 'border-amber-200 dark:border-amber-800/60 border-l-4 border-l-amber-500',
         badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
         label: 'This week',
       };
@@ -2809,7 +2807,7 @@ function ScheduleEvents({ properties = [] }) {
     if (diffDays <= 30) {
       return {
         dot: 'border-blue-500 bg-blue-100 dark:bg-blue-900/40',
-        card: 'border-blue-100 bg-blue-50 dark:border-blue-800/60 dark:bg-blue-900/20',
+        card: 'border-blue-200 dark:border-blue-800/60 border-l-4 border-l-blue-500',
         badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
         label: `In ${diffDays} days`,
       };
@@ -2817,7 +2815,7 @@ function ScheduleEvents({ properties = [] }) {
 
     return {
       dot: 'border-gray-300 bg-gray-100 dark:bg-gray-800',
-      card: 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30',
+      card: 'border-gray-200 dark:border-gray-700 border-l-4 border-l-gray-200 dark:border-l-gray-700',
       badge: '',
       label: '',
     };
@@ -2856,7 +2854,7 @@ function ScheduleEvents({ properties = [] }) {
                     className={`absolute -left-3 mt-1 h-3 w-3 rounded-full border-2 ${urgency.dot}`}
                     aria-hidden="true"
                   />
-                  <div className={`rounded-lg border px-4 py-3 transition-colors ${urgency.card}`}>
+                  <div className={`rounded-lg border bg-white dark:bg-neutral-900 px-4 py-3 transition-colors ${urgency.card}`}>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">

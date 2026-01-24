@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/admin-middleware';
 import { hashPassword, createUser, getUserByEmail } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
@@ -10,17 +11,15 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
  * This endpoint should be secured in production - consider removing it after initial setup
  * or protecting it with an environment variable check.
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  try {
-    // Optional: Add environment check for security
-    // Uncomment this in production to disable the endpoint
-    // if (process.env.NODE_ENV === 'production') {
-    //   return NextResponse.json(
-    //     createErrorResponse('This endpoint is disabled in production', 403),
-    //     { status: 403 }
-    //   );
-    // }
+export const POST = withAdminAuth(async (request: NextRequest): Promise<NextResponse> => {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      createErrorResponse('Not found', 404),
+      { status: 404 }
+    );
+  }
 
+  try {
     const body = await request.json();
     const { email, password, name } = body;
 
@@ -122,5 +121,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 

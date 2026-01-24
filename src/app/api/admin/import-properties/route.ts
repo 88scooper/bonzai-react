@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest } from '@/lib/auth-middleware';
+import { withAdminAuth } from '@/lib/admin-middleware';
 import { sql } from '@/lib/db';
 import { properties } from '@/data/properties';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
@@ -68,16 +68,15 @@ function mapExpenseToDb(expense: any): any {
   };
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAdminAuth(async (request: NextRequest): Promise<NextResponse> => {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      createErrorResponse('Not found', 404),
+      { status: 404 }
+    );
+  }
+
   try {
-    // Authenticate
-    const user = await authenticateRequest(request);
-    if (!user) {
-      return NextResponse.json(
-        createErrorResponse('Authentication required', 401),
-        { status: 401 }
-      );
-    }
 
     // Find demo@bonzai.io user first
     const demoUserResult = await sql`
@@ -241,5 +240,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 

@@ -24,21 +24,6 @@ interface RequestOptions extends RequestInit {
 }
 
 class ApiClient {
-  private getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('auth_token');
-  }
-
-  private setToken(token: string): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem('auth_token', token);
-  }
-
-  private removeToken(): void {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem('auth_token');
-  }
-
   private async request<T>(
     endpoint: string,
     options: RequestOptions = {}
@@ -55,21 +40,14 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
-    // Add authentication token if required
-    if (requireAuth) {
-      const token = this.getToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    }
-
     // Build full URL
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
 
-    try {
-      const response = await fetch(url, {
+    const performRequest = async (requestUrl: string) => {
+      const response = await fetch(requestUrl, {
         ...fetchOptions,
         headers,
+        credentials: 'include',
       });
 
       // Handle non-JSON responses
@@ -85,13 +63,15 @@ class ApiClient {
 
       // Handle authentication errors
       if (response.status === 401) {
-        this.removeToken();
-        // Redirect to login - don't throw error as redirect will handle it
+        // Only redirect when auth is required and we're not already on a public page
         if (typeof window !== 'undefined') {
-          // Redirect immediately
-          window.location.href = '/login';
-          // Return a response that won't trigger further error handling
-          // This prevents the error overlay from showing during redirect
+          const publicPaths = ['/', '/login', '/signup', '/onboarding'];
+          const isPublicPath = publicPaths.includes(window.location.pathname);
+
+          if (requireAuth && !isPublicPath) {
+            window.location.href = '/login';
+          }
+
           return {
             success: false,
             error: 'Authentication required',
@@ -117,12 +97,46 @@ class ApiClient {
       }
 
       return data;
+    };
+
+    const getFallbackUrl = () => {
+      if (endpoint.startsWith('http')) {
+        return null;
+      }
+      if (typeof window === 'undefined') {
+        return null;
+      }
+      if (!API_BASE_URL.startsWith('http')) {
+        return null;
+      }
+      const origin = window.location.origin;
+      return `${origin}/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    };
+
+    const fallbackUrl = getFallbackUrl();
+    const shouldPreferSameOrigin =
+      typeof window !== 'undefined' &&
+      API_BASE_URL.startsWith('http') &&
+      fallbackUrl &&
+      !API_BASE_URL.startsWith(window.location.origin);
+
+    try {
+      if (shouldPreferSameOrigin) {
+        return await performRequest(fallbackUrl);
+      }
+      return await performRequest(url);
     } catch (error) {
       // Handle network errors (fetch fails before getting a response)
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
         // Don't log during build time (SSR)
         if (typeof window !== 'undefined') {
           console.warn('API request failed - network error:', url);
+        }
+        if (fallbackUrl && fallbackUrl !== url) {
+          if (typeof window !== 'undefined') {
+            console.warn('Retrying API request against same-origin:', fallbackUrl);
+          }
+          return await performRequest(fallbackUrl);
         }
         throw new Error('Network error: Unable to reach server. Please check your connection.');
       }
@@ -136,7 +150,7 @@ class ApiClient {
 
   // Authentication methods
   async register(email: string, password: string, name?: string) {
-    const response = await this.request<{ user: any; token: string }>(
+    const response = await this.request<{ user: any }>(
       '/auth/register',
       {
         method: 'POST',
@@ -145,15 +159,11 @@ class ApiClient {
       }
     );
 
-    if (response.data?.token) {
-      this.setToken(response.data.token);
-    }
-
     return response;
   }
 
   async login(email: string, password: string) {
-    const response = await this.request<{ user: any; token: string }>(
+    const response = await this.request<{ user: any }>(
       '/auth/login',
       {
         method: 'POST',
@@ -162,30 +172,13 @@ class ApiClient {
       }
     );
 
-    if (response.data?.token) {
-      this.setToken(response.data.token);
-      // Verify token was saved
-      const savedToken = this.getToken();
-      if (!savedToken || savedToken !== response.data.token) {
-        console.error('API Client: Failed to save token to localStorage');
-        throw new Error('Failed to save authentication token');
-      }
-      console.log('API Client: Token saved successfully to localStorage');
-    } else {
-      console.warn('API Client: No token in login response');
-    }
-
     return response;
   }
 
   async logout() {
-    try {
-      await this.request('/auth/logout', {
-        method: 'POST',
-      });
-    } finally {
-      this.removeToken();
-    }
+    await this.request('/auth/logout', {
+      method: 'POST',
+    });
   }
 
   // User profile methods

@@ -222,6 +222,210 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
       }
 
+      // If cooper.stuartc@gmail.com has an empty account, seed SC properties into it
+      if (user.email?.toLowerCase() === 'cooper.stuartc@gmail.com' && !isDemoAccount) {
+        const existingPropsCount = await sql`
+          SELECT COUNT(*) as count
+          FROM properties
+          WHERE account_id = ${accountId}
+        ` as Array<{ count: bigint }>;
+
+        const count = Number(existingPropsCount[0]?.count || 0);
+
+        if (count === 0) {
+          console.log('[Properties API] No properties found for cooper account, seeding SC properties...');
+          const scPropertyIds = ['richmond-st-e-403', 'tretti-way-317', 'wilson-ave-415'];
+          const scProperties = scSeedProperties.filter(p => scPropertyIds.includes(p.id));
+
+          for (const property of scProperties) {
+            try {
+              const propertyData = {
+                account_id: accountId,
+                nickname: property.nickname || property.name || 'Unnamed Property',
+                address: property.address || '',
+                purchase_price: property.purchasePrice || 0,
+                purchase_date: property.purchaseDate || null,
+                closing_costs: property.closingCosts || 0,
+                renovation_costs: property.renovationCosts || 0,
+                initial_renovations: property.initialRenovations || 0,
+                current_market_value: property.currentMarketValue || property.currentValue || 0,
+                year_built: property.yearBuilt || null,
+                property_type: property.propertyType || property.type || null,
+                size: property.size || property.squareFootage || null,
+                unit_config: property.unitConfig || null,
+                property_data: JSON.stringify({
+                  units: property.units || 1,
+                  rent: property.rent || null,
+                  tenants: property.tenants || [],
+                  originalId: property.id,
+                })
+              };
+
+              const propertyResult = await sql`
+                INSERT INTO properties (
+                  account_id, nickname, address, purchase_price, purchase_date,
+                  closing_costs, renovation_costs, initial_renovations,
+                  current_market_value, year_built, property_type, size, unit_config, property_data
+                ) VALUES (
+                  ${propertyData.account_id}, ${propertyData.nickname}, ${propertyData.address},
+                  ${propertyData.purchase_price}, ${propertyData.purchase_date},
+                  ${propertyData.closing_costs}, ${propertyData.renovation_costs},
+                  ${propertyData.initial_renovations}, ${propertyData.current_market_value},
+                  ${propertyData.year_built}, ${propertyData.property_type}, ${propertyData.size},
+                  ${propertyData.unit_config}, ${propertyData.property_data}::jsonb
+                )
+                RETURNING id
+              ` as Array<{ id: string }>;
+
+              if (propertyResult.length > 0) {
+                const propertyId = propertyResult[0].id;
+
+                // Create mortgage if exists
+                if (property.mortgage) {
+                  try {
+                    const mortgageData = {
+                      lender: property.mortgage.lender || property.mortgage.lenderName || '',
+                      original_amount: property.mortgage.originalAmount || property.mortgage.principal || 0,
+                      interest_rate: property.mortgage.interestRate || property.mortgage.rate || 0,
+                      rate_type: property.mortgage.rateType || 'Fixed',
+                      term_months: property.mortgage.termMonths || (property.mortgage.termYears ? property.mortgage.termYears * 12 : 60),
+                      amortization_years: property.mortgage.amortizationYears || property.mortgage.amortizationPeriodYears || 25,
+                      payment_frequency: property.mortgage.paymentFrequency || 'Monthly',
+                      start_date: property.mortgage.startDate || null,
+                      mortgage_data: JSON.stringify({
+                        mortgageNumber: property.mortgage.mortgageNumber || null,
+                        currentBalance: property.mortgage.currentBalance || null,
+                        paymentAmount: property.mortgage.paymentAmount || null,
+                        renewalDate: property.mortgage.renewalDate || null,
+                        remainingAmortization: property.mortgage.remainingAmortization || null,
+                      })
+                    };
+
+                    await sql`
+                      INSERT INTO mortgages (
+                        property_id, lender, original_amount, interest_rate, rate_type,
+                        term_months, amortization_years, payment_frequency, start_date, mortgage_data
+                      ) VALUES (
+                        ${propertyId}, ${mortgageData.lender}, ${mortgageData.original_amount},
+                        ${mortgageData.interest_rate}, ${mortgageData.rate_type},
+                        ${mortgageData.term_months}, ${mortgageData.amortization_years},
+                        ${mortgageData.payment_frequency}, ${mortgageData.start_date},
+                        ${mortgageData.mortgage_data}::jsonb
+                      )
+                    `;
+                  } catch (error: any) {
+                    console.error(`[Properties API] Error creating mortgage for ${property.nickname}:`, error.message);
+                  }
+                }
+
+                // Create expenses
+                if (property.expenseHistory && Array.isArray(property.expenseHistory)) {
+                  for (const expense of property.expenseHistory) {
+                    try {
+                      const expenseData = {
+                        date: expense.date || new Date().toISOString().split('T')[0],
+                        amount: expense.amount || 0,
+                        category: expense.category || 'Other',
+                        description: expense.description || expense.note || '',
+                        expense_data: JSON.stringify({})
+                      };
+
+                      await sql`
+                        INSERT INTO expenses (property_id, date, amount, category, description, expense_data)
+                        VALUES (
+                          ${propertyId}, ${expenseData.date}, ${expenseData.amount},
+                          ${expenseData.category}, ${expenseData.description},
+                          ${expenseData.expense_data}::jsonb
+                        )
+                      `;
+                    } catch (error: any) {
+                      console.error(`[Properties API] Error creating expense for ${property.nickname}:`, error.message);
+                    }
+                  }
+                }
+              }
+            } catch (error: any) {
+              console.error(`[Properties API] Error seeding SC property ${property.nickname}:`, error.message);
+            }
+          }
+
+          console.log('[Properties API] SC properties seeded successfully for cooper account');
+        }
+      }
+
+      // Backfill missing mortgage data for cooper.stuartc@gmail.com SC properties
+      const isCooperUser = user.email?.toLowerCase() === 'cooper.stuartc@gmail.com';
+      if (isCooperUser && !isDemoAccount) {
+        const normalize = (value: string | null | undefined) =>
+          (value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+        const scByOriginalId = new Map(scSeedProperties.map(p => [p.id, p]));
+        const scByNickname = new Map(scSeedProperties.map(p => [normalize(p.nickname || p.name), p]));
+        const scByAddress = new Map(scSeedProperties.map(p => [normalize(p.address), p]));
+
+        const accountProps = await sql`
+          SELECT id, nickname, address, property_data
+          FROM properties
+          WHERE account_id = ${accountId}
+        ` as Array<{ id: string; nickname: string | null; address: string | null; property_data: any }>;
+
+        for (const dbProp of accountProps) {
+          const originalId = dbProp.property_data?.originalId;
+          const match =
+            (originalId && scByOriginalId.get(originalId)) ||
+            scByNickname.get(normalize(dbProp.nickname)) ||
+            scByAddress.get(normalize(dbProp.address));
+
+          if (!match || !match.mortgage) {
+            continue;
+          }
+
+          const existingMortgage = await sql`
+            SELECT 1 FROM mortgages WHERE property_id = ${dbProp.id} LIMIT 1
+          `;
+          if (existingMortgage[0]) {
+            continue;
+          }
+
+          try {
+            const mortgageData = {
+              lender: match.mortgage.lender || match.mortgage.lenderName || '',
+              original_amount: match.mortgage.originalAmount || match.mortgage.principal || 0,
+              interest_rate: match.mortgage.interestRate || match.mortgage.rate || 0,
+              rate_type: match.mortgage.rateType || 'Fixed',
+              term_months: match.mortgage.termMonths || (match.mortgage.termYears ? match.mortgage.termYears * 12 : 60),
+              amortization_years: match.mortgage.amortizationYears || match.mortgage.amortizationPeriodYears || 25,
+              payment_frequency: match.mortgage.paymentFrequency || 'Monthly',
+              start_date: match.mortgage.startDate || null,
+              mortgage_data: JSON.stringify({
+                mortgageNumber: match.mortgage.mortgageNumber || null,
+                currentBalance: match.mortgage.currentBalance || null,
+                paymentAmount: match.mortgage.paymentAmount || null,
+                renewalDate: match.mortgage.renewalDate || null,
+                remainingAmortization: match.mortgage.remainingAmortization || null,
+              })
+            };
+
+            await sql`
+              INSERT INTO mortgages (
+                property_id, lender, original_amount, interest_rate, rate_type,
+                term_months, amortization_years, payment_frequency, start_date, mortgage_data
+              ) VALUES (
+                ${dbProp.id}, ${mortgageData.lender}, ${mortgageData.original_amount},
+                ${mortgageData.interest_rate}, ${mortgageData.rate_type},
+                ${mortgageData.term_months}, ${mortgageData.amortization_years},
+                ${mortgageData.payment_frequency}, ${mortgageData.start_date},
+                ${mortgageData.mortgage_data}::jsonb
+              )
+            `;
+            console.log('[Properties API] Backfilled mortgage for property:', dbProp.id);
+          } catch (error: any) {
+            console.error('[Properties API] Error backfilling mortgage:', error.message);
+          }
+        }
+      }
+
+
       countQuery = sql`
         SELECT COUNT(*) as count
         FROM properties

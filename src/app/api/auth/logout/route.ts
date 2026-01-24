@@ -18,20 +18,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Get token from Authorization header
+    // Get token from Authorization header or cookie
     const authHeader = request.headers.get('authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split('Bearer ')[1];
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split('Bearer ')[1]
+      : null;
+    const cookieToken = request.cookies.get('bonzai_auth')?.value || null;
+    const token = bearerToken || cookieToken;
+
+    if (token) {
       const tokenHash = hashToken(token);
-      
       // Delete session
       await deleteSession(tokenHash);
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       createSuccessResponse({ message: 'Logged out successfully' }),
       { status: 200 }
     );
+
+    response.cookies.set('bonzai_auth', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    });
+
+    return response;
   } catch (error) {
     console.error('Error logging out user:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

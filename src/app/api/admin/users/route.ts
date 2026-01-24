@@ -22,6 +22,13 @@ interface UserWithCounts {
  * Get all users with pagination and search
  */
 export const GET = withAdminAuth(async (request: NextRequest, admin) => {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      createErrorResponse('Not found', 404),
+      { status: 404 }
+    );
+  }
+
   try {
     // Parse query parameters
     const { searchParams } = new URL(request.url);

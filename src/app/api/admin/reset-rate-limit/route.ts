@@ -10,13 +10,20 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
  * Can reset specific IP or all rate limits
  */
 export const POST = withAdminAuth(async (request: NextRequest, admin) => {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      createErrorResponse('Not found', 404),
+      { status: 404 }
+    );
+  }
+
   try {
     const body = await request.json().catch(() => ({}));
     const { ip, all } = body;
 
     if (all === true) {
       // Clear all rate limits
-      clearAllRateLimits();
+      await clearAllRateLimits();
       return NextResponse.json(
         createSuccessResponse({
           message: 'All rate limits cleared successfully',
@@ -28,7 +35,7 @@ export const POST = withAdminAuth(async (request: NextRequest, admin) => {
     if (ip) {
       // Clear specific IP
       const identifier = `login:${ip}`;
-      clearRateLimit(identifier);
+      await clearRateLimit(identifier);
       return NextResponse.json(
         createSuccessResponse({
           message: `Rate limit cleared for IP: ${ip}`,
@@ -40,7 +47,7 @@ export const POST = withAdminAuth(async (request: NextRequest, admin) => {
     // If no IP specified, clear for the requesting IP
     const requestIP = getClientIP(request);
     const identifier = `login:${requestIP}`;
-    clearRateLimit(identifier);
+    await clearRateLimit(identifier);
 
     return NextResponse.json(
       createSuccessResponse({

@@ -20,11 +20,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  // Start with loading false if no token exists (optimize for landing page)
-  const [loading, setLoading] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return !!localStorage.getItem('auth_token');
-  });
+  const [loading, setLoading] = useState(true);
   const [isNewUser, setIsNewUser] = useState(false);
 
   // Check if user has accounts to determine if they're new
@@ -49,71 +45,37 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  // Load user from token on mount
+  // Load user from session cookie on mount
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-        
-        if (!token) {
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-
         // Try to fetch full user data from API (including is_admin)
         // Add timeout to prevent hanging
-        try {
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Request timeout')), 3000)
-          );
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 3000)
+        );
+        
+        const response = await Promise.race([
+          apiClient.getUserProfile(),
+          timeoutPromise
+        ]);
+        
+        if (response.success && response.data) {
+          const userData = {
+            id: response.data.id,
+            email: response.data.email,
+            displayName: response.data.name || null,
+            isAdmin: response.data.is_admin || false,
+          };
           
-          const response = await Promise.race([
-            apiClient.getUserProfile(),
-            timeoutPromise
-          ]);
+          setUser(userData);
           
-          if (response.success && response.data) {
-            const userData = {
-              id: response.data.id,
-              email: response.data.email,
-              displayName: response.data.name || null,
-              isAdmin: response.data.is_admin || false,
-            };
-            
-            setUser(userData);
-            
-            // Check if new user after setting user state
-            setTimeout(async () => {
-              await checkIsNewUser();
-            }, 100);
-          } else {
-            // Fallback to JWT decode if API call fails
-            throw new Error('API call failed, falling back to JWT decode');
-          }
-        } catch (apiError) {
-          // Fallback to JWT decode if API call fails or times out
-          console.warn('Failed to fetch user from API, using JWT decode:', apiError);
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const userData = {
-              id: payload.userId,
-              email: payload.email,
-              displayName: null,
-              isAdmin: false, // Default to false if we can't fetch from API
-            };
-            
-            setUser(userData);
-            
-            // Check if new user after setting user state
-            setTimeout(async () => {
-              await checkIsNewUser();
-            }, 100);
-          } catch (e) {
-            console.error('Error decoding token:', e);
-            localStorage.removeItem('auth_token');
-            setUser(null);
-          }
+          // Check if new user after setting user state
+          setTimeout(async () => {
+            await checkIsNewUser();
+          }, 100);
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error('Error loading user:', error);
@@ -199,11 +161,6 @@ export function AuthProvider({ children }) {
         throw new Error('Login response missing user data');
       }
       
-      // Token should be saved by apiClient.login()
-      if (!response.data.token) {
-        console.warn('AuthContext: No token in login response');
-      }
-      
       // Fetch full user data including is_admin
       // This is important for admin users to get redirected correctly
       let userData = {
@@ -215,8 +172,6 @@ export function AuthProvider({ children }) {
       
       try {
         console.log('AuthContext: Fetching user profile...');
-        // Add a small delay to ensure token is saved
-        await new Promise(resolve => setTimeout(resolve, 50));
         const userResponse = await apiClient.getUserProfile();
         
         if (userResponse && userResponse.success && userResponse.data) {
@@ -270,7 +225,6 @@ export function AuthProvider({ children }) {
     // Set flag FIRST - this tells RequireAuth to redirect to '/' instead of '/login'
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('isLoggingOut', 'true');
-      localStorage.removeItem('auth_token');
     }
     
     try {
@@ -343,48 +297,7 @@ export function RequireAuth({ children }) {
         return;
       }
       
-      // We're on a protected path with no user
-      const token = localStorage.getItem('auth_token');
-      
-      // If no token exists, user might be logging out
-      // Wait and check if navigation is happening
-      if (!token) {
-        // Use a longer delay and check multiple times
-        let checkCount = 0;
-        const maxChecks = 10; // Check 10 times over 2 seconds
-        const checkInterval = setInterval(() => {
-          checkCount++;
-          const newPath = window.location.pathname;
-          
-          // Check if logging out flag was set during the wait
-          const stillLoggingOut = sessionStorage.getItem('isLoggingOut') === 'true';
-          if (stillLoggingOut) {
-            clearInterval(checkInterval);
-            sessionStorage.removeItem('isLoggingOut');
-            window.location.href = '/';
-            return;
-          }
-          
-          // If we're now on a public path, navigation succeeded - stop checking
-          if (publicPaths.includes(newPath)) {
-            clearInterval(checkInterval);
-            return;
-          }
-          
-          // If we've checked enough times and still on protected path, redirect to login
-          if (checkCount >= maxChecks) {
-            clearInterval(checkInterval);
-            // Only redirect if we're still on a protected path
-            if (!publicPaths.includes(window.location.pathname)) {
-              window.location.href = '/login';
-            }
-          }
-        }, 200); // Check every 200ms
-        
-        return () => clearInterval(checkInterval);
-      }
-      
-      // Has token but no user - something is wrong, redirect to login immediately
+      // We're on a protected path with no user - redirect to login
       if (!isPublicPath) {
         window.location.href = '/login';
       }

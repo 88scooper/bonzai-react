@@ -35,14 +35,6 @@ export default function LoginPage() {
       const userData = await logIn(email, password);
       console.log("LoginPage: Login successful, userData:", userData);
       
-      // Verify token was saved
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        console.error("LoginPage: Token not found in localStorage after login!");
-        throw new Error("Login failed: Authentication token not saved");
-      }
-      console.log("LoginPage: Token saved successfully");
-      
       if (!userData || !userData.id) {
         console.error("LoginPage: Invalid userData returned:", userData);
         throw new Error("Login failed: Invalid user data received");
@@ -103,15 +95,28 @@ export default function LoginPage() {
             </div>
           )}
           
-          <form onSubmit={onSubmit} className="mt-6 grid gap-4" suppressHydrationWarning>
+          <form
+            onSubmit={onSubmit}
+            className="mt-6 grid gap-4"
+            suppressHydrationWarning
+            data-np-autofill="off"
+            data-1p-ignore="true"
+            data-lpignore="true"
+            data-bwignore="true"
+          >
             <div className="grid gap-2">
               <label htmlFor="email" className="text-sm">Email</label>
               <input 
                 id="email" 
                 name="email" 
-                type="email" 
-                required 
+                type="email"
+                autoComplete="email"
+                data-np-autofill="off"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-bwignore="true"
                 suppressHydrationWarning
+                required 
                 className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
               />
             </div>
@@ -121,9 +126,14 @@ export default function LoginPage() {
                 <input 
                   id="password" 
                   name="password" 
-                  type={showPassword ? "text" : "password"} 
-                  required 
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  data-np-autofill="off"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-bwignore="true"
                   suppressHydrationWarning
+                  required 
                   className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 pr-10 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
                 />
                 <button

@@ -1,14 +1,31 @@
-/**
- * Simple in-memory rate limiter for API endpoints
- * For production with high traffic, consider using Redis-based solution (e.g., @upstash/ratelimit)
- */
+import { sql } from './db';
 
-interface RateLimitEntry {
-  count: number;
-  resetTime: number;
+let rateLimitsTableReady = false;
+
+async function ensureRateLimitsTable(): Promise<void> {
+  if (rateLimitsTableReady) {
+    return;
+  }
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key VARCHAR(255) PRIMARY KEY,
+      points INTEGER NOT NULL,
+      expire_at TIMESTAMP WITH TIME ZONE NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_rate_limits_expire_at ON rate_limits(expire_at)
+  `;
+
+  rateLimitsTableReady = true;
 }
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
+/**
+ * Database-backed rate limiter for API endpoints
+ * Persists across serverless restarts and multiple instances.
+ */
 
 /**
  * Check if a request should be rate limited
@@ -22,48 +39,90 @@ export async function checkRateLimit(
   maxRequests: number,
   windowMs: number
 ): Promise<{ success: boolean; remaining: number; resetTime: number }> {
-  const now = Date.now();
-  const entry = rateLimitStore.get(identifier);
+  const now = new Date();
+  const resetTime = new Date(now.getTime() + windowMs);
 
-  // Clean up expired entries periodically (1% chance to avoid overhead)
+  try {
+    await ensureRateLimitsTable();
+  } catch (error) {
+    console.warn('[RateLimit] Failed to ensure rate_limits table:', error);
+  }
+
+  // Clean up expired entries occasionally to reduce table growth
   if (Math.random() < 0.01) {
-    for (const [key, value] of rateLimitStore.entries()) {
-      if (value.resetTime < now) {
-        rateLimitStore.delete(key);
-      }
+    await sql`DELETE FROM rate_limits WHERE expire_at <= NOW()`;
+  }
+
+  let existing: Array<{ key: string; points: number; expire_at: Date }>;
+  try {
+    existing = await sql`
+      SELECT key, points, expire_at
+      FROM rate_limits
+      WHERE key = ${identifier}
+      LIMIT 1
+    ` as Array<{ key: string; points: number; expire_at: Date }>;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('relation "rate_limits" does not exist')) {
+      await ensureRateLimitsTable();
+      existing = await sql`
+        SELECT key, points, expire_at
+        FROM rate_limits
+        WHERE key = ${identifier}
+        LIMIT 1
+      ` as Array<{ key: string; points: number; expire_at: Date }>;
+    } else {
+      throw error;
     }
   }
 
-  if (!entry || entry.resetTime < now) {
-    // New or expired entry - allow request
-    const newEntry: RateLimitEntry = {
-      count: 1,
-      resetTime: now + windowMs,
-    };
-    rateLimitStore.set(identifier, newEntry);
+  const record = existing[0];
+
+  if (!record || record.expire_at <= now) {
+    // New window: reset points
+    await sql`
+      INSERT INTO rate_limits (key, points, expire_at)
+      VALUES (${identifier}, ${maxRequests - 1}, ${resetTime})
+      ON CONFLICT (key) DO UPDATE
+      SET points = ${maxRequests - 1}, expire_at = ${resetTime}
+    `;
+
     return {
       success: true,
       remaining: maxRequests - 1,
-      resetTime: newEntry.resetTime,
+      resetTime: resetTime.getTime(),
     };
   }
 
-  if (entry.count >= maxRequests) {
-    // Rate limit exceeded
+  if (record.points <= 0) {
     return {
       success: false,
       remaining: 0,
-      resetTime: entry.resetTime,
+      resetTime: record.expire_at.getTime(),
     };
   }
 
-  // Increment count and allow request
-  entry.count++;
-  rateLimitStore.set(identifier, entry);
+  const updated = await sql`
+    UPDATE rate_limits
+    SET points = points - 1
+    WHERE key = ${identifier} AND expire_at > NOW() AND points > 0
+    RETURNING points, expire_at
+  ` as Array<{ points: number; expire_at: Date }>;
+
+  const updatedRecord = updated[0];
+
+  if (!updatedRecord) {
+    return {
+      success: false,
+      remaining: 0,
+      resetTime: record.expire_at.getTime(),
+    };
+  }
+
   return {
     success: true,
-    remaining: maxRequests - entry.count,
-    resetTime: entry.resetTime,
+    remaining: updatedRecord.points,
+    resetTime: updatedRecord.expire_at.getTime(),
   };
 }
 
@@ -71,15 +130,15 @@ export async function checkRateLimit(
  * Clear rate limit for a specific identifier
  * @param identifier - Identifier to clear (e.g., 'login:127.0.0.1' or 'login:unknown')
  */
-export function clearRateLimit(identifier: string): void {
-  rateLimitStore.delete(identifier);
+export async function clearRateLimit(identifier: string): Promise<void> {
+  await sql`DELETE FROM rate_limits WHERE key = ${identifier}`;
 }
 
 /**
  * Clear all rate limits (use with caution in production)
  */
-export function clearAllRateLimits(): void {
-  rateLimitStore.clear();
+export async function clearAllRateLimits(): Promise<void> {
+  await sql`DELETE FROM rate_limits`;
 }
 
 /**

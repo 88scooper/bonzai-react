@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/admin-middleware';
 import { sql } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
@@ -8,7 +9,14 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
  * NOTE: This is a temporary endpoint for initial setup
  * Should be removed or secured in production
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAdminAuth(async (request: NextRequest): Promise<NextResponse> => {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      createErrorResponse('Not found', 404),
+      { status: 404 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { email, newPassword } = body;
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 
 
 

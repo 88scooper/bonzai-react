@@ -45,31 +45,26 @@ export default function RootLayout({ children }) {
               (function() {
                 try {
                   const settings = localStorage.getItem('bonzai_settings');
-                  let darkMode = false; // default to light mode
+                  let darkMode = false;
                   if (settings) {
                     const parsed = JSON.parse(settings);
                     if (parsed.darkMode === true) {
                       darkMode = true;
                     } else if (parsed.darkMode === null) {
-                      // System preference
                       darkMode = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
                     }
-                    // If darkMode is false or undefined, keep darkMode = false (light mode)
                   }
-                  // Apply or remove dark class immediately
                   const root = document.documentElement;
                   if (darkMode) {
                     root.classList.add('dark');
-                    console.log('[DarkMode Script] Added .dark class to <html>');
                   } else {
                     root.classList.remove('dark');
-                    console.log('[DarkMode Script] Removed .dark class from <html>');
                   }
-                  // Verify it was applied
-                  console.log('[DarkMode Script] Current classes:', root.className);
+                  root.setAttribute('data-dark-mode-applied', darkMode ? 'true' : 'false');
                 } catch (e) {
-                  // Ignore errors, ensure light mode on error
-                  document.documentElement.classList.remove('dark');
+                  const root = document.documentElement;
+                  root.classList.remove('dark');
+                  root.setAttribute('data-dark-mode-applied', 'false');
                 }
               })();
             `,

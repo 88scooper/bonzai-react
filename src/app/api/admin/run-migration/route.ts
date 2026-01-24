@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/admin-middleware';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
@@ -8,7 +9,14 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
  * 
  * This is a one-time setup endpoint to add the is_admin column.
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAdminAuth(async (request: NextRequest): Promise<NextResponse> => {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      createErrorResponse('Not found', 404),
+      { status: 404 }
+    );
+  }
+
   try {
     console.log('Running admin migration...');
 
@@ -50,5 +58,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 

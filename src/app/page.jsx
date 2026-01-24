@@ -126,9 +126,9 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
     <section className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Institutional-grade data for the independent landlord.</h1>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Stop wondering how your properties are performing. Start seeing your true wealth.</h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-            You don't need to be a finance expert to run a professional portfolio. Bonzai gives you a clear, accessible way to centralize your data and stop guessing your returns. Whether you're currently using a spreadsheet or nothing at all, we give you the instant insight you need to track cash flow and see your equity grow in real-time across your real estate investment portfolio.
+            You don't need to be a finance expert to run a professional real estate portfolio. Bonzai gives you a clear, accessible way to centralize your data and stop guessing your returns. Whether you're currently using a spreadsheet or nothing at all, we give you the instant insight you need to track cash flow and see your equity grow in real-time across your real estate investments.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button onClick={onGetStarted} className="!px-8 !py-4 !text-lg">Get started for free</Button>
@@ -160,28 +160,28 @@ function FeaturesSection() {
       <div className="space-y-16 md:space-y-20">
         {/* Seamless Portfolio Transparency & Management */}
         <div className="relative">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Seamless Portfolio Transparency & Management</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Everything in one place. No more spreadsheet guessing games</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Portfolio transparency & tracking" description="Get a complete view of your portfolio with cash flow, occupancy rates, cap rates, and key performance indicators. Compare actual performance against forecasts and track revenue, tax deductible expenses, and cash flow growth trends." />
-            <FeatureCard title="Track equity growth" description="Project your property's equity growth by modeling appreciation, interest rates, and principal paydown over time." />
+            <FeatureCard title="Real-Time Equity Visibility" description="Most landlords only guess their net worth once a year. We project your property’s equity growth by modeling appreciation and principal paydown so you know exactly when it’s time to refinance or sell." />
             <FeatureCard title="Calendar & tasks" description="Track rent collection dates, maintenance schedules, and important tasks across all your properties." />
           </div>
         </div>
 
         {/* Powerful Analysis, Insights, and Forecasting */}
         <div className="relative">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Powerful Analysis, Insights, and Forecasting</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Data-driven decisions without the math headache</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Portfolio insights" description="Get actionable intelligence on top-performing properties, diversification opportunities, and risk assessment." />
-            <FeatureCard title="Forecasting" description="Project cash flow and equity growth over 10 years with adjustable assumptions for rent growth, expenses, appreciation, and vacancy rates." />
-            <FeatureCard title="Sensitivity analysis" description="Model different market scenarios by adjusting assumptions and instantly see the impact on IRR, cash flow, and total profit." />
+            <FeatureCard title="Wealth Forecasting" description="See the 10-year impact of a rent hike or a new mortgage today. Adjust your assumptions for appreciation and vacancy to see how your portfolio will actually perform a decade from now." />
+            <FeatureCard title="Stress-Test Your Investments" description="What happens to your cash flow if interest rates rise or the market dips? Model 'what-if' scenarios instantly to see the impact on your IRR and total profit before you make your next move." />
             <FeatureCard title="Scenario planning" description="No more repetitve data entry - save and compare multiple investment scenarios to model optimistic, realistic, and conservative market conditions side-by-side." />
           </div>
         </div>
 
         {/* Consolidation of Property Details & Data */}
         <div className="relative">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Consolidation of Property Details & Data</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Your database for every property detail</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Property records & secure cloud sync" description="Centralized property management with income tracking, expense records, document storage, and historical data, all securely stored in the cloud and automatically synced across all your devices." />
             <FeatureCard title="Mortgage management" description="Track all mortgages, view detailed amortization schedules, calculate refinancing opportunities, and analyze break penalties." />

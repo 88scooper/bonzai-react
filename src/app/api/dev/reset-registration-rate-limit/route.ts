@@ -25,7 +25,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (all === true) {
       // Clear all rate limits
-      clearAllRateLimits();
+      await clearAllRateLimits();
       return NextResponse.json(
         createSuccessResponse({
           message: 'All rate limits cleared successfully',
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (specifiedIP) {
       // Clear specific IP for registration
       const registerIdentifier = `register:${specifiedIP}`;
-      clearRateLimit(registerIdentifier);
+      await clearRateLimit(registerIdentifier);
       return NextResponse.json(
         createSuccessResponse({
           message: `Registration rate limit cleared for IP: ${specifiedIP}`,
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // If no IP specified, clear for the requesting IP
     const requestIP = getClientIP(request);
     const registerIdentifier = `register:${requestIP}`;
-    clearRateLimit(registerIdentifier);
+    await clearRateLimit(registerIdentifier);
 
     return NextResponse.json(
       createSuccessResponse({

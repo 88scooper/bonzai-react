@@ -59,7 +59,9 @@ export function generateToken(payload: JWTPayload): string {
  */
 export function verifyToken(token: string): JWTPayload {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
+    const decoded = jwt.verify(token, getJwtSecret(), {
+      algorithms: ['HS256'],
+    }) as JWTPayload;
     return decoded;
   } catch (error) {
     throw new Error('Invalid or expired token');

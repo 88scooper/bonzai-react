@@ -1,5 +1,9 @@
 {
-  "exclude": ["bonzai-app", "node_modules"],
+  "exclude": [
+    "node_modules",
+    "bonzai-app",
+    "bonzai-React"
+  ],
   "compilerOptions": {
     "target": "ES2017",
     "lib": [
@@ -17,7 +21,7 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "plugins": [
       {
         "name": "next"
@@ -35,10 +39,5 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/dev/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "bonzai-app",
-    "bonzai-React"
   ]
 }

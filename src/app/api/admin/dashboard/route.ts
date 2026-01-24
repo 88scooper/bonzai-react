@@ -26,6 +26,13 @@ interface DashboardStats {
  * Get admin dashboard statistics
  */
 export const GET = withAdminAuth(async (request: NextRequest, admin) => {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      createErrorResponse('Not found', 404),
+      { status: 404 }
+    );
+  }
+
   try {
     // Get total counts
     const [usersResult, accountsResult, propertiesResult, mortgagesResult] = await Promise.all([
