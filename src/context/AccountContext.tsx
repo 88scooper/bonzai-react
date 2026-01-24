@@ -533,7 +533,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [currentAccountId, user?.email, loadDemoData]);
+  }, [currentAccountId, user?.email, user?.id, isAuthenticated, loadDemoData]);
 
   // Map API property format (snake_case) to frontend format (camelCase)
   function mapApiPropertyToFrontend(apiProperty: any): any {
@@ -915,7 +915,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setProperties([]);
       }
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated]);
 
   // Check for demo mode immediately on mount (before AuthContext fully initializes)
   // This ensures demo mode works even if there's a stale auth token
@@ -1033,7 +1033,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
       // Don't throw - allow the account switch to complete even if properties can't load
     }
-  }, [accounts, loadProperties]);
+  }, [accounts, loadProperties, user?.email]);
 
   // Create a new account
   const createNewAccount = useCallback(async (name?: string, email?: string): Promise<Account> => {
@@ -1096,7 +1096,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setError(errorMessage);
       throw err;
     }
-  }, [loadAccounts, loadProperties]);
+  }, [loadAccounts, loadProperties, isAuthenticated]);
 
   // Delete an account
   const deleteAccount = useCallback(async (accountId: string) => {

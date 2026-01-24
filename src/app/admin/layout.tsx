@@ -13,7 +13,8 @@ async function requireAdminAccess() {
     notFound();
   }
 
-  const token = cookies().get('bonzai_auth')?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get('bonzai_auth')?.value;
   if (!token) {
     redirect('/dashboard');
   }

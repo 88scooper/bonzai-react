@@ -419,7 +419,7 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
   // PropertyProvider is wrapped by AccountProvider, so this should always work
   const accountContext = useAccount();
   const accountProperties = accountContext?.properties;
-  const saveProperties = accountContext?.saveProperties || (() => {});
+  const saveProperties = useMemo(() => accountContext?.saveProperties || (() => {}), [accountContext?.saveProperties]);
   
   const [propertiesState, setPropertiesState] = useState<Property[]>(() => {
     // Start with empty array to avoid blocking render
