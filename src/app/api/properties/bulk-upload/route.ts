@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth-middleware';
 import { createPropertySchema } from '@/lib/validations/property.schema';
+import { bulkUploadFormSchema } from '@/lib/validations/upload.schema';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 import * as XLSX from 'xlsx';
@@ -44,9 +45,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const file = formData.get('file') as File | null;
     const accountId = formData.get('accountId') as string | null;
 
+    // Validate formData structure with Zod
+    const formValidation = bulkUploadFormSchema.safeParse({
+      file: file || undefined,
+      accountId: accountId || undefined,
+    });
+
+    if (!formValidation.success) {
+      const errorMessages = formValidation.error.issues
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join(', ');
+      return NextResponse.json(
+        createErrorResponse(`Validation failed: ${errorMessages}`, 400),
+        { status: 400 }
+      );
+    }
+
     if (!file) {
       return NextResponse.json(
         createErrorResponse('No file provided', 400),
+        { status: 400 }
+      );
+    }
+
+    // File size validation (5MB limit) - redundant but explicit
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        createErrorResponse('File size exceeds maximum limit of 5MB', 400),
         { status: 400 }
       );
     }
@@ -94,6 +120,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Convert to JSON
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
     
+    // Row limit validation (500 rows max, excluding header)
+    const MAX_ROWS = 500;
+    const dataRows = jsonData.length - 1; // Exclude header row
+    
+    if (dataRows > MAX_ROWS) {
+      return NextResponse.json(
+        createErrorResponse(`File contains too many rows. Maximum allowed is ${MAX_ROWS} rows.`, 400),
+        { status: 400 }
+      );
+    }
+    
     if (jsonData.length < 2) {
       return NextResponse.json(
         createErrorResponse('File must contain at least a header row and one data row', 400),
@@ -132,8 +169,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Process each row
     const properties: any[] = [];
     const errors: string[] = [];
+    const MAX_ROWS = 500;
 
     for (let i = 1; i < jsonData.length; i++) {
+      // Break condition: stop processing if we exceed 500 rows
+      if (i > MAX_ROWS + 1) { // +1 because we start at index 1 (after header)
+        errors.push(`Processing stopped: file exceeds maximum of ${MAX_ROWS} data rows.`);
+        break;
+      }
+
       const row = jsonData[i] as any[];
       
       // Skip empty rows

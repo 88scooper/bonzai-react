@@ -1,11 +1,17 @@
 import { z } from 'zod';
 
+// Password validation: 10+ characters, one number, one special character
+const passwordSchema = z.string()
+  .min(10, 'Password must be at least 10 characters')
+  .regex(/\d/, 'Password must contain at least one number')
+  .regex(/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/, 'Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)');
+
 /**
  * Schema for user registration
  */
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: passwordSchema,
   name: z.string().min(1, 'Name is required').max(255, 'Name is too long').optional(),
 });
 
@@ -38,7 +44,7 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
  */
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+  newPassword: passwordSchema,
 }).refine((data) => data.currentPassword !== data.newPassword, {
   message: 'New password must be different from current password',
   path: ['newPassword'],

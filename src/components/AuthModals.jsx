@@ -125,6 +125,17 @@ export function LoginModal({ onClose, onSwitchToSignup }) {
           </div>
         </div>
         <Button type="submit" loading={loading} className="mt-2 w-full">Continue</Button>
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              addToast("Forgot password feature coming soon!", { type: "info" });
+            }}
+            className="text-sm text-[#205A3E] hover:underline dark:text-[#4ade80]"
+          >
+            Forgot password?
+          </button>
+        </div>
       </form>
       <div className="mt-4 text-sm text-center text-gray-600 dark:text-gray-300">
         Don&apos;t have an account?{" "}

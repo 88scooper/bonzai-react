@@ -312,7 +312,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
     <>
       {!isModalMode && (
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold mb-2">Welcome to Bonzai!</h1>
+          <h1 className="text-3xl font-bold mb-2 text-black dark:text-white">Welcome to Bonzai!</h1>
           <p className="text-gray-600 dark:text-gray-400">
             Let's get you set up in just a few steps
           </p>
@@ -435,7 +435,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                     type="text"
                     value={accountName}
                     onChange={(e) => setAccountName(e.target.value)}
-                    className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                    className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     placeholder="My Account"
                     required
                   />
@@ -450,7 +450,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
                     type="email"
                     value={accountEmail}
                     onChange={(e) => setAccountEmail(e.target.value)}
-                    className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                    className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     placeholder="account@example.com"
                     required
                   />
@@ -479,7 +479,7 @@ export default function OnboardingWizard({ onComplete, modal = false }) {
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold mb-2">Add Your Investment Properties</h2>
+                <h2 className="text-xl font-semibold mb-2 text-black dark:text-white">Add Your Investment Properties</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Let's get started with adding your investment properties - this includes some basics around the property characteristics and purchasing details
                 </p>

@@ -272,8 +272,21 @@ function LoginModal({ onClose, onSwitchToSignup }) {
 
   return (
     <Modal onClose={onClose}>
-      <h3 className="text-xl font-semibold">Log in</h3>
-      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Bonzai.</p>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-xl font-semibold">Log in</h3>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Welcome back to Bonzai.</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          aria-label="Close"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
       
       {error && (
         <div className="mt-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
@@ -312,9 +325,22 @@ function LoginModal({ onClose, onSwitchToSignup }) {
         </div>
         <Button type="submit" loading={loading} className="w-full">Continue</Button>
       </form>
-      <div className="mt-4 text-sm">
-        Don&apos;t have an account?{" "}
-        <button className="underline" onClick={onSwitchToSignup}>Sign up</button>
+      <div className="mt-4 text-sm text-center space-y-2">
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              addToast("Forgot password feature coming soon!", { type: "info" });
+            }}
+            className="text-[#205A3E] hover:underline dark:text-[#4ade80]"
+          >
+            Forgot password?
+          </button>
+        </div>
+        <div className="text-gray-600 dark:text-gray-300">
+          Don&apos;t have an account?{" "}
+          <button className="underline" onClick={onSwitchToSignup}>Sign up</button>
+        </div>
       </div>
     </Modal>
   );

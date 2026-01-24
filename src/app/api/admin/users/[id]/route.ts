@@ -12,6 +12,14 @@ export const DELETE = withAdminAuth(async (
   admin,
   { params }: { params: Promise<{ id: string }> }
 ) => {
+  // Production kill-switch
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      createErrorResponse('Not found', 404),
+      { status: 404 }
+    );
+  }
+
   try {
     const { id } = await params;
 

@@ -4,6 +4,10 @@ import { bulkImportRowSchema, transformBulkImportRow } from '@/lib/mortgage-vali
 import { mockMortgages, addMockMortgage } from '@/lib/mock-data';
 import { z } from 'zod';
 
+// Constants for file upload limits
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_ROWS = 500;
+
 // POST /api/mortgages/upload - Bulk upload mortgages from CSV/Excel
 export async function POST(request) {
   try {
@@ -23,6 +27,14 @@ export async function POST(request) {
     if (!file) {
       return NextResponse.json(
         createErrorResponse('No file provided', 400),
+        { status: 400 }
+      );
+    }
+
+    // File size validation (5MB limit)
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        createErrorResponse('File size exceeds maximum limit of 5MB', 400),
         { status: 400 }
       );
     }
@@ -60,6 +72,14 @@ export async function POST(request) {
       );
     }
     
+    // Row limit validation (500 rows max)
+    if (rows.length > MAX_ROWS) {
+      return NextResponse.json(
+        createErrorResponse(`File contains too many rows. Maximum allowed is ${MAX_ROWS} rows.`, 400),
+        { status: 400 }
+      );
+    }
+    
     if (rows.length === 0) {
       return NextResponse.json(
         createErrorResponse('No data found in file', 400),
@@ -79,6 +99,17 @@ export async function POST(request) {
     };
 
     for (let i = 0; i < rows.length; i++) {
+      // Break condition: stop processing if we exceed 500 rows
+      if (i >= MAX_ROWS) {
+        results.failed.push({
+          row: i + 2,
+          error: `Processing stopped: file exceeds maximum of ${MAX_ROWS} rows.`,
+          data: null
+        });
+        results.summary.errors++;
+        break;
+      }
+
       const row = rows[i];
       const rowNumber = i + 2; // +2 because CSV has header row and arrays are 0-indexed
       

@@ -1173,7 +1173,10 @@ function PortfolioSummaryContent() {
                                 currency: 'CAD',
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 0,
-                              }).format(Math.floor(totalEquity))}, Year Over Year: {yoyEquityIncrease >= 0 ? '+' : ''}{yoyEquityIncrease.toFixed(1)}% increase
+                              }).format(Math.floor(totalEquity))}
+                            </div>
+                            <div className="whitespace-nowrap overflow-hidden">
+                              Year-over-year growth: {yoyEquityIncrease >= 0 ? '+' : ''}{yoyEquityIncrease.toFixed(1)}%
                             </div>
                             <div className="mt-1 text-xs opacity-90">
                               Includes principal payments + estimated appreciation
@@ -1292,7 +1295,13 @@ function PortfolioSummaryContent() {
                         value={formatCurrency(annualEquityBuilt)}
                         showInfoIcon={true}
                         tooltipText="The projected equity you will earn this calendar year through principal payments and estimated property appreciation. This forecast helps you understand how your portfolio equity is growing over time."
-                        subtitle={`Current total equity: ${formatCurrency(totalEquity)} • YoY: ${yoyEquityIncrease >= 0 ? '+' : ''}${yoyEquityIncrease.toFixed(1)}% • Includes principal payments + estimated appreciation`}
+                        subtitle={
+                          <>
+                            <div>Current total equity: {formatCurrency(totalEquity)}</div>
+                            <div>Year-over-year growth: {yoyEquityIncrease >= 0 ? '+' : ''}{yoyEquityIncrease.toFixed(1)}%</div>
+                            <div className="mt-1">Includes principal payments + estimated appreciation</div>
+                          </>
+                        }
                       />
                     );
                   }
@@ -1523,11 +1532,11 @@ function PortfolioSummaryContent() {
 
             {/* Right Column: Schedule */}
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Schedule</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Upcoming Events</h2>
               
               {/* Key Upcoming Dates */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 p-6 bg-white dark:bg-neutral-900">
-                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-4">Key Upcoming Dates (30 days)</h3>
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-4">Key Dates</h3>
                 
                 <ScheduleEvents properties={properties} />
               </div>
@@ -2703,9 +2712,9 @@ function MetricCard({
           )}
 
           {subtitle && (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 break-words">
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 break-words">
               {subtitle}
-            </p>
+            </div>
           )}
 
           {statusMessage && (

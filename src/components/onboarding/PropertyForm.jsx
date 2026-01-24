@@ -246,16 +246,16 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
     // Priority: filled > next field > other empty
     if (filled) {
       // Filled field - white background (completed)
-      return "w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 outline-none focus:ring-2 focus:ring-gray-500/20 dark:focus:ring-gray-400/20 focus:border-gray-400 dark:focus:border-gray-500";
+      return "w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 outline-none focus:ring-2 focus:ring-gray-500/20 dark:focus:ring-gray-400/20 focus:border-gray-400 dark:focus:border-gray-500 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500";
     }
     
     if (isNextField) {
       // Next empty field - green background (current field to fill)
-      return "w-full rounded-md border-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/30 dark:focus:ring-emerald-400/30 focus:border-emerald-500 dark:focus:border-emerald-400 shadow-sm";
+      return "w-full rounded-md border-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/30 dark:focus:ring-emerald-400/30 focus:border-emerald-500 dark:focus:border-emerald-400 shadow-sm text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400";
     }
     
     // Other empty fields - blue background (waiting)
-    return "w-full rounded-md border border-black/15 dark:border-white/15 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-500";
+    return "w-full rounded-md border border-black/15 dark:border-white/15 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-500 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400";
   };
 
   // Get className for unit fields
@@ -267,13 +267,13 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
 
     if (filled) {
       // Filled field - white background (completed)
-      return "w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 outline-none focus:ring-2 focus:ring-gray-500/20 dark:focus:ring-gray-400/20 focus:border-gray-400 dark:focus:border-gray-500";
+      return "w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 outline-none focus:ring-2 focus:ring-gray-500/20 dark:focus:ring-gray-400/20 focus:border-gray-400 dark:focus:border-gray-500 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500";
     } else if (isNextField) {
       // Next empty field - green background (current field to fill)
-      return "w-full rounded-md border-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/30 dark:focus:ring-emerald-400/30 focus:border-emerald-500 dark:focus:border-emerald-400 shadow-sm";
+      return "w-full rounded-md border-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/30 dark:focus:ring-emerald-400/30 focus:border-emerald-500 dark:focus:border-emerald-400 shadow-sm text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400";
     } else {
       // Other empty fields - blue background (waiting)
-      return "w-full rounded-md border border-black/15 dark:border-white/15 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-500";
+      return "w-full rounded-md border border-black/15 dark:border-white/15 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-500 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400";
     }
   };
 
@@ -336,7 +336,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
-          <label htmlFor="nickname" className="block text-sm font-medium mb-1">
+          <label htmlFor="nickname" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Property Name / Nickname
           </label>
           <input
@@ -351,7 +351,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div className="md:col-span-2">
-          <label htmlFor="address" className="block text-sm font-medium mb-1">
+          <label htmlFor="address" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Address
           </label>
           <input
@@ -366,7 +366,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="purchasePrice" className="block text-sm font-medium mb-1">
+          <label htmlFor="purchasePrice" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Purchase Price
           </label>
           <input
@@ -383,7 +383,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="purchaseDate" className="block text-sm font-medium mb-1">
+          <label htmlFor="purchaseDate" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Purchase Date
           </label>
           <input
@@ -397,7 +397,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="closingCosts" className="block text-sm font-medium mb-1">
+          <label htmlFor="closingCosts" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Closing Costs
           </label>
           <input
@@ -414,7 +414,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="renovationCosts" className="block text-sm font-medium mb-1">
+          <label htmlFor="renovationCosts" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Renovation Costs
           </label>
           <input
@@ -431,7 +431,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="currentMarketValue" className="block text-sm font-medium mb-1">
+          <label htmlFor="currentMarketValue" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Current Market Value
           </label>
           <input
@@ -448,7 +448,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="yearBuilt" className="block text-sm font-medium mb-1">
+          <label htmlFor="yearBuilt" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Year Built
           </label>
           <input
@@ -465,7 +465,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="propertyType" className="block text-sm font-medium mb-1">
+          <label htmlFor="propertyType" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Property Type
           </label>
           <select
@@ -484,7 +484,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="numberOfUnits" className="block text-sm font-medium mb-1">
+          <label htmlFor="numberOfUnits" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Number of Units
           </label>
           <select
@@ -501,7 +501,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
         </div>
 
         <div>
-          <label htmlFor="ownership" className="block text-sm font-medium mb-1">
+          <label htmlFor="ownership" className="block text-sm font-medium mb-1 text-black dark:text-white">
             Ownership
           </label>
           <select
@@ -549,7 +549,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
                 {formData.units.length > 1 ? `Unit ${index + 1}` : 'Unit'}
               </h4>
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-1 text-black dark:text-white">
                   Size (sq ft)
                 </label>
                 <input
@@ -563,7 +563,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-1 text-black dark:text-white">
                   Bedrooms
                 </label>
                 <input
@@ -577,7 +577,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-1 text-black dark:text-white">
                   Bathrooms
                 </label>
                 <input
@@ -591,7 +591,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-1 text-black dark:text-white">
                   Dens
                 </label>
                 <input
