@@ -33,6 +33,33 @@ const nextConfig = {
       },
     ];
   },
+  webpack: (config, { isServer }) => {
+    // Suppress Edge Runtime warnings for Node.js-only modules
+    // These warnings are false positives since we've configured
+    // all routes using auth/admin middleware to use Node.js runtime
+    if (isServer) {
+      config.ignoreWarnings = [
+        ...(config.ignoreWarnings || []),
+        {
+          module: /node_modules\/bcryptjs/,
+          message: /Edge Runtime/,
+        },
+        {
+          module: /node_modules\/jsonwebtoken/,
+          message: /Edge Runtime/,
+        },
+        {
+          module: /node_modules\/jws/,
+          message: /Edge Runtime/,
+        },
+        {
+          module: /src\/lib\/auth\.ts/,
+          message: /Edge Runtime/,
+        },
+      ];
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

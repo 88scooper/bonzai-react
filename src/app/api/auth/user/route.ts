@@ -4,6 +4,8 @@ import { updateProfileSchema, changePasswordSchema } from '@/lib/validations/aut
 import { updateUser, updateUserPassword, deleteUser, getUserById } from '@/lib/auth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * GET /api/auth/user
  * Get current user profile

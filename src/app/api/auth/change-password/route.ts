@@ -4,6 +4,8 @@ import { changePasswordSchema } from '@/lib/validations/auth.schema';
 import { updateUserPassword } from '@/lib/auth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/auth/change-password
  * Change user password

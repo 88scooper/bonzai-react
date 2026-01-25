@@ -3,6 +3,8 @@ import { withAdminAuth } from '@/lib/admin-middleware';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 interface DashboardStats {
   totalUsers: number;
   totalAccounts: number;

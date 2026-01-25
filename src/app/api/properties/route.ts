@@ -11,6 +11,8 @@ import { validateRequest } from '@/lib/validate-request';
 import { properties as demoSeedProperties } from '@/data/properties';
 import { scProperties as scSeedProperties } from '@/data/scProperties';
 
+export const runtime = 'nodejs';
+
 interface Property {
   id: string;
   account_id: string;

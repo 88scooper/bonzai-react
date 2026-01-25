@@ -6,6 +6,8 @@ import { parsePaginationParams, createPaginatedResponse, getOffset } from '@/lib
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 import { preventDemoModification } from '@/lib/demo-protection';
 
+export const runtime = 'nodejs';
+
 interface Expense {
   id: string;
   property_id: string;

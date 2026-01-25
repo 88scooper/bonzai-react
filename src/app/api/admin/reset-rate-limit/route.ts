@@ -3,6 +3,8 @@ import { withAdminAuth } from '@/lib/admin-middleware';
 import { clearRateLimit, clearAllRateLimits, getClientIP } from '@/lib/rate-limit';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/admin/reset-rate-limit
  * Reset rate limits for login attempts (admin only)

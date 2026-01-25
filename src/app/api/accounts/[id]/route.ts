@@ -5,6 +5,8 @@ import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 import { preventDemoModification } from '@/lib/demo-protection';
 
+export const runtime = 'nodejs';
+
 interface Account {
   id: string;
   user_id: string;

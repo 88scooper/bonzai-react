@@ -3,6 +3,8 @@ import { authenticateRequest } from '@/lib/auth-middleware';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 interface Event {
   id: string;
   user_id: string;

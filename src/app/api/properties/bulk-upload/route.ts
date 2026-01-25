@@ -6,6 +6,8 @@ import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 import * as XLSX from 'xlsx';
 
+export const runtime = 'nodejs';
+
 interface Property {
   id: string;
   account_id: string;

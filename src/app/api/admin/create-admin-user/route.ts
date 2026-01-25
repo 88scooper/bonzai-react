@@ -4,6 +4,8 @@ import { hashPassword, createUser, getUserByEmail } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/admin/create-admin-user
  * Create an admin user (one-time setup endpoint)

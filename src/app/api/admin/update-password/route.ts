@@ -4,6 +4,8 @@ import { sql } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * Admin endpoint to update user password
  * NOTE: This is a temporary endpoint for initial setup

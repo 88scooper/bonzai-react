@@ -3,6 +3,8 @@ import { withAdminAuth } from '@/lib/admin-middleware';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/admin/run-migration
  * Run the admin migration (003_add_admin_field.sql)

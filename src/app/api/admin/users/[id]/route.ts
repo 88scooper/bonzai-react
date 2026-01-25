@@ -3,6 +3,8 @@ import { withAdminAuth } from '@/lib/admin-middleware';
 import { deleteUser, getUserById } from '@/lib/auth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * DELETE /api/admin/users/[id]
  * Delete a user (admin only)

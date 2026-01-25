@@ -3,6 +3,8 @@ import { withAdminAuth } from '@/lib/admin-middleware';
 import { sql } from '@/lib/db';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * PATCH /api/admin/users/[id]/toggle-demo
  * Toggle demo account read-only status for a user (admin only)

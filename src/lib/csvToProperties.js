@@ -272,12 +272,11 @@ function buildPropertyFromSimpleData(data, propertyId) {
   const province = 'ON'; // Assuming Ontario for now
   
   // Calculate LTT (with manual override if property.landTransferTax is set)
-  const closingDate = property.purchaseDate || null;
   const landTransferTax = calculateLandTransferTax(
     property.purchasePrice, 
     cityForLTT, 
     province, 
-    closingDate,
+    property.purchaseDate || null,
     property.landTransferTax // Manual override if provided
   );
   

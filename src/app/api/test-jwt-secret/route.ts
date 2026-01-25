@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * GET /api/test-jwt-secret
  * Test endpoint to verify JWT_SECRET is accessible

@@ -4,6 +4,8 @@ import { sql } from '@/lib/db';
 import { properties } from '@/data/properties';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * Admin endpoint to import properties from code files to database
  * POST /api/admin/import-properties

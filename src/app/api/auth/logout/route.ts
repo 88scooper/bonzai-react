@@ -3,6 +3,8 @@ import { authenticateRequest } from '@/lib/auth-middleware';
 import { hashToken, deleteSession } from '@/lib/auth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
 
+export const runtime = 'nodejs';
+
 /**
  * POST /api/auth/logout
  * Logout user by invalidating session
