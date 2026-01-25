@@ -41,26 +41,27 @@ try {
 }
 
 // Centralized property data source parsed from CSV files
+// Updated with realistic Toronto investment property data
 export const properties = [
   {
     id: 'first-st-1',
-    nickname: 'First St',
-    address: '1-1 First St, Toronto, ON 1A1 A1A',
-    purchasePrice: 450000,
+    nickname: 'King West Condo',
+    address: '245 King Street West, Unit 1205, Toronto, ON M5V 1J4',
+    purchasePrice: 550000,
     purchaseDate: '2021-01-01',
-    closingCosts: 50000,
+    closingCosts: 22000, // 4% of purchase price
     initialRenovations: 0,
     renovationCosts: 0,
-    currentMarketValue: 600000,
-    yearBuilt: 2021,
+    currentMarketValue: 625000,
+    yearBuilt: 2019,
     propertyType: 'Condo',
-    size: 700, // square feet
+    size: 800, // square feet
     unitConfig: '2 Bed, 2 Bath',
     
     mortgage: {
-      lender: 'Lender 1',
-      originalAmount: 360000,
-      interestRate: 0.025, // 2.5% as decimal
+      lender: 'TD Canada Trust',
+      originalAmount: 440000, // 80% LTV
+      interestRate: 0.025, // 2.5% as decimal (realistic for 2021)
       rateType: 'Fixed',
       termMonths: 60, // 5 years
       amortizationYears: 30, // 360 months
@@ -69,114 +70,113 @@ export const properties = [
     },
 
     rent: {
-      monthlyRent: 3000, // Updated 2025 rent
-      annualRent: 36000, // 3000 * 12
+      monthlyRent: 3200, // Realistic for downtown 2 bed, 2 bath
+      annualRent: 38400, // 3200 * 12
     },
 
     expenseHistory: [
-      // 2021 Expenses from CSV
-      { id: 'first-2021-insurance', date: '2021-01-15', amount: 400, category: 'Insurance', description: 'Property insurance' },
-      { id: 'first-2021-interest', date: '2021-06-01', amount: 9845, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'first-2021-professional', date: '2021-03-15', amount: 2938, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'first-2021-maintenance', date: '2021-08-15', amount: 200, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'first-2021-tax', date: '2021-01-15', amount: 2300, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'first-2021-motor', date: '2021-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'first-2021-other', date: '2021-01-15', amount: 20000, category: 'Other', description: 'Other rental expenses' },
-      { id: 'first-2021-condo', date: '2021-01-15', amount: 9500, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2021 Expenses
+      { id: 'first-2021-insurance', date: '2021-01-15', amount: 450, category: 'Insurance', description: 'Property insurance' },
+      { id: 'first-2021-interest', date: '2021-06-01', amount: 11000, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'first-2021-professional', date: '2021-03-15', amount: 2500, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'first-2021-maintenance', date: '2021-08-15', amount: 300, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'first-2021-tax', date: '2021-01-15', amount: 2475, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'first-2021-management', date: '2021-01-15', amount: 3840, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'first-2021-condo', date: '2021-01-15', amount: 5040, category: 'Condo Fees', description: 'Condo maintenance fees ($0.60/sqft)' },
       
-      // 2022 Expenses from CSV
-      { id: 'first-2022-insurance', date: '2022-01-15', amount: 420, category: 'Insurance', description: 'Property insurance' },
-      { id: 'first-2022-interest', date: '2022-06-01', amount: 9617, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'first-2022-professional', date: '2022-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'first-2022-maintenance', date: '2022-08-15', amount: 200, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'first-2022-tax', date: '2022-01-15', amount: 2415, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'first-2022-motor', date: '2022-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'first-2022-condo', date: '2022-01-15', amount: 9975, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2022 Expenses
+      { id: 'first-2022-insurance', date: '2022-01-15', amount: 470, category: 'Insurance', description: 'Property insurance' },
+      { id: 'first-2022-interest', date: '2022-06-01', amount: 10750, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'first-2022-professional', date: '2022-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'first-2022-maintenance', date: '2022-08-15', amount: 350, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'first-2022-tax', date: '2022-01-15', amount: 2600, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'first-2022-management', date: '2022-01-15', amount: 3840, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'first-2022-condo', date: '2022-01-15', amount: 5280, category: 'Condo Fees', description: 'Condo maintenance fees' },
       
-      // 2023 Expenses from CSV
-      { id: 'first-2023-insurance', date: '2023-01-15', amount: 441, category: 'Insurance', description: 'Property insurance' },
-      { id: 'first-2023-interest', date: '2023-06-01', amount: 9382, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'first-2023-professional', date: '2023-03-15', amount: 3051, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'first-2023-maintenance', date: '2023-08-15', amount: 200, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'first-2023-tax', date: '2023-01-15', amount: 2536, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'first-2023-motor', date: '2023-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'first-2023-condo', date: '2023-01-15', amount: 10474, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2023 Expenses
+      { id: 'first-2023-insurance', date: '2023-01-15', amount: 490, category: 'Insurance', description: 'Property insurance' },
+      { id: 'first-2023-interest', date: '2023-06-01', amount: 10500, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'first-2023-professional', date: '2023-03-15', amount: 2800, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'first-2023-maintenance', date: '2023-08-15', amount: 400, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'first-2023-tax', date: '2023-01-15', amount: 2725, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'first-2023-management', date: '2023-01-15', amount: 3840, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'first-2023-condo', date: '2023-01-15', amount: 5520, category: 'Condo Fees', description: 'Condo maintenance fees' },
       
-      // 2024 Expenses from CSV
-      { id: 'first-2024-insurance', date: '2024-01-15', amount: 463, category: 'Insurance', description: 'Property insurance' },
-      { id: 'first-2024-interest', date: '2024-06-01', amount: 9142, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'first-2024-professional', date: '2024-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'first-2024-maintenance', date: '2024-08-15', amount: 200, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'first-2024-tax', date: '2024-01-15', amount: 2663, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'first-2024-motor', date: '2024-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'first-2024-condo', date: '2024-01-15', amount: 10997, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2024 Expenses
+      { id: 'first-2024-insurance', date: '2024-01-15', amount: 510, category: 'Insurance', description: 'Property insurance' },
+      { id: 'first-2024-interest', date: '2024-06-01', amount: 10250, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'first-2024-professional', date: '2024-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'first-2024-maintenance', date: '2024-08-15', amount: 450, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'first-2024-tax', date: '2024-01-15', amount: 2850, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'first-2024-management', date: '2024-01-15', amount: 3840, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'first-2024-condo', date: '2024-01-15', amount: 5760, category: 'Condo Fees', description: 'Condo maintenance fees' },
       
-      // 2025 Expenses from CSV
-      { id: 'first-2025-insurance', date: '2025-01-15', amount: 486, category: 'Insurance', description: 'Property insurance' },
-      { id: 'first-2025-interest', date: '2025-06-01', amount: 8896, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'first-2025-professional', date: '2025-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'first-2025-maintenance', date: '2025-08-15', amount: 200, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'first-2025-tax', date: '2025-01-15', amount: 2796, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'first-2025-motor', date: '2025-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'first-2025-condo', date: '2025-01-15', amount: 11547, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2025 Expenses
+      { id: 'first-2025-insurance', date: '2025-01-15', amount: 530, category: 'Insurance', description: 'Property insurance' },
+      { id: 'first-2025-interest', date: '2025-06-01', amount: 10000, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'first-2025-professional', date: '2025-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'first-2025-maintenance', date: '2025-08-15', amount: 500, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'first-2025-tax', date: '2025-01-15', amount: 2800, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'first-2025-management', date: '2025-01-15', amount: 3840, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'first-2025-condo', date: '2025-01-15', amount: 6000, category: 'Condo Fees', description: 'Condo maintenance fees' },
     ],
 
     tenant: {
-      name: 'Jane Doe',
+      name: 'Sarah Chen',
       leaseStartDate: '2023-01-01',
-      leaseEndDate: 'Active', // Active lease per CSV
-      rent: 3000,
+      leaseEndDate: 'Active',
+      rent: 3200,
       status: 'Active'
     },
 
     // Calculated fields
-    totalInvestment: 140000, // down payment ($90,000) + closingCosts ($50,000) + initial renovations ($0)
-    appreciation: 150000, // currentMarketValue - purchasePrice
-    monthlyPropertyTax: 233, // 2796 / 12 (using 2025 data)
-    monthlyCondoFees: 962.25, // 11547 / 12 (using 2025 data)
-    monthlyInsurance: 40.5, // 486 / 12 (using 2025 data)
-    monthlyMaintenance: 16.67, // 200 / 12 (using 2025 data)
+    totalInvestment: 132000, // down payment ($110,000) + closingCosts ($22,000) + initial renovations ($0)
+    appreciation: 75000, // currentMarketValue - purchasePrice
+    monthlyPropertyTax: 233.33, // 2800 / 12
+    monthlyCondoFees: 500, // 6000 / 12
+    monthlyInsurance: 44.17, // 530 / 12
+    monthlyMaintenance: 41.67, // 500 / 12
     monthlyProfessionalFees: 0,
     
     monthlyExpenses: {
-      propertyTax: 233,
-      condoFees: 962.25,
-      insurance: 40.5,
-      maintenance: 16.67,
+      propertyTax: 233.33,
+      condoFees: 500,
+      insurance: 44.17,
+      maintenance: 41.67,
       professionalFees: 0,
       mortgagePayment: 0, // Will be calculated below
       mortgageInterest: 0, // Will be calculated below
       mortgagePrincipal: 0, // Will be calculated below
-      total: 1252.42 // Will be recalculated below
+      total: 819.17 // Will be recalculated below
     },
     
-    monthlyCashFlow: 1747.58, // monthlyRent - monthlyExpenses.total (will be recalculated)
-    annualCashFlow: 20971, // monthlyCashFlow * 12
-    capRate: 6, // (annualRent / currentMarketValue) * 100 = (36000 / 600000) * 100
+    monthlyCashFlow: 2380.83, // monthlyRent - monthlyExpenses.total (will be recalculated)
+    annualCashFlow: 28570, // monthlyCashFlow * 12
+    capRate: 6.14, // (annualRent / currentMarketValue) * 100 = (38400 / 625000) * 100
     occupancy: 100,
     
     // Additional fields for compatibility
-    name: 'First St',
+    name: 'King West Condo',
     type: 'Condo',
     units: 1,
     bedrooms: [2],
     bathrooms: [2],
-    squareFootage: 700,
-    currentValue: 600000,
+    squareFootage: 800,
+    currentValue: 625000,
     imageUrl: '/images/1 First St.png',
     tenants: [
       {
-        name: 'Jon Doe',
-        unit: 'Unit 1',
-        rent: 2800, // Based on 2021 annual income 33600 / 12
+        name: 'Michael Park',
+        unit: 'Unit 1205',
+        rent: 3000,
         leaseStart: '2021-01-01',
-        leaseEnd: '2022-12-22',
+        leaseEnd: '2022-12-31',
         status: 'Vacant'
       },
       {
-        name: 'Jane Doe',
-        unit: 'Unit 1',
-        rent: 3000,
+        name: 'Sarah Chen',
+        unit: 'Unit 1205',
+        rent: 3200,
         leaseStart: '2023-01-01',
         leaseEnd: 'Active',
         status: 'Active'
@@ -186,22 +186,22 @@ export const properties = [
   
   {
     id: 'second-dr-1',
-    nickname: 'Second Dr',
-    address: '1-1 Second Dr, Toronto, ON 2B2 B2B',
-    purchasePrice: 600000,
+    nickname: 'Eglinton Condo',
+    address: '150 Eglinton Avenue East, Unit 804, Toronto, ON M4P 1E8',
+    purchasePrice: 675000,
     purchaseDate: '2021-01-01',
-    closingCosts: 60000,
+    closingCosts: 27000, // 4% of purchase price
     initialRenovations: 0,
     renovationCosts: 0,
-    currentMarketValue: 650000,
-    yearBuilt: 2021,
+    currentMarketValue: 720000,
+    yearBuilt: 2012,
     propertyType: 'Condo',
-    size: 700, // square feet
+    size: 650, // square feet
     unitConfig: '2 Bed, 2 Bath',
     
     mortgage: {
-      lender: 'Lender 2',
-      originalAmount: 400000,
+      lender: 'RBC Royal Bank',
+      originalAmount: 540000, // 80% LTV
       interestRate: 0.025, // 2.5% as decimal
       rateType: 'Fixed',
       termMonths: 60, // 5 years
@@ -211,105 +211,113 @@ export const properties = [
     },
 
     rent: {
-      monthlyRent: 2650, // Current tenant rent from CSV 2025.11.03 data
-      annualRent: 31800, // 2650 * 12 (current tenant)
+      monthlyRent: 2800, // Realistic for midtown 2 bed, 2 bath
+      annualRent: 33600, // 2800 * 12
     },
 
     expenseHistory: [
-      // 2021 Expenses from CSV
-      { id: 'second-2021-insurance', date: '2021-01-15', amount: 567, category: 'Insurance', description: 'Property insurance' },
-      { id: 'second-2021-interest', date: '2021-06-01', amount: 15038, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'second-2021-professional', date: '2021-03-15', amount: 2938, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'second-2021-maintenance', date: '2021-08-15', amount: 386, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'second-2021-tax', date: '2021-01-15', amount: 2573, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'second-2021-motor', date: '2021-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'second-2021-other', date: '2021-01-15', amount: 25000, category: 'Other', description: 'Other rental expenses' },
-      { id: 'second-2021-condo', date: '2021-01-15', amount: 10815, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2021 Expenses
+      { id: 'second-2021-insurance', date: '2021-01-15', amount: 520, category: 'Insurance', description: 'Property insurance' },
+      { id: 'second-2021-interest', date: '2021-06-01', amount: 13500, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'second-2021-professional', date: '2021-03-15', amount: 2500, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'second-2021-maintenance', date: '2021-08-15', amount: 250, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'second-2021-tax', date: '2021-01-15', amount: 3038, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'second-2021-management', date: '2021-01-15', amount: 3360, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'second-2021-condo', date: '2021-01-15', amount: 4680, category: 'Condo Fees', description: 'Condo maintenance fees ($0.60/sqft)' },
       
-      // 2022 Expenses from CSV
-      { id: 'second-2022-insurance', date: '2022-01-15', amount: 595, category: 'Insurance', description: 'Property insurance' },
-      { id: 'second-2022-interest', date: '2022-06-01', amount: 14711, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'second-2022-professional', date: '2022-03-15', amount: 3022.75, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'second-2022-maintenance', date: '2022-08-15', amount: 398, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'second-2022-tax', date: '2022-01-15', amount: 2701, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'second-2022-motor', date: '2022-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'second-2022-condo', date: '2022-01-15', amount: 11139, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2022 Expenses
+      { id: 'second-2022-insurance', date: '2022-01-15', amount: 540, category: 'Insurance', description: 'Property insurance' },
+      { id: 'second-2022-interest', date: '2022-06-01', amount: 13200, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'second-2022-professional', date: '2022-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'second-2022-maintenance', date: '2022-08-15', amount: 300, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'second-2022-tax', date: '2022-01-15', amount: 3180, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'second-2022-management', date: '2022-01-15', amount: 3360, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'second-2022-condo', date: '2022-01-15', amount: 4875, category: 'Condo Fees', description: 'Condo maintenance fees' },
       
-      // 2023 Expenses from CSV
-      { id: 'second-2023-insurance', date: '2023-01-15', amount: 625, category: 'Insurance', description: 'Property insurance' },
-      { id: 'second-2023-interest', date: '2023-06-01', amount: 14374, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'second-2023-professional', date: '2023-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'second-2023-maintenance', date: '2023-08-15', amount: 410, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'second-2023-tax', date: '2023-01-15', amount: 2836, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'second-2023-motor', date: '2023-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'second-2023-condo', date: '2023-01-15', amount: 11474, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2023 Expenses
+      { id: 'second-2023-insurance', date: '2023-01-15', amount: 560, category: 'Insurance', description: 'Property insurance' },
+      { id: 'second-2023-interest', date: '2023-06-01', amount: 12900, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'second-2023-professional', date: '2023-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'second-2023-maintenance', date: '2023-08-15', amount: 350, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'second-2023-tax', date: '2023-01-15', amount: 3325, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'second-2023-management', date: '2023-01-15', amount: 3360, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'second-2023-condo', date: '2023-01-15', amount: 5070, category: 'Condo Fees', description: 'Condo maintenance fees' },
       
-      // 2024 Expenses from CSV
-      { id: 'second-2024-insurance', date: '2024-01-15', amount: 656, category: 'Insurance', description: 'Property insurance' },
-      { id: 'second-2024-interest', date: '2024-06-01', amount: 14026, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'second-2024-professional', date: '2024-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'second-2024-maintenance', date: '2024-08-15', amount: 422, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'second-2024-tax', date: '2024-01-15', amount: 2978, category: 'Property Tax', description: 'Property taxes' },
-      { id: 'second-2024-motor', date: '2024-12-01', amount: 50, category: 'Other', description: 'Motor vehicle expenses' },
-      { id: 'second-2024-condo', date: '2024-01-15', amount: 11818, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      // 2024 Expenses
+      { id: 'second-2024-insurance', date: '2024-01-15', amount: 580, category: 'Insurance', description: 'Property insurance' },
+      { id: 'second-2024-interest', date: '2024-06-01', amount: 12600, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'second-2024-professional', date: '2024-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'second-2024-maintenance', date: '2024-08-15', amount: 400, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'second-2024-tax', date: '2024-01-15', amount: 3470, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'second-2024-management', date: '2024-01-15', amount: 3360, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'second-2024-condo', date: '2024-01-15', amount: 5265, category: 'Condo Fees', description: 'Condo maintenance fees' },
+      
+      // 2025 Expenses
+      { id: 'second-2025-insurance', date: '2025-01-15', amount: 600, category: 'Insurance', description: 'Property insurance' },
+      { id: 'second-2025-interest', date: '2025-06-01', amount: 12300, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'second-2025-professional', date: '2025-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'second-2025-maintenance', date: '2025-08-15', amount: 450, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'second-2025-tax', date: '2025-01-15', amount: 3600, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'second-2025-management', date: '2025-01-15', amount: 3360, category: 'Other', description: 'Property management fees (10%)' },
+      { id: 'second-2025-condo', date: '2025-01-15', amount: 5460, category: 'Condo Fees', description: 'Condo maintenance fees' },
     ],
 
     tenant: {
-      name: 'Jane Doe',
+      name: 'David Kim',
       leaseStartDate: '2023-01-01',
-      leaseEndDate: 'Active', // Active lease per CSV
-      rent: 2650, // Updated to 2025 rent from CSV 2025.11.03
+      leaseEndDate: 'Active',
+      rent: 2800,
       status: 'Active'
     },
 
     // Calculated fields
-    totalInvestment: 260000, // down payment + closingCosts + initial renovations
-    appreciation: 50000, // currentMarketValue - purchasePrice
-    monthlyPropertyTax: 248.17, // 2978 / 12 (using 2024 data - no 2025 data available)
-    monthlyCondoFees: 985.17, // 11818 / 12 (using 2024 data - no 2025 data available)
-    monthlyInsurance: 54.67, // 656 / 12 (using 2024 data - no 2025 data available)
-    monthlyMaintenance: 35.17, // 422 / 12 (using 2024 data - no 2025 data available)
+    totalInvestment: 162000, // down payment ($135,000) + closingCosts ($27,000) + initial renovations ($0)
+    appreciation: 45000, // currentMarketValue - purchasePrice
+    monthlyPropertyTax: 300, // 3600 / 12
+    monthlyCondoFees: 455, // 5460 / 12
+    monthlyInsurance: 50, // 600 / 12
+    monthlyMaintenance: 37.50, // 450 / 12
     monthlyProfessionalFees: 0,
     
     monthlyExpenses: {
-      propertyTax: 248.17,
-      condoFees: 985.17,
-      insurance: 54.67,
-      maintenance: 35.17,
+      propertyTax: 300,
+      condoFees: 455,
+      insurance: 50,
+      maintenance: 37.50,
       professionalFees: 0,
       mortgagePayment: 0, // Will be calculated below
       mortgageInterest: 0, // Will be calculated below
       mortgagePrincipal: 0, // Will be calculated below
-      total: 1323.18 // Will be recalculated below
+      total: 842.50 // Will be recalculated below
     },
     
-    monthlyCashFlow: 1326.82, // monthlyRent - monthlyExpenses.total (will be recalculated)
-    annualCashFlow: 15922, // monthlyCashFlow * 12
-    capRate: 4.9, // (annualRent / currentMarketValue) * 100 = (31800 / 650000) * 100
+    monthlyCashFlow: 1957.50, // monthlyRent - monthlyExpenses.total (will be recalculated)
+    annualCashFlow: 23490, // monthlyCashFlow * 12
+    capRate: 4.67, // (annualRent / currentMarketValue) * 100 = (33600 / 720000) * 100
     occupancy: 100,
     
     // Additional fields for compatibility
-    name: 'Second Dr',
+    name: 'Eglinton Condo',
     type: 'Condo',
     units: 1,
     bedrooms: [2],
     bathrooms: [2],
-    squareFootage: 700,
-    currentValue: 650000,
+    squareFootage: 650,
+    currentValue: 720000,
     imageUrl: '/images/1 Second Dr.png',
     tenants: [
       {
-        name: 'Jon Doe',
-        unit: 'Unit 1',
-        rent: 2600, // Based on 2021 annual income 31200 / 12
+        name: 'Lisa Wong',
+        unit: 'Unit 804',
+        rent: 2600,
         leaseStart: '2021-01-01',
-        leaseEnd: '2022-12-22',
+        leaseEnd: '2022-12-31',
         status: 'Vacant'
       },
       {
-        name: 'Jane Doe',
-        unit: 'Unit 1',
-        rent: 2650, // Updated to 2025 rent from CSV 2025.11.03
+        name: 'David Kim',
+        unit: 'Unit 804',
+        rent: 2800,
         leaseStart: '2023-01-01',
         leaseEnd: 'Active',
         status: 'Active'
@@ -319,22 +327,22 @@ export const properties = [
   
   {
     id: 'third-ave-1',
-    nickname: 'Third Avenue',
-    address: '123 Third Avenue, Toronto, ON M3A 3A3',
-    purchasePrice: 1500000,
+    nickname: 'Gerrard Street Multiplex',
+    address: '123 Gerrard Street East, Toronto, ON M5A 2E4',
+    purchasePrice: 1350000,
     purchaseDate: '2021-01-01',
-    closingCosts: 65000,
+    closingCosts: 54000, // 4% of purchase price
     initialRenovations: 0,
     renovationCosts: 0,
-    currentMarketValue: 1600000,
+    currentMarketValue: 1450000,
     yearBuilt: 1975,
     propertyType: 'Multiplex',
-    size: 2500, // square feet total
-    unitConfig: '2 Bed, 2 Bath (3 units)',
+    size: 2400, // square feet total (3 units × 800 sq ft)
+    unitConfig: '2 Bed, 1 Bath (3 units)',
     
     mortgage: {
-      lender: 'Lender 3',
-      originalAmount: 1200000, // $1,500,000 - 20% down payment ($300,000)
+      lender: 'ScotiaBank',
+      originalAmount: 1080000, // 80% LTV
       interestRate: 0.03, // 3% as decimal
       rateType: 'Fixed',
       termMonths: 60, // 5 years
@@ -344,111 +352,116 @@ export const properties = [
     },
 
     rent: {
-      monthlyRent: 7500, // 3 units × $2,500 each
-      annualRent: 90000, // 7500 * 12
+      monthlyRent: 6600, // 3 units × $2,200 each
+      annualRent: 79200, // 6600 * 12
     },
 
     expenseHistory: [
-      // 2021 Expenses - reasonable assumptions for a multiplex
-      { id: 'third-2021-insurance', date: '2021-01-15', amount: 1000, category: 'Insurance', description: 'Property insurance' },
-      { id: 'third-2021-interest', date: '2021-06-01', amount: 36000, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'third-2021-professional', date: '2021-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'third-2021-maintenance', date: '2021-08-15', amount: 500, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'third-2021-tax', date: '2021-01-15', amount: 7000, category: 'Property Tax', description: 'Property taxes' },
+      // 2021 Expenses
+      { id: 'third-2021-insurance', date: '2021-01-15', amount: 1200, category: 'Insurance', description: 'Property insurance' },
+      { id: 'third-2021-interest', date: '2021-06-01', amount: 32400, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'third-2021-professional', date: '2021-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'third-2021-maintenance', date: '2021-08-15', amount: 1800, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'third-2021-tax', date: '2021-01-15', amount: 6075, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2021-management', date: '2021-01-15', amount: 7920, category: 'Other', description: 'Property management fees (10%)' },
       
       // 2022 Expenses
-      { id: 'third-2022-insurance', date: '2022-01-15', amount: 1050, category: 'Insurance', description: 'Property insurance' },
-      { id: 'third-2022-interest', date: '2022-06-01', amount: 35100, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'third-2022-professional', date: '2022-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'third-2022-maintenance', date: '2022-08-15', amount: 525, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'third-2022-tax', date: '2022-01-15', amount: 7350, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2022-insurance', date: '2022-01-15', amount: 1260, category: 'Insurance', description: 'Property insurance' },
+      { id: 'third-2022-interest', date: '2022-06-01', amount: 31500, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'third-2022-professional', date: '2022-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'third-2022-maintenance', date: '2022-08-15', amount: 2000, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'third-2022-tax', date: '2022-01-15', amount: 6375, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2022-management', date: '2022-01-15', amount: 7920, category: 'Other', description: 'Property management fees (10%)' },
       
       // 2023 Expenses
-      { id: 'third-2023-insurance', date: '2023-01-15', amount: 1103, category: 'Insurance', description: 'Property insurance' },
-      { id: 'third-2023-interest', date: '2023-06-01', amount: 34200, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'third-2023-professional', date: '2023-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'third-2023-maintenance', date: '2023-08-15', amount: 551, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'third-2023-tax', date: '2023-01-15', amount: 7718, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2023-insurance', date: '2023-01-15', amount: 1320, category: 'Insurance', description: 'Property insurance' },
+      { id: 'third-2023-interest', date: '2023-06-01', amount: 30600, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'third-2023-professional', date: '2023-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'third-2023-maintenance', date: '2023-08-15', amount: 2200, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'third-2023-tax', date: '2023-01-15', amount: 6675, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2023-management', date: '2023-01-15', amount: 7920, category: 'Other', description: 'Property management fees (10%)' },
       
       // 2024 Expenses
-      { id: 'third-2024-insurance', date: '2024-01-15', amount: 1158, category: 'Insurance', description: 'Property insurance' },
-      { id: 'third-2024-interest', date: '2024-06-01', amount: 33300, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'third-2024-professional', date: '2024-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'third-2024-maintenance', date: '2024-08-15', amount: 578, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'third-2024-tax', date: '2024-01-15', amount: 8103, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2024-insurance', date: '2024-01-15', amount: 1380, category: 'Insurance', description: 'Property insurance' },
+      { id: 'third-2024-interest', date: '2024-06-01', amount: 29700, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'third-2024-professional', date: '2024-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'third-2024-maintenance', date: '2024-08-15', amount: 2400, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'third-2024-tax', date: '2024-01-15', amount: 6975, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2024-management', date: '2024-01-15', amount: 7920, category: 'Other', description: 'Property management fees (10%)' },
       
       // 2025 Expenses
-      { id: 'third-2025-insurance', date: '2025-01-15', amount: 1216, category: 'Insurance', description: 'Property insurance' },
-      { id: 'third-2025-interest', date: '2025-06-01', amount: 32400, category: 'Other', description: 'Interest & bank charges' },
-      { id: 'third-2025-professional', date: '2025-03-15', amount: 0, category: 'Professional Fees', description: 'Professional fees' },
-      { id: 'third-2025-maintenance', date: '2025-08-15', amount: 607, category: 'Maintenance', description: 'Repairs & maintenance' },
-      { id: 'third-2025-tax', date: '2025-01-15', amount: 8508, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2025-insurance', date: '2025-01-15', amount: 1440, category: 'Insurance', description: 'Property insurance' },
+      { id: 'third-2025-interest', date: '2025-06-01', amount: 28800, category: 'Other', description: 'Interest & bank charges' },
+      { id: 'third-2025-professional', date: '2025-03-15', amount: 0, category: 'Professional Fees', description: 'Legal & accounting fees' },
+      { id: 'third-2025-maintenance', date: '2025-08-15', amount: 2600, category: 'Maintenance', description: 'Repairs & maintenance' },
+      { id: 'third-2025-tax', date: '2025-01-15', amount: 7200, category: 'Property Tax', description: 'Property taxes' },
+      { id: 'third-2025-management', date: '2025-01-15', amount: 7920, category: 'Other', description: 'Property management fees (10%)' },
     ],
 
     tenant: {
-      name: 'Jerry, George, Kramer',
+      name: 'Multiple Tenants',
       leaseStartDate: '2021-01-01',
       leaseEndDate: 'Active',
-      rent: 7500,
+      rent: 6600,
       status: 'Active'
     },
 
     // Calculated fields
-    totalInvestment: 365000, // down payment ($300,000) + closingCosts ($65,000) + initial renovations ($0)
+    totalInvestment: 324000, // down payment ($270,000) + closingCosts ($54,000) + initial renovations ($0)
     appreciation: 100000, // currentMarketValue - purchasePrice
-    monthlyPropertyTax: 709, // 8508 / 12 (using 2025 data)
+    monthlyPropertyTax: 600, // 7200 / 12
     monthlyCondoFees: 0, // No condo fees for multiplex
-    monthlyInsurance: 101.33, // 1216 / 12 (using 2025 data)
-    monthlyMaintenance: 50.58, // 607 / 12 (using 2025 data)
+    monthlyInsurance: 120, // 1440 / 12
+    monthlyMaintenance: 216.67, // 2600 / 12
     monthlyProfessionalFees: 0,
     
     monthlyExpenses: {
-      propertyTax: 709,
+      propertyTax: 600,
       condoFees: 0,
-      insurance: 101.33,
-      maintenance: 50.58,
+      insurance: 120,
+      maintenance: 216.67,
       professionalFees: 0,
       mortgagePayment: 0, // Will be calculated below
       mortgageInterest: 0, // Will be calculated below
       mortgagePrincipal: 0, // Will be calculated below
-      total: 860.91 // Will be recalculated below
+      total: 936.67 // Will be recalculated below
     },
     
-    monthlyCashFlow: 6639.09, // monthlyRent - monthlyExpenses.total (will be recalculated)
-    annualCashFlow: 79669, // monthlyCashFlow * 12
-    capRate: 5.6, // (annualRent / currentMarketValue) * 100 = (90000 / 1600000) * 100
+    monthlyCashFlow: 5663.33, // monthlyRent - monthlyExpenses.total (will be recalculated)
+    annualCashFlow: 67960, // monthlyCashFlow * 12
+    capRate: 5.46, // (annualRent / currentMarketValue) * 100 = (79200 / 1450000) * 100
     occupancy: 100,
     
     // Additional fields for compatibility
-    name: 'Third Avenue',
+    name: 'Gerrard Street Multiplex',
     type: 'Multiplex',
     units: 3,
     bedrooms: [2, 2, 2],
-    bathrooms: [2, 2, 2],
-    squareFootage: 2500,
-    currentValue: 1600000,
+    bathrooms: [1, 1, 1],
+    squareFootage: 2400,
+    currentValue: 1450000,
     imageUrl: '/images/Third Ave.png',
     tenants: [
       {
-        name: 'Jerry',
+        name: 'James Rodriguez',
         unit: 'Unit 1',
-        rent: 2500,
+        rent: 2200,
         leaseStart: '2021-01-01',
         leaseEnd: 'Active',
         status: 'Active'
       },
       {
-        name: 'George',
+        name: 'Maria Santos',
         unit: 'Unit 2',
-        rent: 2500,
+        rent: 2200,
         leaseStart: '2021-01-01',
         leaseEnd: 'Active',
         status: 'Active'
       },
       {
-        name: 'Kramer',
+        name: 'Ahmed Hassan',
         unit: 'Unit 3',
-        rent: 2500,
+        rent: 2200,
         leaseStart: '2021-01-01',
         leaseEnd: 'Active',
         status: 'Active'
