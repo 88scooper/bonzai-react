@@ -272,10 +272,12 @@ function buildPropertyFromSimpleData(data, propertyId) {
   const province = 'ON'; // Assuming Ontario for now
   
   // Calculate LTT (with manual override if property.landTransferTax is set)
+  const closingDate = property.purchaseDate || null;
   const landTransferTax = calculateLandTransferTax(
     property.purchasePrice, 
     cityForLTT, 
     province, 
+    closingDate,
     property.landTransferTax // Manual override if provided
   );
   
@@ -470,10 +472,12 @@ function buildPropertyFromTemplateData(data, propertyId) {
   
   // Calculate total investment
   const downPayment = property.purchasePrice - property.mortgage.originalAmount;
+  const closingDate = property.purchaseDate || null;
   const landTransferTax = calculateLandTransferTax(
     property.purchasePrice,
     city,
     province,
+    closingDate,
     null // No manual override
   );
   

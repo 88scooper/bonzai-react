@@ -11,6 +11,7 @@
  */
 
 import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getAnnualMortgageInterest } from './mortgageCalculator';
+import { calculateLTT as calculateLTTUnified, calculateIRR as calculateIRRUnified, buildProjectCashFlows } from './mathEngine';
 
 /**
  * Calculate annual operating expenses for a property
@@ -23,93 +24,27 @@ import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getAnnualMortgag
 /**
  * Calculate Land Transfer Tax (LTT) for Ontario/Toronto properties
  * 
- * MATH PROOF:
- * Ontario Provincial LTT (2024 rates):
- * - 0.5% on first $55,000
- * - 1.0% on $55,001 - $250,000
- * - 1.5% on $250,001 - $400,000
- * - 2.0% on amounts over $400,000
- * 
- * Toronto Municipal LTT (2024 rates):
- * - 0.5% on first $55,000
- * - 1.0% on $55,001 - $250,000
- * - 1.5% on $250,001 - $400,000
- * - 2.0% on amounts over $400,000
- * 
- * Total LTT = Provincial LTT + Municipal LTT (if Toronto)
- * 
- * Example: $1,200,000 purchase in Toronto
- * Provincial: 0.5%($55k) + 1.0%($195k) + 1.5%($150k) + 2.0%($800k) = $275 + $1,950 + $2,250 + $16,000 = $20,475
- * Municipal: Same calculation = $20,475
- * Total: $40,950
+ * NOTE: This function now uses the unified mathEngine for date-aware calculations.
+ * For full warning support, use calculateLTT directly from mathEngine.
  * 
  * @param {number} purchasePrice - Purchase price of property
  * @param {string} city - City name (case-insensitive)
  * @param {string} province - Province code (default: 'ON')
+ * @param {string|Date} closingDate - Closing date (YYYY-MM-DD or Date). If null, uses 2024 rates.
  * @param {number} manualOverride - Optional manual override value (if provided, returns this instead)
  * @returns {number} Total Land Transfer Tax in dollars
  */
-export function calculateLandTransferTax(purchasePrice, city = '', province = 'ON', manualOverride = null) {
-  // If manual override provided, use it
-  if (manualOverride !== null && manualOverride !== undefined && manualOverride >= 0) {
-    return manualOverride;
+export function calculateLandTransferTax(purchasePrice, city = '', province = 'ON', closingDate = null, manualOverride = null) {
+  const result = calculateLTTUnified(purchasePrice, city, province, closingDate, manualOverride);
+  
+  // Log warning if present
+  if (result.warning) {
+    console.warn('LTT Calculation:', result.warning);
   }
-
-  if (!purchasePrice || purchasePrice <= 0) {
-    return 0;
-  }
-
-  // Only calculate for Ontario properties
-  if (province.toUpperCase() !== 'ON' && province.toUpperCase() !== 'ONTARIO') {
-    return 0;
-  }
-
-  /**
-   * Calculate LTT for a single jurisdiction (Provincial or Municipal)
-   * Formula: Tiered tax brackets
-   */
-  const calculateSingleLTT = (price) => {
-    let tax = 0;
-    const remaining = price;
-
-    // Tier 1: 0.5% on first $55,000
-    if (remaining > 55000) {
-      tax += 55000 * 0.005;
-    } else {
-      tax += remaining * 0.005;
-      return tax;
-    }
-
-    // Tier 2: 1.0% on $55,001 - $250,000
-    const tier2Amount = Math.min(remaining - 55000, 250000 - 55000);
-    if (tier2Amount > 0) {
-      tax += tier2Amount * 0.01;
-    }
-
-    // Tier 3: 1.5% on $250,001 - $400,000
-    if (remaining > 250000) {
-      const tier3Amount = Math.min(remaining - 250000, 400000 - 250000);
-      if (tier3Amount > 0) {
-        tax += tier3Amount * 0.015;
-      }
-    }
-
-    // Tier 4: 2.0% on amounts over $400,000
-    if (remaining > 400000) {
-      tax += (remaining - 400000) * 0.02;
-    }
-
-    return tax;
-  };
-
-  // Calculate Provincial LTT (always for Ontario)
-  const provincialLTT = calculateSingleLTT(purchasePrice);
-
-  // Calculate Municipal LTT (only for Toronto)
-  const isToronto = city && city.toUpperCase().includes('TORONTO');
-  const municipalLTT = isToronto ? calculateSingleLTT(purchasePrice) : 0;
-
-  return provincialLTT + municipalLTT;
+  
+  // Return number for backward compatibility
+  // Note: Warnings are lost in this return. For full warning support, call calculateLTT directly from mathEngine
+  return result.amount;
 }
 
 const deriveMonthlyMortgagePayment = (property) => {
@@ -350,110 +285,42 @@ export function calculateIRR(property, years = 5, exitCapRate = null, sellingCos
     return 0;
   }
 
-  // Calculate annual cash flows
-  const annualCashFlow = calculateAnnualCashFlow(property);
+  // Build cash flow array using unified function
+  // This ensures Year 0 is properly set as negative initial investment
+  const cashFlows = buildProjectCashFlows(property, {
+    years,
+    exitCapRate,
+    sellingCostsPercent,
+    calculateAnnualCashFlow: calculateAnnualCashFlow,
+    calculateNOI: calculateNOI,
+    getMonthlyMortgagePayment: (mortgage) => {
+      if (!mortgage) return 0;
+      try {
+        return getMonthlyMortgagePayment(mortgage);
+      } catch (e) {
+        return deriveMonthlyMortgagePayment({ mortgage });
+      }
+    },
+    getMonthlyMortgageInterest: (mortgage) => {
+      if (!mortgage) return 0;
+      try {
+        return getMonthlyMortgageInterest(mortgage);
+      } catch (e) {
+        return 0;
+      }
+    },
+  });
   
-  // Get current property value
-  const currentValue = property.currentMarketValue || property.currentValue || property.purchasePrice;
-  
-  // Calculate future sale price using Exit Cap Rate (preferred) or appreciation (fallback)
-  let futureValue;
-  
-  if (exitCapRate !== null && exitCapRate > 0) {
-    // EXIT CAP RATE METHOD (Preferred)
-    // Future Sale Price = Final Year NOI / Exit Cap Rate
-    // We use current NOI as proxy for final year NOI (in production, should project forward)
-    const finalYearNOI = calculateNOI(property);
-    futureValue = finalYearNOI / (exitCapRate / 100);
-    
-    // Ensure future value is reasonable (not negative or zero)
-    if (futureValue <= 0 || !isFinite(futureValue)) {
-      // Fallback to appreciation method if exit cap rate produces invalid result
-      const appreciationRate = 0.03; // 3% annual appreciation
-      futureValue = currentValue * Math.pow(1 + appreciationRate, years);
-    }
-  } else {
-    // APPRECIATION METHOD (Fallback)
-    // Future Sale Price = Current Value × (1 + Appreciation Rate)^Years
-    const appreciationRate = 0.03; // 3% annual appreciation (hard-coded fallback)
-    futureValue = currentValue * Math.pow(1 + appreciationRate, years);
+  if (cashFlows.length < 2) {
+    return 0;
   }
-  
-  // Estimate remaining mortgage balance (simplified - assumes linear amortization)
-  const mortgagePayment = deriveMonthlyMortgagePayment(property);
-  let monthlyInterest = 0;
-  if (property.mortgage) {
-    try {
-      monthlyInterest = getMonthlyMortgageInterest(property.mortgage);
-    } catch (e) {
-      // Fallback calculation
-      const annualRate = property.mortgage.interestRate || 0;
-      const currentBalance = property.mortgage.remainingBalance || property.mortgage.originalAmount || 0;
-      monthlyInterest = (currentBalance * annualRate) / 12;
-    }
-  }
-  const annualPrincipalPayment = (mortgagePayment * 12) - (monthlyInterest * 12);
-  const currentMortgageBalance = property.mortgage?.remainingBalance || property.mortgage?.originalAmount || 0;
-  const futureMortgageBalance = Math.max(0, currentMortgageBalance - (annualPrincipalPayment * years));
-  
-  // Sale proceeds = future value - remaining mortgage - selling costs
-  const sellingCosts = futureValue * (sellingCostsPercent / 100);
-  const netSaleProceeds = futureValue - futureMortgageBalance - sellingCosts;
-  
-  // Use Newton-Raphson method to find IRR
-  // NPV = -Initial Investment + Σ(CF/(1+IRR)^t) + Sale Proceeds/(1+IRR)^n
-  let irr = 0.1; // Starting guess of 10%
-  const tolerance = 0.0001;
-  const maxIterations = 100;
-  
-  for (let i = 0; i < maxIterations; i++) {
-    let npv = -property.totalInvestment;
-    
-    // Add annual cash flows
-    for (let year = 1; year <= years; year++) {
-      npv += annualCashFlow / Math.pow(1 + irr, year);
-    }
-    
-    // Add sale proceeds
-    npv += netSaleProceeds / Math.pow(1 + irr, years);
-    
-    // Calculate derivative (NPV' with respect to IRR)
-    let derivative = 0;
-    for (let year = 1; year <= years; year++) {
-      derivative -= (year * annualCashFlow) / Math.pow(1 + irr, year + 1);
-    }
-    derivative -= (years * netSaleProceeds) / Math.pow(1 + irr, years + 1);
-    
-    // Guard against division by zero
-    if (Math.abs(derivative) < tolerance) {
-      break;
-    }
-    
-    // Newton-Raphson update: IRR_new = IRR_old - NPV / NPV'
-    const newIrr = irr - npv / derivative;
-    
-    if (Math.abs(newIrr - irr) < tolerance) {
-      irr = newIrr;
-      break;
-    }
-    
-    irr = newIrr;
-    
-    // Prevent extreme values but allow reasonable ranges
-    if (irr < -0.99) {
-      console.warn(`IRR calculation resulted in extreme negative value: ${(irr * 100).toFixed(2)}%. Capping at -99%.`);
-      irr = -0.99;
-    }
-    if (irr > 1.0 && irr <= 5.0) {
-      console.warn(`IRR calculation resulted in unusually high value: ${(irr * 100).toFixed(2)}%. Verify property data.`);
-    }
-    if (irr > 5.0) {
-      console.warn(`IRR calculation resulted in extreme value: ${(irr * 100).toFixed(2)}%. Capping at 500%. Verify property data inputs.`);
-      irr = 5.0;
-    }
-  }
-  
-  return irr * 100; // Convert to percentage
+
+  // Use unified IRR calculation from mathEngine
+  return calculateIRRUnified(cashFlows, {
+    maxIterations: 1000,
+    tolerance: 0.000001,
+    allowNegativeIRR: true,
+  });
 }
 
 /**

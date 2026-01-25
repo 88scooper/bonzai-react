@@ -297,10 +297,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             // Calculate Land Transfer Tax
             const city = property.address?.includes('Toronto') ? 'Toronto' : '';
             const province = 'ON';
+            const closingDate = property.purchaseDate || null;
             const landTransferTax = calculateLandTransferTax(
               property.purchasePrice || 0,
               city,
               province,
+              closingDate,
               property.landTransferTax // Manual override if provided
             );
             

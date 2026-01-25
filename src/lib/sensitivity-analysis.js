@@ -8,6 +8,7 @@
  */
 
 import { getCurrentMortgageBalance, getMonthlyMortgagePayment, getMortgageYearlySummary } from '@/utils/mortgageCalculator';
+import { calculateIRR as calculateIRRUnified, calculateNPV as calculateNPVUnified } from '@/utils/mathEngine';
 
 /**
  * Default assumptions for cash flow analysis
@@ -53,65 +54,35 @@ export const SCENARIO_PRESETS = {
 };
 
 /**
- * Calculate IRR using Newton-Raphson method
- * @param {Array<number>} cashFlows - Array of cash flows (negative for investment, positive for returns)
+ * Calculate IRR using unified mathEngine
+ * @param {Array<number>} cashFlows - Array of cash flows (Year 0 = negative initial investment, positive for returns)
  * @returns {number} IRR as a percentage
  */
 export function calculateIRR(cashFlows) {
+  // Validate Year 0 is negative
   if (!cashFlows || cashFlows.length < 2) {
     return 0;
   }
-
-  // Initial guess
-  let rate = 0.1;
-  const maxIterations = 1000;
-  const tolerance = 0.000001;
-
-  for (let i = 0; i < maxIterations; i++) {
-    let npv = 0;
-    let dnpv = 0;
-
-    for (let j = 0; j < cashFlows.length; j++) {
-      npv += cashFlows[j] / Math.pow(1 + rate, j);
-      dnpv += (-j * cashFlows[j]) / Math.pow(1 + rate, j + 1);
-    }
-
-    // Guard against division by zero
-    if (Math.abs(dnpv) < tolerance) {
-      // Derivative is near zero - adjust rate guess to avoid division by zero
-      rate = rate * 1.1;
-      continue;
-    }
-
-    const newRate = rate - npv / dnpv;
-
-    // Guard against invalid rate (NaN or Infinity)
-    if (!isFinite(newRate) || isNaN(newRate)) {
-      // If calculation produces invalid result, try adjusting the guess
-      rate = rate * 0.9;
-      continue;
-    }
-
-    if (Math.abs(newRate - rate) < tolerance) {
-      return newRate * 100; // Return as percentage
-    }
-
-    rate = newRate;
+  
+  if (cashFlows[0] >= 0) {
+    console.warn('sensitivity-analysis.calculateIRR: Year 0 should be negative (initial investment). Got:', cashFlows[0]);
   }
-
-  return rate * 100; // Return as percentage even if not converged
+  
+  return calculateIRRUnified(cashFlows, {
+    maxIterations: 1000,
+    tolerance: 0.000001,
+    allowNegativeIRR: true,
+  });
 }
 
 /**
- * Calculate NPV (Net Present Value)
+ * Calculate NPV (Net Present Value) using unified mathEngine
  * @param {Array<number>} cashFlows - Array of cash flows
  * @param {number} discountRate - Discount rate as decimal (e.g., 0.08 for 8%)
  * @returns {number} NPV
  */
 export function calculateNPV(cashFlows, discountRate) {
-  return cashFlows.reduce((npv, cashFlow, year) => {
-    return npv + cashFlow / Math.pow(1 + discountRate, year);
-  }, 0);
+  return calculateNPVUnified(cashFlows, discountRate);
 }
 
 /**

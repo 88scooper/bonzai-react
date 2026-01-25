@@ -1,6 +1,8 @@
 // Mortgage amortization calculator utility
 // Compatible with existing property data structure
 
+import { validateCustomSchedule } from './mathEngine';
+
 export interface MortgageData {
   lender: string;
   originalAmount: number;
@@ -532,9 +534,46 @@ function getNextPaymentDate(startDate: Date, paymentNumber: number, paymentFrequ
  * on the balance and continues forward with the original payment schedule pattern.
  */
 export function calculateAmortizationSchedule(mortgage: MortgageData): AmortizationSchedule {
+  const mortgageAny = mortgage as any;
+  
+  // Check for manual mortgage source with custom schedule
+  if (mortgageAny.mortgageSource === 'manual' && mortgageAny.customSchedule) {
+    // Use custom schedule from property
+    const customSchedule = mortgageAny.customSchedule;
+    
+    // Ensure it's in the correct format
+    if (Array.isArray(customSchedule) && customSchedule.length > 0) {
+      // Validate the schedule
+      const validation = validateCustomSchedule(customSchedule);
+      
+      if (!validation.isValid && validation.warning) {
+        console.warn('Custom Schedule Validation:', validation.warning);
+        // Continue processing but log warning
+      }
+      
+      const payments: PaymentScheduleItem[] = customSchedule.map((item: any, index: number) => ({
+        paymentNumber: item.paymentNumber || index + 1,
+        paymentDate: item.paymentDate || item.date || '',
+        monthlyPayment: item.monthlyPayment || item.totalPayment || item.payment || 0,
+        principal: item.principal || 0,
+        interest: item.interest || 0,
+        remainingBalance: item.remainingBalance || item.balance || 0,
+      }));
+      
+      const totalInterest = payments.reduce((sum, p) => sum + p.interest, 0);
+      const finalPaymentDate = payments[payments.length - 1]?.paymentDate || '';
+      
+      return {
+        payments,
+        totalInterest,
+        totalPayments: payments.length,
+        finalPaymentDate,
+      };
+    }
+  }
+  
   // If we have a lender-provided custom schedule for this mortgage, use it directly.
   // Currently supported: Richmond St E (mortgage number 8963064.1).
-  const mortgageAny = mortgage as any;
   if (mortgageAny.mortgageNumber === RICHMOND_MORTGAGE_NUMBER) {
     const payments = richmondMortgageSchedule;
     const totalInterest = payments.reduce((sum, p) => sum + p.interest, 0);

@@ -14,6 +14,7 @@ import {
   updatePropertyFinancialMetrics,
   calculateLandTransferTax
 } from '@/utils/financialCalculations';
+import { calculateLTT } from '@/utils/mathEngine';
 import { getMonthlyMortgagePayment, getMonthlyMortgageInterest, getMonthlyMortgagePrincipal } from '@/utils/mortgageCalculator';
 import { generateSlug } from '@/utils/slug';
 
@@ -62,6 +63,9 @@ export interface Property {
     status: string;
   };
   totalInvestment: number;
+  landTransferTax?: number;
+  landTransferTaxWarning?: string | null;
+  landTransferTaxRateSchedule?: string;
   appreciation: number;
   monthlyPropertyTax: number;
   monthlyCondoFees: number;
@@ -385,19 +389,34 @@ const preparePropertyData = (property: Property): Property => {
   // Calculate down payment using normalized mortgage
   const downPayment = Math.max(0, purchasePrice - cloned.mortgage.originalAmount);
   
-  // Calculate Land Transfer Tax
+  // Calculate Land Transfer Tax using date-aware calculation
   const city = cloned.address?.includes('Toronto') ? 'Toronto' : '';
   const province = 'ON';
-  const landTransferTax = calculateLandTransferTax(
+  const closingDate = cloned.purchaseDate || null; // Use purchaseDate as closingDate
+  
+  // Use mathEngine calculateLTT for full warning support
+  const lttResult = calculateLTT(
     purchasePrice,
     city,
     province,
+    closingDate,
     (cloned as any).landTransferTax // Manual override if provided
   );
   
+  const landTransferTax = lttResult.amount;
+  
   // Calculate total investment
   cloned.totalInvestment = Number((downPayment + closingCosts + initialRenovations + renovationCosts + landTransferTax).toFixed(2));
+  
+  // Store LTT data with warnings for UI
   (cloned as any).landTransferTax = landTransferTax;
+  (cloned as any).landTransferTaxWarning = lttResult.warning; // Expose warning to UI
+  (cloned as any).landTransferTaxRateSchedule = lttResult.rateSchedule; // Expose rate schedule used
+  
+  // If there's a warning, log it for debugging
+  if (lttResult.warning) {
+    console.warn(`Property ${cloned.nickname || cloned.address}: ${lttResult.warning}`);
+  }
 
   const prepared = updatePropertyFinancialMetrics
     ? updatePropertyFinancialMetrics(cloned as any)
