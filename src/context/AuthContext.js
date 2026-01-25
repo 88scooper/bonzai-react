@@ -48,6 +48,17 @@ export function AuthProvider({ children }) {
   // Load user from session cookie on mount
   useEffect(() => {
     const loadUser = async () => {
+      // Check for demo mode first - if in demo mode, skip authentication check
+      if (typeof window !== 'undefined') {
+        const demoMode = sessionStorage.getItem('demoMode') === 'true';
+        if (demoMode) {
+          console.log('[AuthContext] Demo mode detected, skipping authentication check');
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+      }
+
       try {
         // Try to fetch full user data from API (including is_admin)
         // Add timeout to prevent hanging
@@ -78,8 +89,14 @@ export function AuthProvider({ children }) {
           setUser(null);
         }
       } catch (error) {
-        console.error('Error loading user:', error);
-        setUser(null);
+        // If error occurs and we're in demo mode, don't treat it as an error
+        if (typeof window !== 'undefined' && sessionStorage.getItem('demoMode') === 'true') {
+          console.log('[AuthContext] Error loading user but in demo mode, ignoring error');
+          setUser(null);
+        } else {
+          console.error('Error loading user:', error);
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -274,42 +291,53 @@ export function RequireAuth({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!loading && !user && typeof window !== 'undefined') {
-      // Check demo mode directly from sessionStorage to avoid race condition
-      const demoMode = sessionStorage.getItem('demoMode') === 'true';
-      
-      // If in demo mode, allow access without redirecting
-      if (demoMode) {
-        return;
+    // Only run redirect check after component has mounted
+    if (!mounted) return;
+    
+    // Add a small delay to ensure sessionStorage is fully available after page navigation
+    const timeoutId = setTimeout(() => {
+      if (!loading && !user && typeof window !== 'undefined') {
+        // Check demo mode directly from sessionStorage to avoid race condition
+        // This MUST be checked FIRST before any redirect logic
+        const demoMode = sessionStorage.getItem('demoMode') === 'true';
+        
+        // If in demo mode, allow access without redirecting
+        if (demoMode) {
+          console.log('[RequireAuth] Demo mode detected, allowing access');
+          return;
+        }
+        
+        // Check if user is logging out FIRST - before any other logic
+        // This prevents redirecting to /login when user explicitly logs out
+        const isLoggingOut = sessionStorage.getItem('isLoggingOut') === 'true';
+        if (isLoggingOut) {
+          // Don't clear the flag here - let the landing page do it
+          // Just redirect immediately and return
+          window.location.replace('/');
+          return;
+        }
+        
+        const currentPath = window.location.pathname;
+        
+        // CRITICAL: Always allow homepage and other public paths
+        const publicPaths = ['/', '/login', '/signup', '/onboarding'];
+        const isPublicPath = publicPaths.includes(currentPath);
+        
+        // If we're on a public path, never redirect
+        if (isPublicPath) {
+          return;
+        }
+        
+        // We're on a protected path with no user - redirect to login
+        if (!isPublicPath) {
+          console.log('[RequireAuth] No user and not in demo mode, redirecting to login');
+          window.location.href = '/login';
+        }
       }
-      
-      // Check if user is logging out FIRST - before any other logic
-      // This prevents redirecting to /login when user explicitly logs out
-      const isLoggingOut = sessionStorage.getItem('isLoggingOut') === 'true';
-      if (isLoggingOut) {
-        // Don't clear the flag here - let the landing page do it
-        // Just redirect immediately and return
-        window.location.replace('/');
-        return;
-      }
-      
-      const currentPath = window.location.pathname;
-      
-      // CRITICAL: Always allow homepage and other public paths
-      const publicPaths = ['/', '/login', '/signup', '/onboarding'];
-      const isPublicPath = publicPaths.includes(currentPath);
-      
-      // If we're on a public path, never redirect
-      if (isPublicPath) {
-        return;
-      }
-      
-      // We're on a protected path with no user - redirect to login
-      if (!isPublicPath) {
-        window.location.href = '/login';
-      }
-    }
-  }, [user, loading]);
+    }, 50); // Small delay to ensure sessionStorage is available
+    
+    return () => clearTimeout(timeoutId);
+  }, [user, loading, mounted]);
 
   // Only show loading state after mounting to prevent hydration mismatch
   if (mounted && loading) {

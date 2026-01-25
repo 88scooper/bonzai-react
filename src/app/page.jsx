@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -10,6 +11,7 @@ import Image from "next/image";
 import Footer from "@/components/Footer";
 
 export default function HomePage() {
+  const router = useRouter();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
 
@@ -58,10 +60,14 @@ export default function HomePage() {
   function handleDemoPortfolio() {
     // Set demo mode flag for read-only access
     if (typeof window !== 'undefined') {
+      console.log('[HomePage] Setting demo mode and navigating to portfolio-summary');
       sessionStorage.setItem('demoMode', 'true');
       sessionStorage.setItem('readOnlyMode', 'true');
-      // Navigate to portfolio summary (no URL params to avoid static generation issues)
-      window.location.href = '/portfolio-summary';
+      // Verify it was set
+      const demoModeSet = sessionStorage.getItem('demoMode') === 'true';
+      console.log('[HomePage] Demo mode set:', demoModeSet);
+      // Use router.push for client-side navigation to preserve sessionStorage better
+      router.push('/portfolio-summary');
     }
   }
 
