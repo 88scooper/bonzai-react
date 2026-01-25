@@ -274,7 +274,14 @@ export function RequireAuth({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!loading && !user && typeof window !== 'undefined' && !isDemoMode) {
+    if (!loading && !user && typeof window !== 'undefined') {
+      // Check demo mode directly from sessionStorage to avoid race condition
+      const demoMode = sessionStorage.getItem('demoMode') === 'true';
+      
+      // If in demo mode, allow access without redirecting
+      if (demoMode) {
+        return;
+      }
       
       // Check if user is logging out FIRST - before any other logic
       // This prevents redirecting to /login when user explicitly logs out
@@ -302,7 +309,7 @@ export function RequireAuth({ children }) {
         window.location.href = '/login';
       }
     }
-  }, [user, loading, isDemoMode]);
+  }, [user, loading]);
 
   // Only show loading state after mounting to prevent hydration mismatch
   if (mounted && loading) {
@@ -315,8 +322,12 @@ export function RequireAuth({ children }) {
 
   // Allow demo mode without user
   // Only check after mounting to prevent hydration mismatch
-  if (mounted && !user && !isDemoMode) {
-    return null;
+  // Check sessionStorage directly to avoid race condition with state
+  if (mounted && !user) {
+    const demoMode = typeof window !== 'undefined' && sessionStorage.getItem('demoMode') === 'true';
+    if (!demoMode) {
+      return null;
+    }
   }
 
   // During SSR or before mount, always render children to prevent hydration mismatch
