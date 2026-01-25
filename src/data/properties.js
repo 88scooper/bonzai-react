@@ -163,7 +163,7 @@ export const properties = [
     bathrooms: [2],
     squareFootage: 800,
     currentValue: 625000,
-    imageUrl: '/images/1 First St.png',
+    imageUrl: '/images/King West Condo.png',
     tenants: [
       {
         name: 'Michael Park',
@@ -304,7 +304,7 @@ export const properties = [
     bathrooms: [2],
     squareFootage: 650,
     currentValue: 720000,
-    imageUrl: '/images/1 Second Dr.png',
+    imageUrl: '/images/Eglinton Condo.png',
     tenants: [
       {
         name: 'Lisa Wong',
@@ -440,7 +440,7 @@ export const properties = [
     bathrooms: [1, 1, 1],
     squareFootage: 2400,
     currentValue: 1450000,
-    imageUrl: '/images/Third Ave.png',
+    imageUrl: '/images/Gerrard St Multiplex.png',
     tenants: [
       {
         name: 'James Rodriguez',

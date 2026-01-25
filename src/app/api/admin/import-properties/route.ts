@@ -32,6 +32,8 @@ function mapPropertyToDb(property: any, accountId: string): any {
       rent: property.rent || null,
       tenants: property.tenants || [],
       originalId: property.id,
+      imageUrl: property.imageUrl || null,
+      imageUrls: property.imageUrl ? [property.imageUrl] : [],
     }
   };
 }

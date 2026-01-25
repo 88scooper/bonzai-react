@@ -128,6 +128,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                       rent: property.rent || null,
                       tenants: property.tenants || [],
                       originalId: property.id,
+                      imageUrl: property.imageUrl || null,
+                      imageUrls: property.imageUrl ? [property.imageUrl] : [],
                     })
                   };
                   
