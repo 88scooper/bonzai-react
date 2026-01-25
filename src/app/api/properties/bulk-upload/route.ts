@@ -169,7 +169,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Process each row
     const properties: any[] = [];
     const errors: string[] = [];
-    const MAX_ROWS = 500;
 
     for (let i = 1; i < jsonData.length; i++) {
       // Break condition: stop processing if we exceed 500 rows
