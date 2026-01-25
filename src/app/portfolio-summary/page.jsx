@@ -328,7 +328,7 @@ function PortfolioSummaryContent() {
   const defaultMetrics = [
     { id: 'portfolioValue', name: 'Estimated Portfolio Value', isVisible: true },
     { id: 'equity', name: 'Forecasted Annual Equity', isVisible: true },
-    { id: 'mortgageDebt', name: 'Annual Debt Service', isVisible: true },
+    { id: 'mortgageDebt', name: 'Forecasted Annual Debt Service', isVisible: true },
     { id: 'netOperatingIncome', name: 'Annual Net Operating Income', isVisible: true },
     { id: 'overallCapRate', name: 'Overall Cap Rate', isVisible: true },
     { id: 'blendedCashOnCash', name: 'Blended Cash on Cash', isVisible: true },
@@ -1192,7 +1192,7 @@ function PortfolioSummaryContent() {
                     return (
                       <TopMetricCard
                         key={metric.id}
-                        title="Annual Debt Service"
+                        title="Forecasted Annual Debt Service"
                         value={new Intl.NumberFormat('en-CA', {
                           style: 'currency',
                           currency: 'CAD',
@@ -1217,7 +1217,7 @@ function PortfolioSummaryContent() {
                           </>
                         }
                         supportingSize="dynamic"
-                        iconTooltip="Your total monthly mortgage payments (principal and interest) across all properties. This represents your monthly debt obligations and helps you understand cash flow requirements."
+                        iconTooltip="Your total annual mortgage payments (principal and interest) across all properties. This represents your annual debt obligations and helps you understand cash flow requirements."
                       />
                     );
                   default:
@@ -1366,7 +1366,7 @@ function PortfolioSummaryContent() {
                     return (
                       <MetricCard
                         key={metric.id}
-                        title="Annual Debt Service"
+                        title="Forecasted Annual Debt Service"
                         value={formatCurrency(totalAnnualDebtService)}
                         isExpense={true}
                         showInfoIcon={true}
@@ -1583,161 +1583,55 @@ function TopMetricCard({
   iconBadgePosition = 'bottom-right',
   iconTooltip,
 }) {
-  const iconRef = useRef(null);
-  const tooltipRef = useRef(null);
-  const [isHovered, setIsHovered] = useState(false);
-
-  const updateTooltipPosition = useCallback(() => {
-    if (!iconRef.current || !tooltipRef.current || !isHovered) return;
-    
-    const iconRect = iconRef.current.getBoundingClientRect();
-    
-    // Temporarily show tooltip to measure it
-    tooltipRef.current.style.visibility = 'hidden';
-    tooltipRef.current.style.display = 'block';
-    tooltipRef.current.style.opacity = '1';
-    tooltipRef.current.style.position = 'fixed';
-    tooltipRef.current.style.top = '0';
-    tooltipRef.current.style.left = '0';
-    
-    const tooltipRect = tooltipRef.current.getBoundingClientRect();
-    const tooltipHeight = tooltipRect.height;
-    const tooltipWidth = tooltipRect.width;
-    
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const gap = 8;
-    
-    // Calculate available space around THIS specific icon
-    const spaceAbove = iconRect.top;
-    const spaceBelow = viewportHeight - iconRect.bottom;
-    const spaceRight = viewportWidth - iconRect.right;
-    const spaceLeft = iconRect.left;
-    
-    let top, left;
-
-    // Prefer above, centered on icon
-    if (spaceAbove >= tooltipHeight + gap) {
-      top = iconRect.top - tooltipHeight - gap;
-      left = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
-    } 
-    // Then below, centered on icon
-    else if (spaceBelow >= tooltipHeight + gap) {
-      top = iconRect.bottom + gap;
-      left = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
-    } 
-    // Then right of icon
-    else if (spaceRight >= tooltipWidth + gap) {
-      top = iconRect.top + (iconRect.height / 2) - (tooltipHeight / 2);
-      left = iconRect.right + gap;
-    } 
-    // Finally left of icon
-    else {
-      top = iconRect.top + (iconRect.height / 2) - (tooltipHeight / 2);
-      left = iconRect.left - tooltipWidth - gap;
-    }
-
-    // Keep within viewport bounds
-    left = Math.max(16, Math.min(left, viewportWidth - tooltipWidth - 16));
-    top = Math.max(16, Math.min(top, viewportHeight - tooltipHeight - 16));
-
-    // Apply position
-    tooltipRef.current.style.position = 'fixed';
-    tooltipRef.current.style.top = `${top}px`;
-    tooltipRef.current.style.left = `${left}px`;
-    tooltipRef.current.style.zIndex = '9999';
-    tooltipRef.current.style.visibility = 'visible';
-    tooltipRef.current.style.display = 'block';
-    tooltipRef.current.style.opacity = '1';
-  }, [isHovered]);
-
-  useEffect(() => {
-    if (isHovered) {
-      // Use requestAnimationFrame to ensure DOM is ready
-      const rafId = requestAnimationFrame(() => {
-        updateTooltipPosition();
-      });
-      
-      const scrollHandler = () => updateTooltipPosition();
-      const resizeHandler = () => updateTooltipPosition();
-      
-      window.addEventListener('scroll', scrollHandler, true);
-      window.addEventListener('resize', resizeHandler);
-      
-      return () => {
-        cancelAnimationFrame(rafId);
-        window.removeEventListener('scroll', scrollHandler, true);
-        window.removeEventListener('resize', resizeHandler);
-      };
-    }
-  }, [isHovered, updateTooltipPosition]);
+  const [isTitleHovered, setIsTitleHovered] = useState(false);
 
   return (
     <div className="relative bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/5 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 transition-shadow duration-300 ease-in-out hover:shadow-[0_12px_40px_rgb(0,0,0,0.06)]">
-      <div className="flex items-start justify-between gap-3.5">
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500">
-            {title}
-          </h3>
+      <div>
+        <h3 
+          className="text-[9px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-500 whitespace-nowrap cursor-help"
+          onMouseEnter={() => setIsTitleHovered(true)}
+          onMouseLeave={() => setIsTitleHovered(false)}
+        >
+          {title}
+        </h3>
+      </div>
+      {isTitleHovered && iconTooltip ? (
+        <div className="mt-4 p-4 bg-[#205A3E]/5 dark:bg-[#205A3E]/10 rounded-lg border border-[#205A3E]/20 dark:border-[#205A3E]/30">
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+            {iconTooltip}
+          </p>
         </div>
-        {Icon && (
-          <div 
-            className="relative group"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-          >
-            <div ref={iconRef} className={`relative rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 cursor-help ${
-              accent === 'emerald' || accent === 'teal'
-                ? 'bg-[#205A3E]/10 dark:bg-[#205A3E]/20'
-                : 'bg-slate-100 dark:bg-slate-800'
-            }`}>
-              <Icon className={`h-5 w-5 flex-shrink-0 ${
-                accent === 'emerald' || accent === 'teal'
-                  ? 'text-[#205A3E] dark:text-[#66B894]'
-                  : 'text-slate-500 dark:text-slate-400'
-              }`} aria-hidden="true" />
-              {iconBadge && (
-                <span
-                  className={`absolute flex h-4 w-4 items-center justify-center rounded-full bg-[#205A3E] text-[10px] font-semibold text-white shadow-sm dark:bg-[#2F7E57] ${
-                    iconBadgePosition === 'top-center'
-                      ? '-top-1 left-1/2 -translate-x-1/2'
-                      : '-bottom-1 -right-1'
-                  }`}
-                >
-                  {iconBadge}
-                </span>
-              )}
-            </div>
-            {iconTooltip && (
-              <div
-                ref={tooltipRef}
-                className="p-3 bg-[#205A3E] text-white text-xs leading-relaxed rounded-lg transition-opacity duration-200 pointer-events-none whitespace-normal w-72 max-w-[calc(100vw-2rem)] shadow-2xl"
-                style={{ 
-                  position: 'fixed',
-                  opacity: isHovered ? 1 : 0, 
-                  visibility: isHovered ? 'visible' : 'hidden',
-                  pointerEvents: 'none',
-                  zIndex: isHovered ? 9999 : -1,
-                  top: isHovered ? undefined : '-9999px',
-                  left: isHovered ? undefined : '-9999px'
-                }}
-              >
-                {iconTooltip}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="mt-5 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
-        {value}
-      </div>
-      {supporting && (
+      ) : (
         <>
-          <div className="mt-4 border-t border-gray-100 dark:border-gray-800" />
-          {supportingSize === 'dynamic' ? (
-            <div className="mt-3 w-full min-w-0">
-              <div 
-                className={`font-bold break-words ${
+          <div className="mt-5 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+            {value}
+          </div>
+          {supporting && (
+            <>
+              <div className="mt-4 border-t border-gray-100 dark:border-gray-800" />
+              {supportingSize === 'dynamic' ? (
+                <div className="mt-3 w-full min-w-0">
+                  <div 
+                    className={`font-bold break-words ${
+                      accent === 'emerald' 
+                        ? 'text-[#205A3E] dark:text-[#66B894]' 
+                        : accent === 'teal'
+                        ? 'text-[#1A4A5A] dark:text-[#7AC0CF]'
+                        : accent === 'amber'
+                        ? 'text-[#B57A33] dark:text-[#E9C08A]'
+                        : 'text-gray-900 dark:text-gray-100'
+                    }`}
+                    style={{ 
+                      fontSize: 'clamp(0.625rem, 1.2vw, 1rem)',
+                      lineHeight: '1.3'
+                    }}
+                  >
+                    {supporting}
+                  </div>
+                </div>
+              ) : (
+                <p className={`mt-3 ${supportingSize === 'large' ? 'text-2xl font-bold' : 'text-sm'} ${
                   accent === 'emerald' 
                     ? 'text-[#205A3E] dark:text-[#66B894]' 
                     : accent === 'teal'
@@ -1745,27 +1639,11 @@ function TopMetricCard({
                     : accent === 'amber'
                     ? 'text-[#B57A33] dark:text-[#E9C08A]'
                     : 'text-gray-900 dark:text-gray-100'
-                }`}
-                style={{ 
-                  fontSize: 'clamp(0.625rem, 1.2vw, 1rem)',
-                  lineHeight: '1.3'
-                }}
-              >
-                {supporting}
-              </div>
-            </div>
-          ) : (
-            <p className={`mt-3 ${supportingSize === 'large' ? 'text-2xl font-bold' : 'text-sm'} ${
-              accent === 'emerald' 
-                ? 'text-[#205A3E] dark:text-[#66B894]' 
-                : accent === 'teal'
-                ? 'text-[#1A4A5A] dark:text-[#7AC0CF]'
-                : accent === 'amber'
-                ? 'text-[#B57A33] dark:text-[#E9C08A]'
-                : 'text-gray-900 dark:text-gray-100'
-            }`}>
-              {supporting}
-            </p>
+                }`}>
+                  {supporting}
+                </p>
+              )}
+            </>
           )}
         </>
       )}
