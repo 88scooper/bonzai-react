@@ -180,14 +180,30 @@ export function AccountProvider({ children }: { children: ReactNode }) {
               }));
               
               // Calculate monthly expenses from expense history
+              // Use current year if available, otherwise use most recent year
               const currentYear = new Date().getFullYear();
-              const currentYearExpenses = expenses.filter((e: any) => {
+              let yearToUse = currentYear;
+              
+              // Get all unique years from expenses
+              const expenseYears = expenses.map((e: any) => {
                 const expDate = new Date(e.expenseDate);
-                return expDate.getFullYear() === currentYear;
+                return expDate.getFullYear();
+              }).filter((year: number) => !isNaN(year));
+              
+              if (expenseYears.length > 0) {
+                const maxYear = Math.max(...expenseYears);
+                // Use current year if it has expenses, otherwise use most recent year
+                const hasCurrentYearExpenses = expenseYears.includes(currentYear);
+                yearToUse = hasCurrentYearExpenses ? currentYear : maxYear;
+              }
+              
+              const yearExpenses = expenses.filter((e: any) => {
+                const expDate = new Date(e.expenseDate);
+                return expDate.getFullYear() === yearToUse;
               });
               
               const categoryTotals: Record<string, number> = {};
-              currentYearExpenses.forEach((exp: any) => {
+              yearExpenses.forEach((exp: any) => {
                 const category = exp.category || 'Other';
                 const amount = parseFloat(exp.amount || 0);
                 categoryTotals[category] = (categoryTotals[category] || 0) + amount;
