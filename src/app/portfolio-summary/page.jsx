@@ -259,7 +259,7 @@ function PortfolioSummaryContent() {
   const [isDemoMode, setIsDemoMode] = useState(false);
 
   const { user } = useAuth();
-  const { currentAccount } = useAccount();
+  const { currentAccount, loading: accountLoading } = useAccount();
 
   // Check for demo mode on client side only to avoid hydration mismatch
   // Only use sessionStorage to avoid any URL search param issues during static generation
@@ -298,6 +298,10 @@ function PortfolioSummaryContent() {
   useEffect(() => {
     setMounted(true);
   }, []);
+  
+  // Check if demo data is still loading (after mounted is defined)
+  // For demo mode: show loading if account is loading OR if we have no properties yet
+  const isDemoDataLoading = isDemoMode && (accountLoading || (mounted && properties.length === 0));
   
   // Timeout fallback - force show content after 1.5 seconds to prevent infinite loading
   const [forceShow, setForceShow] = useState(false);
@@ -891,9 +895,14 @@ function PortfolioSummaryContent() {
   // Show loading state until calculations are complete to prevent hydration mismatch
   // Show content if calculations are complete OR if we have properties OR if timeout elapsed
   // Only check properties after mounting to prevent hydration mismatch
-  const shouldShowContent = calculationsComplete || forceShow || (mounted && properties && Array.isArray(properties));
+  // For demo mode, also check if demo data is still loading
+  const shouldShowContent = !isDemoDataLoading && (
+    calculationsComplete || 
+    forceShow || 
+    (mounted && properties && Array.isArray(properties) && properties.length > 0)
+  );
   
-  if (!shouldShowContent) {
+  if (!shouldShowContent || isDemoDataLoading) {
     return (
       <RequireAuth>
         <Layout>
@@ -901,7 +910,9 @@ function PortfolioSummaryContent() {
             <div className="container mx-auto px-4 py-8">
               <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#205A3E]"></div>
-                <span className="ml-3 text-lg text-gray-600 dark:text-gray-400">Loading portfolio data...</span>
+                <span className="ml-3 text-lg text-gray-600 dark:text-gray-400">
+                  {isDemoMode ? 'Loading demo portfolio...' : 'Loading portfolio data...'}
+                </span>
               </div>
             </div>
           </div>
