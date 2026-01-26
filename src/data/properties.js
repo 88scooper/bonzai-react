@@ -550,7 +550,10 @@ export const getPortfolioMetrics = (propertyList = properties) => {
     };
   }
 
-  const totalValue = list.reduce((sum, property) => sum + (property.currentMarketValue || 0), 0);
+  const totalValue = list.reduce((sum, property) => {
+    const value = Number(property.currentMarketValue) || 0;
+    return sum + (isNaN(value) ? 0 : value);
+  }, 0);
   const totalInvestment = list.reduce((sum, property) => sum + (property.totalInvestment || 0), 0);
   const totalMonthlyRent = list.reduce((sum, property) => sum + (property.rent?.monthlyRent || 0), 0);
   const totalAnnualOperatingExpenses = list.reduce((sum, property) => {

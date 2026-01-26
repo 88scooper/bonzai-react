@@ -587,18 +587,27 @@ function PortfolioSummaryContent() {
   const monthlyCashFlowValue = portfolioMetrics.totalMonthlyCashFlow || 0;
 
   // Calculate portfolio totals from actual data
-  const totalPortfolioValue = portfolioMetrics.totalValue || 0;
-  const totalEquity = portfolioMetrics.totalEquity || 0;
+  // Ensure totalPortfolioValue is a valid number, default to 0 if NaN
+  const totalPortfolioValue = (() => {
+    const value = portfolioMetrics.totalValue || 0;
+    return isNaN(value) ? 0 : Number(value);
+  })();
+  const totalEquity = (() => {
+    const value = portfolioMetrics.totalEquity || 0;
+    return isNaN(value) ? 0 : Number(value);
+  })();
   
   // Calculate total purchase prices and appreciation
   const totalPurchasePrices = (properties || []).reduce((sum, property) => {
     const price = Number(property?.purchasePrice) || 0;
     return sum + (isNaN(price) ? 0 : price);
   }, 0);
-  const appreciationPercentage = totalPurchasePrices > 0 && !isNaN(totalPortfolioValue) && !isNaN(totalPurchasePrices)
+  const appreciationPercentage = totalPurchasePrices > 0 && !isNaN(totalPortfolioValue) && !isNaN(totalPurchasePrices) && totalPortfolioValue > 0
     ? Math.floor(((Number(totalPortfolioValue) - totalPurchasePrices) / totalPurchasePrices) * 100)
     : 0;
-  const totalAppreciation = totalPortfolioValue - totalPurchasePrices;
+  const totalAppreciation = !isNaN(totalPortfolioValue) && !isNaN(totalPurchasePrices)
+    ? totalPortfolioValue - totalPurchasePrices
+    : 0;
   
   // Calculate equity and debt as percentages of total portfolio value
   const equityPercentage = totalPortfolioValue > 0 && !isNaN(totalEquity) && !isNaN(totalPortfolioValue)

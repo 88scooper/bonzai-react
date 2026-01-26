@@ -284,7 +284,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             
             // Ensure property has required fields
             property.squareFootage = property.size || 0;
-            property.currentValue = property.currentMarketValue || 0;
+            // Parse and validate currentMarketValue - use purchasePrice as fallback if missing
+            const parsedMarketValue = parseFloat(property.currentMarketValue);
+            property.currentMarketValue = (!isNaN(parsedMarketValue) && parsedMarketValue > 0) 
+              ? parsedMarketValue 
+              : (property.purchasePrice || 0);
+            property.currentValue = property.currentMarketValue;
             property.name = property.nickname || '';
             property.type = property.propertyType || '';
             property.units = propertyData.units || 1;
