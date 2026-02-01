@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth-middleware';
 import { updateProfileSchema, changePasswordSchema } from '@/lib/validations/auth.schema';
 import { updateUser, updateUserPassword, deleteUser, getUserById } from '@/lib/auth';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +12,16 @@ export const runtime = 'nodejs';
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    // Quick check for cookie before doing full authentication
+    // This helps avoid unnecessary database queries when user is not logged in
+    const cookieToken = request.cookies.get('bonzai_auth')?.value || null;
+    if (!cookieToken) {
+      return NextResponse.json(
+        createErrorResponse('Authentication required', 401),
+        { status: 401 }
+      );
+    }
+
     const user = await authenticateRequest(request);
     
     if (!user) {

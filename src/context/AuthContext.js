@@ -60,10 +60,14 @@ export function AuthProvider({ children }) {
       }
 
       try {
+        // Note: We can't check for httpOnly cookies via document.cookie
+        // The cookie will be sent automatically with the API request if it exists
+        // Just make the API call - it will return 401 if no valid cookie exists
+        
         // Try to fetch full user data from API (including is_admin)
-        // Add timeout to prevent hanging
+        // Add timeout to prevent hanging, but make it longer for slow connections
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 3000)
+          setTimeout(() => reject(new Error('Request timeout')), 5000)
         );
         
         const response = await Promise.race([
@@ -94,7 +98,13 @@ export function AuthProvider({ children }) {
           console.log('[AuthContext] Error loading user but in demo mode, ignoring error');
           setUser(null);
         } else {
-          console.error('Error loading user:', error);
+          // Only log non-timeout errors to avoid console spam
+          const isTimeout = error instanceof Error && error.message === 'Request timeout';
+          if (!isTimeout) {
+            console.error('Error loading user:', error);
+          } else {
+            console.log('[AuthContext] User profile request timed out (user may not be logged in)');
+          }
           setUser(null);
         }
       } finally {
@@ -178,44 +188,45 @@ export function AuthProvider({ children }) {
         throw new Error('Login response missing user data');
       }
       
-      // Fetch full user data including is_admin
-      // This is important for admin users to get redirected correctly
-      let userData = {
+      // Use user data from login response (now includes is_admin)
+      // This avoids the need for an additional API call and cookie timing issues
+      const userData = {
         id: response.data.user.id,
         email: response.data.user.email,
         displayName: response.data.user.name || null,
-        isAdmin: false, // Default to false, will be updated if getUserProfile succeeds
+        isAdmin: response.data.user.is_admin || false,
       };
       
-      try {
-        console.log('AuthContext: Fetching user profile...');
-        const userResponse = await apiClient.getUserProfile();
-        
-        if (userResponse && userResponse.success && userResponse.data) {
-          userData = {
-            id: userResponse.data.id,
-            email: userResponse.data.email,
-            displayName: userResponse.data.name || null,
-            isAdmin: userResponse.data.is_admin || false,
-          };
-          console.log('AuthContext: User profile loaded successfully:', userData);
-        } else {
-          console.warn('AuthContext: getUserProfile returned unsuccessful response:', userResponse);
-        }
-      } catch (e) {
-        // Fallback to response data if getUserProfile fails
-        // This allows login to succeed even if profile fetch fails
-        console.warn('AuthContext: getUserProfile failed, using login response data:', e.message);
-        console.warn('AuthContext: Error details:', {
-          message: e?.message,
-          name: e?.name,
-          stack: e?.stack
-        });
-        // Continue with fallback data (isAdmin will be false)
-      }
+      console.log('AuthContext: User data from login response:', userData);
+      console.log('AuthContext: isAdmin from response:', response.data.user.is_admin);
+      console.log('AuthContext: userData.isAdmin:', userData.isAdmin);
       
+      // Set user data immediately from login response
       console.log('AuthContext: Setting user data:', userData);
       setUser(userData);
+      
+      // Optionally fetch full user profile in the background to ensure we have the latest data
+      // This is non-blocking and won't affect the login flow
+      // Add a small delay to ensure cookie is available
+      setTimeout(() => {
+        apiClient.getUserProfile().then((userResponse) => {
+          if (userResponse && userResponse.success && userResponse.data) {
+            const updatedUserData = {
+              id: userResponse.data.id,
+              email: userResponse.data.email,
+              displayName: userResponse.data.name || null,
+              isAdmin: userResponse.data.is_admin || false,
+            };
+            console.log('AuthContext: User profile updated in background:', updatedUserData);
+            setUser(updatedUserData);
+          } else {
+            console.warn('AuthContext: getUserProfile returned unsuccessful response:', userResponse);
+          }
+        }).catch((e) => {
+          // Silently fail - we already have user data from login response
+          console.warn('AuthContext: Background profile fetch failed (non-critical):', e.message);
+        });
+      }, 100);
       
       // Check if new user
       setTimeout(async () => {
@@ -294,7 +305,8 @@ export function RequireAuth({ children }) {
     // Only run redirect check after component has mounted
     if (!mounted) return;
     
-    // Add a small delay to ensure sessionStorage is fully available after page navigation
+    // Add a longer delay to ensure user state is loaded after page navigation
+    // This is especially important after login when cookie might not be immediately available
     const timeoutId = setTimeout(() => {
       if (!loading && !user && typeof window !== 'undefined') {
         // Check demo mode directly from sessionStorage to avoid race condition
@@ -317,6 +329,16 @@ export function RequireAuth({ children }) {
           return;
         }
         
+        // Check if we have a cookie - if we do, don't redirect
+        // This prevents redirecting immediately after login when user state might still be loading
+        const hasCookie = document.cookie.split(';').some(c => c.trim().startsWith('bonzai_auth='));
+        if (hasCookie) {
+          // We have a cookie, so authentication should work
+          // Even if user isn't loaded yet, don't redirect - it might still be loading
+          console.log('[RequireAuth] Cookie found, allowing access (user may still be loading)');
+          return;
+        }
+        
         const currentPath = window.location.pathname;
         
         // CRITICAL: Always allow homepage and other public paths
@@ -328,13 +350,13 @@ export function RequireAuth({ children }) {
           return;
         }
         
-        // We're on a protected path with no user - redirect to login
+        // We're on a protected path with no user and no cookie - redirect to login
         if (!isPublicPath) {
-          console.log('[RequireAuth] No user and not in demo mode, redirecting to login');
+          console.log('[RequireAuth] No user, no cookie, and not in demo mode, redirecting to login');
           window.location.href = '/login';
         }
       }
-    }, 50); // Small delay to ensure sessionStorage is available
+    }, 2000); // Increased delay to 2 seconds to give more time for user to load after login
     
     return () => clearTimeout(timeoutId);
   }, [user, loading, mounted]);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth-middleware';
 import { hashToken, deleteSession } from '@/lib/auth';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 
 export const runtime = 'nodejs';
 

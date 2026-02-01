@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
+    // CSP configuration: Allow unsafe-eval in both development and production
+    // Next.js and some dependencies (like webpack, HMR, React DevTools) require unsafe-eval
+    // This is a known requirement for Next.js applications
+    const cspDirectives = "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self';";
+    
     return [
       {
         source: '/:path*',
@@ -28,6 +35,10 @@ const nextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()'
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: cspDirectives
           },
         ],
       },

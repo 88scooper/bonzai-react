@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/admin-middleware';
 import { clearRateLimit, clearAllRateLimits, getClientIP } from '@/lib/rate-limit';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
+import { sql } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
 /**
- * POST /api/admin/reset-rate-limit
- * Reset rate limits for login attempts (admin only)
+ * POST /api/dev/reset-login-rate-limit
+ * Reset login rate limits (dev only, no auth required)
  * 
- * Can reset specific IP or all rate limits
+ * This endpoint is only available in development mode.
+ * Use this to reset rate limits when you're locked out.
  */
-export const POST = withAdminAuth(async (request: NextRequest, admin) => {
+export async function POST(request: NextRequest) {
+  // Only allow in development
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json(
       createErrorResponse('Not found', 404),
@@ -46,14 +48,22 @@ export const POST = withAdminAuth(async (request: NextRequest, admin) => {
       );
     }
 
-    // If no IP specified, clear for the requesting IP
-    const requestIP = getClientIP(request);
-    const identifier = `login:${requestIP}`;
-    await clearRateLimit(identifier);
+    // If no IP specified, clear all login-related rate limits
+    const loginLimits = await sql`
+      SELECT key FROM rate_limits 
+      WHERE key LIKE 'login:%'
+    ` as Array<{ key: string }>;
+    
+    let clearedCount = 0;
+    for (const limit of loginLimits) {
+      await clearRateLimit(limit.key);
+      clearedCount++;
+    }
 
     return NextResponse.json(
       createSuccessResponse({
-        message: `Rate limit cleared for your IP: ${requestIP}`,
+        message: `Cleared ${clearedCount} login rate limit(s)`,
+        cleared: clearedCount,
       }),
       { status: 200 }
     );
@@ -66,4 +76,4 @@ export const POST = withAdminAuth(async (request: NextRequest, admin) => {
       { status: 500 }
     );
   }
-});
+}

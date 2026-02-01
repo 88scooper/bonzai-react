@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth-middleware';
 import { updatePropertySchema } from '@/lib/validations/property.schema';
 import { sql } from '@/lib/db';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 import { preventDemoModification } from '@/lib/demo-protection';
 
 export const runtime = 'nodejs';

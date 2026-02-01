@@ -802,9 +802,9 @@ function PropertyCard({ property }) {
                 onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ESTIMATED PROPERTY VALUE', text: `The current estimated market value of this property. Estimated Appreciation shows the increase in value since purchase (${formatCurrencyRounded(appreciation)}), representing ${appreciationPercentage}% growth from the original purchase price.` } : null)}
               />
               
-              {/* Estimated Equity */}
+              {/* Forecasted Annual Equity */}
               <FinancialOverviewCard
-                title="Estimated Equity"
+                title="Forecasted Annual Equity"
                 value={formatCurrencyRounded(equity)}
                 supporting={
                   <>
@@ -822,12 +822,12 @@ function PropertyCard({ property }) {
                 icon={TrendingUp}
                 accent="teal"
                 tooltipText={`Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.`}
-                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ESTIMATED EQUITY', text: `Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.` } : null)}
+                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'FORECASTED ANNUAL EQUITY', text: `Your current equity in this property. Forecasted equity earned this year includes principal payments (${formatCurrencyRounded(annualPrincipal)}) and estimated appreciation.` } : null)}
               />
               
-              {/* Annual Debt Service */}
+              {/* Forecast Annual Debt Service */}
               <FinancialOverviewCard
-                title="Annual Debt Service"
+                title="Forecast Annual Debt Service"
                 value={formatCurrencyRounded(annualDebtService)}
                 supporting={
                   <>
@@ -842,7 +842,7 @@ function PropertyCard({ property }) {
                 icon={Receipt}
                 accent="amber"
                 tooltipText={`Your total annual mortgage payments (principal and interest) for this property. This represents your annual debt obligations and helps you understand cash flow requirements.`}
-                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'ANNUAL DEBT SERVICE', text: `Your total annual mortgage payments (principal and interest) for this property. This represents your annual debt obligations and helps you understand cash flow requirements.` } : null)}
+                onHover={(isHovered) => setHoveredMetric(isHovered ? { title: 'FORECAST ANNUAL DEBT SERVICE', text: `Your total annual mortgage payments (principal and interest) for this property. This represents your annual debt obligations and helps you understand cash flow requirements.` } : null)}
               />
             </div>
 

@@ -267,19 +267,67 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             }
             
             // Extract tenant/rent data from propertyData
-            const propertyData = property.propertyData || {};
+            // Handle propertyData as string (JSON) or object
+            let propertyData = property.propertyData || {};
+            if (typeof propertyData === 'string') {
+              try {
+                propertyData = JSON.parse(propertyData);
+              } catch (e) {
+                console.warn('[AccountContext] Failed to parse propertyData:', e);
+                propertyData = {};
+              }
+            }
+            
             const rent = propertyData.rent || {};
             const tenants = propertyData.tenants || [];
             
-            // Map rent data
+            // Map rent data - try multiple sources and formats
+            let monthlyRent = 0;
+            let annualRent = 0;
+            
+            // Try rent object first (various formats)
+            if (rent && typeof rent === 'object') {
+              monthlyRent = Number(rent.monthlyRent) || Number(rent.monthly_rent) || 0;
+              annualRent = Number(rent.annualRent) || Number(rent.annual_rent) || 0;
+            } else if (typeof rent === 'number') {
+              // If rent is a direct number, assume it's monthly
+              monthlyRent = rent;
+            }
+            
+            // If rent is still 0, try to calculate from tenants array
+            if (monthlyRent === 0 && tenants && Array.isArray(tenants) && tenants.length > 0) {
+              monthlyRent = tenants.reduce((sum, tenant) => {
+                const tenantRent = Number(tenant.rent) || 0;
+                // Count all tenants, not just active ones, for total rent potential
+                return sum + tenantRent;
+              }, 0);
+              // If we got rent from tenants, calculate annual
+              if (monthlyRent > 0 && annualRent === 0) {
+                annualRent = monthlyRent * 12;
+              }
+            }
+            
+            // Final fallback: calculate annual from monthly if we have monthly but no annual
+            if (monthlyRent > 0 && annualRent === 0) {
+              annualRent = monthlyRent * 12;
+            }
+            
             property.rent = {
-              monthlyRent: rent.monthlyRent || rent.monthly_rent || 0,
-              annualRent: rent.annualRent || rent.annual_rent || 0,
+              monthlyRent: monthlyRent,
+              annualRent: annualRent,
             };
             
-            // If we have monthly rent but no annual, calculate it
-            if (property.rent.monthlyRent && !property.rent.annualRent) {
-              property.rent.annualRent = property.rent.monthlyRent * 12;
+            // Debug logging for demo mode if rent is still 0
+            if (monthlyRent === 0) {
+              console.log('[AccountContext] Property has no rent after extraction:', {
+                propertyId: property.id,
+                propertyName: property.nickname,
+                propertyDataRaw: property.propertyData,
+                propertyDataParsed: propertyData,
+                rentFromData: rent,
+                tenants: tenants,
+                extractedRent: property.rent
+              });
             }
             
             // Map tenant data

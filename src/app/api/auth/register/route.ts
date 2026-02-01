@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { registerSchema } from '@/lib/validations/auth.schema';
 import { hashPassword, createUser, generateToken, getUserByEmail, hashToken, createSession } from '@/lib/auth';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 
 /**

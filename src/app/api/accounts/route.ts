@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/auth-middleware';
 import { createAccountSchema } from '@/lib/validations/account.schema';
 import { sql } from '@/lib/db';
 import { parsePaginationParams, createPaginatedResponse, getOffset } from '@/lib/pagination';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 
 export const runtime = 'nodejs';
 

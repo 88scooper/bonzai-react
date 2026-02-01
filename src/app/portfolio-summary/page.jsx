@@ -299,18 +299,19 @@ function PortfolioSummaryContent() {
     setMounted(true);
   }, []);
   
-  // Check if demo data is still loading (after mounted is defined)
-  // For demo mode: show loading if account is loading OR if we have no properties yet
-  const isDemoDataLoading = isDemoMode && (accountLoading || (mounted && properties.length === 0));
-  
-  // Timeout fallback - force show content after 1.5 seconds to prevent infinite loading
+  // Timeout fallback - force show content after 2 seconds to prevent infinite loading
   const [forceShow, setForceShow] = useState(false);
   useEffect(() => {
     const timeout = setTimeout(() => {
       setForceShow(true);
-    }, 1500);
+    }, 2000);
     return () => clearTimeout(timeout);
   }, []);
+  
+  // Check if demo data is still loading (after mounted is defined)
+  // For demo mode: show loading if account is loading OR if we have no properties yet
+  // But allow forceShow to override to prevent infinite loading
+  const isDemoDataLoading = !forceShow && isDemoMode && (accountLoading || (mounted && properties.length === 0));
   
   // State for settings dropdown visibility
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -623,7 +624,43 @@ function PortfolioSummaryContent() {
   const totalProperties = portfolioMetrics.totalProperties || 0;
   const totalUnits = (properties || []).reduce((sum, property) => sum + (property.units || 0), 0);
   const totalSquareFeet = (properties || []).reduce((sum, property) => sum + (property.size || property.squareFootage || 0), 0);
-  const averageRentPerSqFt = totalSquareFeet > 0 ? (portfolioMetrics.totalMonthlyRent || 0) / totalSquareFeet : 0;
+  // Calculate total monthly rent directly from properties to ensure accuracy
+  // Check rent object first, then fall back to tenants array if rent is not set
+  const totalMonthlyRent = (properties || []).reduce((sum, property) => {
+    // First try rent object (primary source)
+    let monthlyRent = property.rent?.monthlyRent || property.rent?.monthly_rent || 0;
+    
+    // If rent is still 0, try to calculate from tenants array (sum all tenant rents)
+    if (monthlyRent === 0 && property.tenants && Array.isArray(property.tenants) && property.tenants.length > 0) {
+      monthlyRent = property.tenants.reduce((tenantSum, tenant) => {
+        const tenantRent = Number(tenant.rent) || 0;
+        // Sum all tenant rents (not just active) to get total potential rent
+        return tenantSum + tenantRent;
+      }, 0);
+    }
+    
+    // If still 0, try single tenant object
+    if (monthlyRent === 0 && property.tenant) {
+      monthlyRent = Number(property.tenant.rent) || 0;
+    }
+    
+    // Debug logging for demo mode
+    if (isDemoMode && monthlyRent === 0) {
+      console.log('[PortfolioSummary] Property has no rent:', {
+        propertyId: property.id,
+        propertyName: property.nickname || property.name,
+        rentObject: property.rent,
+        tenants: property.tenants,
+        tenant: property.tenant
+      });
+    }
+    
+    return sum + monthlyRent;
+  }, 0);
+  
+  // Calculate average rent per square foot
+  // Use monthly rent divided by square feet to get monthly rent per sq ft
+  const averageRentPerSqFt = totalSquareFeet > 0 ? totalMonthlyRent / totalSquareFeet : 0;
   const averageOccupancyRate = portfolioMetrics.averageOccupancy || 0;
   const averageCapRate = portfolioMetrics.averageCapRate || 0;
 
@@ -639,9 +676,24 @@ function PortfolioSummaryContent() {
     return null;
   };
   
+  // Calculate occupancy - check both tenant object and tenants array
   const occupiedPropertiesCount = (properties || []).filter((property) => {
+    // Check single tenant object
     const tenant = property?.tenant;
-    return Boolean(tenant?.name || (tenant?.firstInitial && tenant?.lastName));
+    if (tenant && (tenant.name || (tenant.firstInitial && tenant.lastName))) {
+      return true;
+    }
+    // Check tenants array
+    const tenants = property?.tenants || [];
+    if (Array.isArray(tenants) && tenants.length > 0) {
+      // Check if any tenant is active
+      return tenants.some(t => 
+        t.status === 'Active' || 
+        (t.name && t.name.trim() !== '') ||
+        (t.leaseEnd && t.leaseEnd !== 'Vacant' && t.leaseEnd !== '')
+      );
+    }
+    return false;
   }).length;
   const occupancyRate = (properties || []).length > 0 ? occupiedPropertiesCount / (properties || []).length : 0;
 
@@ -755,13 +807,27 @@ function PortfolioSummaryContent() {
   // 3. Blended Cash on Cash Return = Total Annual Cash Flow Before Tax / Total Initial Cash Invested
   const totalAnnualCashFlowBeforeTax = annualCashFlow; // Use the calculated value above
   const totalInitialCashInvested = (properties || []).reduce((sum, property) => {
-    const hasTotalInvestment = typeof property.totalInvestment === "number" && !Number.isNaN(property.totalInvestment);
-    const fallbackDownPayment = Math.max(
-      0,
-      (property.purchasePrice || 0) - (property.mortgage?.originalAmount || 0)
-    );
-
-    return sum + (hasTotalInvestment ? property.totalInvestment : fallbackDownPayment);
+    // Check if totalInvestment is valid
+    const hasTotalInvestment = typeof property.totalInvestment === "number" && 
+                               !Number.isNaN(property.totalInvestment) && 
+                               property.totalInvestment > 0;
+    
+    if (hasTotalInvestment) {
+      return sum + property.totalInvestment;
+    }
+    
+    // Fallback: calculate from purchase price, closing costs, renovations, and down payment
+    const purchasePrice = Number(property.purchasePrice) || 0;
+    const mortgageAmount = Number(property.mortgage?.originalAmount) || 0;
+    const downPayment = Math.max(0, purchasePrice - mortgageAmount);
+    const closingCosts = Number(property.closingCosts) || 0;
+    const renovationCosts = Number(property.renovationCosts) || 0;
+    const initialRenovations = Number(property.initialRenovations) || 0;
+    const landTransferTax = Number(property.landTransferTax) || 0;
+    
+    const calculatedInvestment = downPayment + closingCosts + renovationCosts + initialRenovations + landTransferTax;
+    
+    return sum + (calculatedInvestment > 0 ? calculatedInvestment : 0);
   }, 0);
   const blendedCashOnCashReturn = totalInitialCashInvested > 0 ? (totalAnnualCashFlowBeforeTax / totalInitialCashInvested) * 100 : 0;
 
@@ -895,14 +961,16 @@ function PortfolioSummaryContent() {
   // Show loading state until calculations are complete to prevent hydration mismatch
   // Show content if calculations are complete OR if we have properties OR if timeout elapsed
   // Only check properties after mounting to prevent hydration mismatch
-  // For demo mode, also check if demo data is still loading
-  const shouldShowContent = !isDemoDataLoading && (
-    calculationsComplete || 
-    forceShow || 
-    (mounted && properties && Array.isArray(properties) && properties.length > 0)
+  // For demo mode, also check if demo data is still loading (but allow forceShow to override)
+  const shouldShowContent = forceShow || calculationsComplete || (
+    mounted && 
+    properties && 
+    Array.isArray(properties) && 
+    (properties.length > 0 || !isDemoMode) // For demo mode, require properties; for regular mode, allow empty
   );
   
-  if (!shouldShowContent || isDemoDataLoading) {
+  // Show loading if we shouldn't show content AND demo data is still loading
+  if (!shouldShowContent && isDemoDataLoading) {
     return (
       <RequireAuth>
         <Layout>

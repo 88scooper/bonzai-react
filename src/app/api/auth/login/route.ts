@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loginSchema } from '@/lib/validations/auth.schema';
 import { verifyPassword, generateToken, hashToken, createSession } from '@/lib/auth';
 import { sql } from '@/lib/db';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 
 /**
@@ -11,12 +11,16 @@ import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Rate limiting - 5 attempts per 15 minutes per IP
+    // Rate limiting - more lenient in development
     const ip = getClientIP(request);
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const maxAttempts = isDevelopment ? 20 : 5; // More attempts allowed in dev
+    const windowMs = isDevelopment ? 5 * 60 * 1000 : 15 * 60 * 1000; // 5 min in dev, 15 min in prod
+    
     const rateLimitResult = await checkRateLimit(
       `login:${ip}`,
-      5, // max 5 attempts
-      15 * 60 * 1000 // 15 minutes
+      maxAttempts,
+      windowMs
     );
 
     if (!rateLimitResult.success) {
@@ -28,7 +32,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { 
           status: 429,
           headers: {
-            'X-RateLimit-Limit': '5',
+            'X-RateLimit-Limit': maxAttempts.toString(),
             'X-RateLimit-Remaining': '0',
             'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
             'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
@@ -55,13 +59,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { email, password } = validationResult.data;
 
-    // Get user from database (including password hash)
+    // Get user from database (including password hash and is_admin)
     const result = await sql`
-      SELECT id, email, name, password_hash
+      SELECT id, email, name, password_hash, is_admin
       FROM users
       WHERE email = ${email}
       LIMIT 1
-    ` as Array<{ id: string; email: string; name: string | null; password_hash: string }>;
+    ` as Array<{ id: string; email: string; name: string | null; password_hash: string; is_admin: boolean }>;
 
     const user = result[0];
     if (!user) {
@@ -98,12 +102,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           id: user.id,
           email: user.email,
           name: user.name,
+          is_admin: user.is_admin || false,
         },
       }),
       { 
         status: 200,
         headers: {
-          'X-RateLimit-Limit': '5',
+          'X-RateLimit-Limit': maxAttempts.toString(),
           'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
           'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
         }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import Button from "@/components/Button";
 import { useToast } from "@/context/ToastContext";
@@ -8,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import Footer from "@/components/Footer";
 
 export default function LoginPage() {
+  const router = useRouter();
   const { addToast } = useToast();
   const { logIn } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -34,6 +36,7 @@ export default function LoginPage() {
       console.log("LoginPage: Attempting login with email:", email);
       const userData = await logIn(email, password);
       console.log("LoginPage: Login successful, userData:", userData);
+      console.log("LoginPage: isAdmin value:", userData?.isAdmin);
       
       if (!userData || !userData.id) {
         console.error("LoginPage: Invalid userData returned:", userData);
@@ -42,15 +45,25 @@ export default function LoginPage() {
       
       addToast("Logged in successfully!", { type: "success" });
       
-      // Wait a bit for state to propagate, then redirect
+      // Wait a bit for state to propagate and cookie to be set, then redirect
       // Redirect based on user role - admins go to admin page, others to portfolio summary
       const redirectPath = userData?.isAdmin ? "/admin" : "/portfolio-summary";
-      console.log("LoginPage: Redirecting to:", redirectPath);
+      console.log("LoginPage: Redirecting to:", redirectPath, "isAdmin:", userData?.isAdmin);
+      console.log("LoginPage: Full userData:", JSON.stringify(userData, null, 2));
       
-      // Use window.location.replace to avoid back button issues
+      // Use router.push instead of window.location.replace to preserve React state
+      // This ensures the user state persists across navigation
+      // Increased delay for admin users to ensure state is fully set and admin page doesn't redirect away
+      const delay = userData?.isAdmin ? 500 : 100;
       setTimeout(() => {
-        window.location.replace(redirectPath);
-      }, 200);
+        console.log("LoginPage: Executing redirect to:", redirectPath);
+        // For admin users, use window.location to ensure a full page load and proper state initialization
+        if (userData?.isAdmin) {
+          window.location.href = redirectPath;
+        } else {
+          router.push(redirectPath);
+        }
+      }, delay);
     } catch (error) {
       console.error("Login error:", error);
       console.error("Error details:", {
@@ -104,7 +117,7 @@ export default function LoginPage() {
             data-lpignore="true"
             data-bwignore="true"
           >
-            <div className="grid gap-2">
+            <div className="grid gap-2" suppressHydrationWarning>
               <label htmlFor="email" className="text-sm">Email</label>
               <input 
                 id="email" 
@@ -120,9 +133,9 @@ export default function LoginPage() {
                 className="w-full rounded-md border border-black/15 dark:border-white/15 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20" 
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2" suppressHydrationWarning>
               <label htmlFor="password" className="text-sm">Password</label>
-              <div className="relative">
+              <div className="relative" suppressHydrationWarning>
                 <input 
                   id="password" 
                   name="password" 

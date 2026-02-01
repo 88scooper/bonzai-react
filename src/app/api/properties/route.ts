@@ -3,7 +3,7 @@ import { authenticateRequest } from '@/lib/auth-middleware';
 import { createPropertySchema } from '@/lib/validations/property.schema';
 import { sql } from '@/lib/db';
 import { parsePaginationParams, createPaginatedResponse, getOffset } from '@/lib/pagination';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 import { preventDemoModification } from '@/lib/demo-protection';
 import { validateRequest } from '@/lib/validate-request';
 // Demo seed properties used only for auto-seeding demo accounts

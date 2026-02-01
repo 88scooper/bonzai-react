@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth-middleware';
 import { changePasswordSchema } from '@/lib/validations/auth.schema';
 import { updateUserPassword } from '@/lib/auth';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 
 export const runtime = 'nodejs';
 

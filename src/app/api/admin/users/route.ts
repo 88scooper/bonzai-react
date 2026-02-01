@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { sql } from '@/lib/db';
 import { parsePaginationParams, createPaginatedResponse, getOffset } from '@/lib/pagination';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 
 export const runtime = 'nodejs';
 

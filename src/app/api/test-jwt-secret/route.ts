@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 
 export const runtime = 'nodejs';
 

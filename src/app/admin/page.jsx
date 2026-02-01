@@ -28,16 +28,36 @@ export default function AdminDashboard() {
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push("/");
-        return;
-      }
-      if (!isAdmin) {
-        router.push("/");
-        return;
-      }
+    console.log('AdminPage: Auth check - user:', user, 'isAdmin:', isAdmin, 'authLoading:', authLoading);
+    console.log('AdminPage: user?.isAdmin:', user?.isAdmin);
+    
+    // Don't redirect while still loading - give it time for user state to populate
+    if (authLoading) {
+      console.log('AdminPage: Still loading auth, waiting...');
+      return;
     }
+    
+    // Add a small delay to ensure user state is fully set after login redirect
+    const checkTimer = setTimeout(() => {
+      if (!user) {
+        console.log('AdminPage: No user after delay, redirecting to /');
+        router.push("/");
+        return;
+      }
+      // Check both isAdmin from context and user.isAdmin directly
+      const userIsAdmin = isAdmin || user?.isAdmin || false;
+      if (!userIsAdmin) {
+        console.log('AdminPage: User is not admin, redirecting to /');
+        console.log('AdminPage: User object:', JSON.stringify(user, null, 2));
+        console.log('AdminPage: isAdmin from context:', isAdmin);
+        console.log('AdminPage: user.isAdmin:', user?.isAdmin);
+        router.push("/");
+        return;
+      }
+      console.log('AdminPage: User is admin, allowing access');
+    }, 200); // Small delay to allow state to propagate after login
+    
+    return () => clearTimeout(checkTimer);
   }, [user, isAdmin, authLoading, router]);
 
   // Fetch dashboard stats

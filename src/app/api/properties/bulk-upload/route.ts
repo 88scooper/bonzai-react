@@ -3,7 +3,7 @@ import { authenticateRequest } from '@/lib/auth-middleware';
 import { createPropertySchema } from '@/lib/validations/property.schema';
 import { bulkUploadFormSchema } from '@/lib/validations/upload.schema';
 import { sql } from '@/lib/db';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 import * as XLSX from 'xlsx';
 
 export const runtime = 'nodejs';

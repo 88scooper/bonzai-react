@@ -63,6 +63,14 @@ class ApiClient {
 
       // Handle authentication errors
       if (response.status === 401) {
+        // For login/register endpoints (requireAuth=false), use the actual error message from server
+        // For protected endpoints (requireAuth=true), use generic "Authentication required"
+        if (!requireAuth) {
+          // This is a public endpoint like login - use the actual error message from the response
+          const errorMessage = data?.error || 'Invalid email or password';
+          throw new Error(errorMessage);
+        }
+        
         // Only redirect when auth is required and we're not already on a public page
         if (typeof window !== 'undefined') {
           const publicPaths = ['/', '/login', '/signup', '/onboarding'];

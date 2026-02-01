@@ -165,7 +165,7 @@ function TopMetricCard({
     <div className="relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 transition-shadow duration-300 ease-in-out hover:shadow-[0_12px_40px_rgb(0,0,0,0.06)]">
       <div className="flex items-center justify-between gap-2.5">
         <div className="min-w-0 flex-1 pr-1.5 max-w-[calc(100%-3rem)]">
-          <h3 className="text-[3.15px] font-semibold uppercase text-gray-500 dark:text-gray-400 whitespace-nowrap leading-tight" style={{ letterSpacing: '-0.04em' }}>
+          <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 leading-tight line-clamp-2" style={{ letterSpacing: '-0.04em' }}>
             {title}
           </h3>
         </div>
@@ -1433,6 +1433,13 @@ export default function PropertyDetailPage() {
             )}
           </div>
 
+          {/* Overview Text */}
+          <div className="mb-4">
+            <p className="text-base md:text-lg text-gray-700 dark:text-gray-300">
+              Overview of your real estate investment performance and key metrics for 2026
+            </p>
+          </div>
+
           {/* Key Financial Metrics Cards */}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <TopMetricCard
@@ -1477,7 +1484,7 @@ export default function PropertyDetailPage() {
             />
             
             <TopMetricCard
-              title="Annual Debt Service"
+              title="Forecasted Annual Debt Service"
               value={formatCurrencyNoDecimals(financialMetrics.annualDebtService)}
               icon={Receipt}
               accent="amber"

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clearRateLimit, clearAllRateLimits, getClientIP } from '@/lib/rate-limit';
-import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils';
+import { createSuccessResponse, createErrorResponse } from '@/lib/api-utils.js';
 
 /**
  * POST /api/dev/reset-registration-rate-limit
