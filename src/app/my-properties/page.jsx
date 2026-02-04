@@ -862,10 +862,10 @@ function PropertyCard({ property }) {
               } : null)}
             />
 
-            {/* Bottom: Performance Metrics - Full Width, Compact Grid */}
+            {/* Bottom: Advanced Performance Metrics - Full Width, Compact Grid */}
             <div className="pt-1.5 md:pt-2 border-t border-black/10 dark:border-white/10">
               <div className="mb-1 md:mb-1.5">
-                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Performance Metrics</h4>
+                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Advanced Performance Metrics</h4>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-1.5">
             <KeyMetricCard

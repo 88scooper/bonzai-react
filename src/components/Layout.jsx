@@ -7,12 +7,16 @@ import { useAuth } from "@/context/AuthContext";
 import Button from "@/components/Button";
 import { LogOut, UserCircle, Settings } from "lucide-react";
 import Footer from "@/components/Footer";
+import PageGuideModal from "@/components/PageGuideModal";
+import { usePageGuide } from "@/hooks/usePageGuide";
+import DemoModeBanner from "@/components/DemoModeBanner";
 
 export default function Layout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { user, logOut } = useAuth();
   const userMenuRef = useRef(null);
+  const { showGuide, pageInfo, handleClose, handleDontShowAgain } = usePageGuide();
 
   // Close mobile menu when screen size changes to desktop
   useEffect(() => {
@@ -121,12 +125,24 @@ export default function Layout({ children }) {
               </div>
             </div>
           </header>
+          <DemoModeBanner />
           <main className="flex-1 overflow-auto bg-gray-50 dark:bg-[#030712]">
             <div className="mx-auto w-full max-w-7xl px-4 py-6">{children}</div>
           </main>
           <Footer />
         </div>
       </div>
+      
+      {/* Page Guide Modal */}
+      {pageInfo && (
+        <PageGuideModal
+          isOpen={showGuide}
+          onClose={handleClose}
+          pageName={pageInfo.name}
+          bullets={pageInfo.bullets}
+          onDontShowAgain={handleDontShowAgain}
+        />
+      )}
     </div>
   );
 }

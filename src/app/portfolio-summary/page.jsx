@@ -992,29 +992,6 @@ function PortfolioSummaryContent() {
   return (
     <RequireAuth>
       <Layout>
-        {/* Demo Mode Banner */}
-        {isDemoMode && (
-          <div className="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800 px-4 py-3">
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="relative flex h-2 w-2">
-                    <div className="absolute h-2 w-2 rounded-full bg-[#205A3E] animate-pulse"></div>
-                    <div className="absolute h-2 w-2 rounded-full bg-[#205A3E]/40 animate-ping"></div>
-                  </div>
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] dark:text-[#66B894]">DEMO MODE</span>
-                </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">You're viewing a read-only demo portfolio.</span>
-              </div>
-              <a 
-                href="/?signup=true" 
-                className="text-xs font-semibold px-3 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                Create Account
-              </a>
-            </div>
-          </div>
-        )}
         {/* Onboarding Wizard Modal Overlay */}
         {showOnboardingModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

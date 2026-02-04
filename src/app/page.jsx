@@ -63,6 +63,14 @@ export default function HomePage() {
       console.log('[HomePage] Setting demo mode and navigating to portfolio-summary');
       sessionStorage.setItem('demoMode', 'true');
       sessionStorage.setItem('readOnlyMode', 'true');
+      
+      // Clear old page guide flags so guides can show fresh in demo mode
+      Object.keys(sessionStorage).forEach(key => {
+        if (key.startsWith('pageGuide_') && !key.startsWith('pageGuide_demo')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
       // Verify it was set
       const demoModeSet = sessionStorage.getItem('demoMode') === 'true';
       console.log('[HomePage] Demo mode set:', demoModeSet);

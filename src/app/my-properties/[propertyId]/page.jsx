@@ -1506,10 +1506,10 @@ export default function PropertyDetailPage() {
           <div className="space-y-6">
             {/* Main Content - Full Width */}
             <div className="space-y-6">
-              {/* Performance Metrics Section */}
+              {/* Advanced Performance Metrics Section */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
-                  <h2 className="text-xl font-semibold">Performance Metrics</h2>
+                  <h2 className="text-xl font-semibold">Advanced Performance Metrics</h2>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {/* CAP RATE */}

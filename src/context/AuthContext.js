@@ -98,9 +98,19 @@ export function AuthProvider({ children }) {
           console.log('[AuthContext] Error loading user but in demo mode, ignoring error');
           setUser(null);
         } else {
-          // Only log non-timeout errors to avoid console spam
+          // Only log non-timeout and non-401 errors to avoid console spam
+          // 401 is expected when user is not logged in
           const isTimeout = error instanceof Error && error.message === 'Request timeout';
-          if (!isTimeout) {
+          const isUnauthorized = error instanceof Error && (
+            error.message.includes('401') || 
+            error.message.includes('Authentication required') ||
+            error.message.includes('Unauthorized')
+          );
+          
+          if (isUnauthorized) {
+            // Silently handle 401 - user is simply not logged in, which is expected
+            console.log('[AuthContext] User not authenticated (expected when not logged in)');
+          } else if (!isTimeout) {
             console.error('Error loading user:', error);
           } else {
             console.log('[AuthContext] User profile request timed out (user may not be logged in)');
