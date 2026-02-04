@@ -513,6 +513,7 @@ export default function PropertyForm({ onSubmit, onCancel, onContinue, accountId
           >
             <option value="">Select ownership</option>
             <option value="Personal">Personal</option>
+            <option value="Personal (Shared)">Personal (Shared)</option>
             <option value="Incorporated">Incorporated</option>
           </select>
         </div>

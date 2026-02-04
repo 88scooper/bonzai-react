@@ -2177,7 +2177,7 @@ function PropertyCard({ property, onUpdate, onAddExpense, onAddTenant }) {
             editable 
             field="ownership" 
             type="select" 
-            options={["Personal", "Incorporated"]}
+            options={["Personal", "Personal (Shared)", "Incorporated"]}
             isEditing={isEditing} 
             editedData={editedData} 
             onUpdateField={updateField}
