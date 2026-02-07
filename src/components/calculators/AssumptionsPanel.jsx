@@ -148,13 +148,6 @@ const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick, showI
     }
   };
 
-  const handleResetToTemplate = () => {
-    const template = PRESET_TEMPLATES[selectedTemplate];
-    if (template) {
-      onAssumptionsChange(template.values);
-    }
-  };
-
   return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-neutral-900 p-6">
       {/* Header */}
@@ -187,6 +180,39 @@ const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick, showI
       {/* Preset Templates and Analysis Mode - Combined Row */}
       <div className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Scenario Mode Selector - Compact Pills */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Analysis Mode
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                SCENARIO_MODES.RENT_CHANGE,
+                SCENARIO_MODES.EXPENSE_CHANGE,
+                SCENARIO_MODES.UNIT_VACANCY,
+                SCENARIO_MODES.CUSTOM,
+              ].map((mode) => {
+                const config = scenarioConfigs[mode];
+                const Icon = config.icon;
+                const isActive = scenarioMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => handleScenarioModeChange(mode)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      isActive
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {Icon && <Icon className="w-3.5 h-3.5" />}
+                    <span>{config.label.replace(' Scenario', '').replace(' Analysis', '')}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Preset Templates */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -218,33 +244,6 @@ const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick, showI
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               {PRESET_TEMPLATES[selectedTemplate]?.description}
             </p>
-          </div>
-
-          {/* Scenario Mode Selector - Compact Pills */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Analysis Mode
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(scenarioConfigs).map(([mode, config]) => {
-                const Icon = config.icon;
-                const isActive = scenarioMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => handleScenarioModeChange(mode)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                      isActive
-                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {Icon && <Icon className="w-3.5 h-3.5" />}
-                    <span>{config.label.replace(' Scenario', '').replace(' Analysis', '')}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
       </div>
@@ -335,19 +334,6 @@ const AssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick, showI
             );
           })}
         </div>
-      </div>
-      )}
-
-      {/* Actions - always show if inputs hidden, otherwise conditionally show */}
-      {(!showInputs || true) && (
-      <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-800">
-        <button
-          onClick={handleResetToTemplate}
-          className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 
-                   font-medium transition-colors py-1.5"
-        >
-          Reset to {PRESET_TEMPLATES[selectedTemplate]?.name || 'Moderate'}
-        </button>
       </div>
       )}
     </div>

@@ -161,6 +161,39 @@ const EquityAssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick,
       {/* Preset Templates and Analysis Mode */}
       <div className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Scenario Mode Selector */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Analysis Mode
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                SCENARIO_MODES.APPRECIATION_CHANGE,
+                SCENARIO_MODES.INTEREST_CHANGE,
+                SCENARIO_MODES.EXIT_CAP_CHANGE,
+                SCENARIO_MODES.CUSTOM,
+              ].map((mode) => {
+                const config = scenarioConfigs[mode];
+                const Icon = config.icon;
+                const isActive = scenarioMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => handleScenarioModeChange(mode)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      isActive
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {Icon && <Icon className="w-3.5 h-3.5" />}
+                    <span>{config.label.replace(' Scenario', '').replace(' Analysis', '')}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Preset Templates */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -192,33 +225,6 @@ const EquityAssumptionsPanel = ({ assumptions, onAssumptionsChange, onSaveClick,
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               {EQUITY_PRESET_TEMPLATES[selectedTemplate]?.description}
             </p>
-          </div>
-
-          {/* Scenario Mode Selector */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Analysis Mode
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(scenarioConfigs).map(([mode, config]) => {
-                const Icon = config.icon;
-                const isActive = scenarioMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => handleScenarioModeChange(mode)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                      isActive
-                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {Icon && <Icon className="w-3.5 h-3.5" />}
-                    <span>{config.label.replace(' Scenario', '').replace(' Analysis', '')}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
       </div>

@@ -118,6 +118,15 @@ export default function AnalyticsPage() {
                 }
               </p>
               </div>
+
+              {/* Property Selection - First Input */}
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+                <PropertySelectCard
+                  properties={properties}
+                  selectedPropertyId={selectedPropertyId}
+                  onSelect={setSelectedPropertyId}
+                />
+              </div>
               
               {/* Analysis Mode Selector */}
               <div className="flex items-center gap-2">
@@ -173,15 +182,6 @@ export default function AnalyticsPage() {
           <div className="mt-6">
             {activeTab === 'sensitivity' && (
               <div className="space-y-6">
-                {/* Property Selection - wrapped in standardized card */}
-                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
-                  <PropertySelectCard
-                    properties={properties}
-                    selectedPropertyId={selectedPropertyId}
-                    onSelect={setSelectedPropertyId}
-                  />
-                </div>
-
                 {/* Main Analysis Section */}
                 {selectedProperty && (
                   <div className="space-y-6">
