@@ -1565,6 +1565,26 @@ export default function PropertyDetailPage() {
 
               {/* Income & Expenses Section */}
               <div className="rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 shadow-sm">
+                {/* Net Cash Flow */}
+                <div
+                  className={`mb-6 flex items-start justify-between rounded-md border px-4 py-3 text-sm ${
+                    financialMetrics.netCashFlow >= 0
+                      ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
+                      : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
+                  }`}
+                >
+                  <div>
+                    <p className="font-semibold">Net Cash Flow (Forecasted)</p>
+                    <p className="text-xs opacity-80">After operating expenses and debt service</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-bold">{formatCurrency(financialMetrics.netCashFlow)}</p>
+                    <p className="text-xs font-medium opacity-80">
+                      {formatPercentage((financialMetrics.totalExpenses / financialMetrics.annualRevenue) * 100)}% of revenue consumed
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex items-start justify-between gap-2 mb-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -1588,26 +1608,6 @@ export default function PropertyDetailPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {/* Net Cash Flow */}
-                  <div
-                    className={`flex items-start justify-between rounded-md border px-4 py-3 text-sm ${
-                      financialMetrics.netCashFlow >= 0
-                        ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
-                        : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
-                    }`}
-                  >
-                    <div>
-                      <p className="font-semibold">Net Cash Flow (Forecasted)</p>
-                      <p className="text-xs opacity-80">After operating expenses and debt service</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-base font-bold">{formatCurrency(financialMetrics.netCashFlow)}</p>
-                      <p className="text-xs font-medium opacity-80">
-                        {formatPercentage((financialMetrics.totalExpenses / financialMetrics.annualRevenue) * 100)}% of revenue consumed
-                      </p>
-                    </div>
-                  </div>
-
                   {/* Total Revenue */}
                   <div className="relative pl-2">
                     <div className="flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

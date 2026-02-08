@@ -1055,6 +1055,30 @@ function IncomeExpensesSection({
   
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] p-2.5 md:p-3">
+      {/* Net Cash Flow */}
+      <div
+        className={`mb-3 md:mb-4 flex items-start justify-between rounded-md border px-3 md:px-4 py-2.5 md:py-3.5 text-sm md:text-base cursor-help transition-opacity ${
+          netPositive
+            ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
+            : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
+        }`}
+        onMouseEnter={() => onHover && onHover(true)}
+        onMouseLeave={() => onHover && onHover(false)}
+      >
+        <div>
+          <p className="font-semibold text-lg md:text-xl">Net Cash Flow (Forecasted)</p>
+          <p className="text-sm md:text-base opacity-80">After operating expenses and debt service</p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg md:text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatCurrency(netCashFlow)}</p>
+          {expenseShare !== null && Number.isFinite(expenseShare) && (
+            <p className="text-sm md:text-base font-medium opacity-80">
+              {percentFormatter.format(expenseShare)} of revenue consumed
+            </p>
+          )}
+        </div>
+      </div>
+
       <div className="mb-2.5">
         <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
           Income & Expenses (Forecasted)
@@ -1065,30 +1089,6 @@ function IncomeExpensesSection({
       </div>
 
       <div className="space-y-1.5 md:space-y-2">
-        {/* Net Cash Flow - Moved to top */}
-        <div
-          className={`mb-3 md:mb-4 flex items-start justify-between rounded-md border px-3 md:px-4 py-2.5 md:py-3.5 text-sm md:text-base cursor-help transition-opacity ${
-            netPositive
-              ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
-              : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border-[#4C1F1F] dark:bg-[#1F1111] dark:text-[#F2A5A5]'
-          }`}
-          onMouseEnter={() => onHover && onHover(true)}
-          onMouseLeave={() => onHover && onHover(false)}
-        >
-          <div>
-            <p className="font-semibold text-lg md:text-xl">Net Cash Flow (Forecasted)</p>
-            <p className="text-sm md:text-base opacity-80">After operating expenses and debt service</p>
-          </div>
-          <div className="text-right">
-            <p className="text-lg md:text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatCurrency(netCashFlow)}</p>
-            {expenseShare !== null && Number.isFinite(expenseShare) && (
-              <p className="text-sm md:text-base font-medium opacity-80">
-                {percentFormatter.format(expenseShare)} of revenue consumed
-              </p>
-            )}
-          </div>
-        </div>
-
         {/* Revenue and Expenses Steps */}
         {steps.map((step, index) => (
           <div key={step.label} className={`relative ${step.isSub ? 'pl-6 md:pl-8' : 'pl-2 md:pl-3'}`}>
