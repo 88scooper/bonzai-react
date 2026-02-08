@@ -215,7 +215,7 @@ function FeaturesSection() {
         <div className="relative">
           <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Stop guessing, start growing. Move your portfolio out of spreadsheets and into a dedicated command center.</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard title="Automated Cash Flow Tracking" description="See exactly what's hitting your bank account without the manual entry." />
+            <FeatureCard title="Cash Flow Tracking" description="See your monthly and annual cash flow instantly." />
             <FeatureCard title="Equity at a Glance" description="Stop calculating. Know your real-time net worth across every property." />
             <FeatureCard title="Tax-Ready Records" description="Every expense captured and categorized. Hand your accountant a clean report, not a shoebox of receipts." />
           </div>
@@ -226,7 +226,7 @@ function FeaturesSection() {
           <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Hard Data. No Math Headaches.</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard title="Stress-Test Your Portfolio" description="Run 'what-if' scenarios for interest rate hikes or vacancies." />
-            <FeatureCard title="Wealth Projection" description="Forecast your 10-year growth based on real market data." />
+            <FeatureCard title="Wealth Projection" description="Forecast your 10-year growth based on adjustments to key inputs including incomes, expenses, and vacancy." />
             <FeatureCard title="Buy/Sell Clarity" description="Know instantly if a new property fits your criteria before you make an offer." />
           </div>
         </div>
@@ -235,7 +235,6 @@ function FeaturesSection() {
         <div className="relative">
           <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">The Source of Truth for Your Portfolio</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard title="Zero Search Time" description="Every document, mortgage detail, and HELOC balance in one searchable HQ." />
             <FeatureCard title="Calendar Sync" description="Automatic alerts for lease renewals, insurance dates, and tax deadlines." />
             <FeatureCard title="Financing Tracker" description="Stay ahead of mortgage renewals and refinancing opportunities." />
           </div>
