@@ -136,6 +136,42 @@ function Header({ onLoginClick, onSignupClick }) {
 }
 
 function HeroSection({ onGetStarted, onDemoPortfolio }) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isFading, setIsFading] = useState(false);
+  
+  // Array of images to rotate through
+  const images = [
+    {
+      src: "/Slideshow 1.png",
+      alt: "Bonzai - Real Estate Investment Management"
+    },
+    {
+      src: "/Slideshow 2.png",
+      alt: "Bonzai - Real Estate Investment Management"
+    },
+    {
+      src: "/Slideshow 3.png",
+      alt: "Bonzai - Real Estate Investment Management"
+    },
+    {
+      src: "/Slideshow 4.png",
+      alt: "Bonzai - Real Estate Investment Management"
+    }
+  ];
+
+  // Rotate images every 5 seconds with fade transition
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsFading(true);
+      setTimeout(() => {
+        setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+        setIsFading(false);
+      }, 300); // Half of transition duration
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [images.length]);
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 md:py-24">
       <div className="grid gap-10 md:grid-cols-2 md:items-center">
@@ -149,14 +185,17 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
             <Button onClick={onDemoPortfolio} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 dark:bg-emerald-500 dark:hover:bg-emerald-600 !px-8 !py-4 !text-lg">View the Demo Portfolio</Button>
           </div>
         </div>
-        <div className="h-64 md:h-80 rounded-xl overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 flex items-center justify-center">
+        <div className="h-64 md:h-80 rounded-xl overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 flex items-center justify-center relative">
           <Image
-            src="/Bonzia Round Logo.png"
-            alt="Bonzai - Real Estate Investment Management"
+            key={currentImageIndex}
+            src={images[currentImageIndex].src}
+            alt={images[currentImageIndex].alt}
             width={720}
             height={480}
-            className="w-full h-full object-contain p-4 scale-110"
-            priority
+            className={`w-full h-full object-contain p-4 scale-110 transition-opacity duration-500 ${
+              isFading ? 'opacity-0' : 'opacity-100'
+            }`}
+            priority={currentImageIndex === 0}
           />
         </div>
       </div>
