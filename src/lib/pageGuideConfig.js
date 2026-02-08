@@ -32,9 +32,9 @@ export const pageGuideConfig = {
     ]
   },
   '/analytics': {
-    name: 'Analytics',
+    name: 'Analysis',
     bullets: [
-      'Discover advanced analytics and insights for your portfolio',
+      'Discover advanced analysis and insights for your portfolio',
       'Track trends, performance metrics, and financial projections',
       'Make data-driven investment decisions with confidence'
     ]

@@ -18,6 +18,8 @@ export const CASH_FLOW_DEFAULT_ASSUMPTIONS = {
   annualExpenseInflation: 2.5, // 2.5% per year
   vacancyRate: 5.0, // 5% vacancy allowance
   futureInterestRate: 5.0, // 5% for mortgage renewals
+  prepaymentAmount: 0, // One-time principal prepayment amount
+  prepaymentYear: 1, // Year in which prepayment occurs (1-holdingPeriod)
 };
 
 /**
@@ -27,6 +29,8 @@ export const EQUITY_DEFAULT_ASSUMPTIONS = {
   annualPropertyAppreciation: 3.0, // 3% per year
   exitCapRate: 5.0, // 5% for calculating future sale price
   futureInterestRate: 5.0, // 5% for mortgage renewals
+  prepaymentAmount: 0, // One-time principal prepayment amount
+  prepaymentYear: 1, // Year in which prepayment occurs (1-holdingPeriod)
 };
 
 /**
@@ -36,20 +40,38 @@ export const DEFAULT_ASSUMPTIONS = CASH_FLOW_DEFAULT_ASSUMPTIONS;
 
 /**
  * Scenario presets for quick assumption adjustments
+ * Applies to both Cash Flow and Equity analysis modes
  */
 export const SCENARIO_PRESETS = {
   conservative: {
-    annualRentIncrease: 1.5, // Lower rent growth
-    annualExpenseInflation: 3.0, // Higher expense inflation
-    vacancyRate: 7.0, // Higher vacancy
+    // Cash Flow assumptions
+    annualRentIncrease: 2.0,
+    annualExpenseInflation: 3.0,
+    vacancyRate: 8.0,
+    futureInterestRate: 6.0, // Higher rate assumption
+    // Equity assumptions
+    annualPropertyAppreciation: 2.0, // Lower appreciation
+    exitCapRate: 6.0, // Higher cap rate = lower exit price
   },
-  standard: {
-    ...DEFAULT_ASSUMPTIONS, // Same as default
+  balanced: {
+    // Cash Flow assumptions
+    annualRentIncrease: 3.0,
+    annualExpenseInflation: 2.5,
+    vacancyRate: 5.0,
+    futureInterestRate: 5.0,
+    // Equity assumptions
+    annualPropertyAppreciation: 3.0,
+    exitCapRate: 5.0,
   },
-  aggressive: {
-    annualRentIncrease: 3.0, // Higher rent growth
-    annualExpenseInflation: 2.0, // Lower expense inflation
-    vacancyRate: 3.0, // Lower vacancy
+  optimistic: {
+    // Cash Flow assumptions
+    annualRentIncrease: 4.0,
+    annualExpenseInflation: 2.0,
+    vacancyRate: 3.0,
+    futureInterestRate: 4.0, // Lower rate assumption
+    // Equity assumptions
+    annualPropertyAppreciation: 4.0, // Higher appreciation
+    exitCapRate: 4.0, // Lower cap rate = higher exit price
   },
 };
 
@@ -226,6 +248,12 @@ export function generateForecast(property, assumptions = DEFAULT_ASSUMPTIONS, ye
         mortgageBalance = 0;
       }
 
+      // Apply prepayment if this is the prepayment year
+      if (year === (assumptions.prepaymentYear || 1) && assumptions.prepaymentAmount > 0) {
+        const prepaymentAmount = Math.min(assumptions.prepaymentAmount || 0, mortgageBalance);
+        mortgageBalance = Math.max(0, mortgageBalance - prepaymentAmount);
+      }
+
       // Calculate equity
       const equity = currentPropertyValue - mortgageBalance;
 
@@ -265,6 +293,7 @@ export function generateForecast(property, assumptions = DEFAULT_ASSUMPTIONS, ye
     let annualDebtService = 0;
     let annualPrincipalPaid = 0;
     let annualInterestPaid = 0;
+    let prepaymentApplied = 0;
 
     const mortgageSummary = mortgageYearSummaries[year - 1];
 
@@ -286,7 +315,16 @@ export function generateForecast(property, assumptions = DEFAULT_ASSUMPTIONS, ye
       mortgageBalance = 0;
     }
 
-    // Calculate net cash flow (after debt service)
+    // Apply prepayment if this is the prepayment year
+    if (year === (assumptions.prepaymentYear || 1) && assumptions.prepaymentAmount > 0) {
+      prepaymentApplied = Math.min(assumptions.prepaymentAmount || 0, mortgageBalance);
+      mortgageBalance = Math.max(0, mortgageBalance - prepaymentApplied);
+      // Add prepayment to debt service (it's an additional cash outflow)
+      annualDebtService += prepaymentApplied;
+      annualPrincipalPaid += prepaymentApplied;
+    }
+
+    // Calculate net cash flow (after debt service, including prepayment)
     const netCashFlow = annualRentalIncome - annualOperatingExpenses - annualDebtService;
     cumulativeCashFlow += netCashFlow;
 

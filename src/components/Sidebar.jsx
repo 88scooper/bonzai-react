@@ -27,36 +27,29 @@ const navItems = [
     href: "/data",
     label: "Data",
     icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        {/* Database/Storage representation */}
-        <rect x="4" y="6" width="16" height="4" rx="1" strokeWidth={2}/>
-        <rect x="4" y="12" width="16" height="4" rx="1" strokeWidth={2}/>
-        <rect x="4" y="18" width="16" height="4" rx="1" strokeWidth={2}/>
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+        {/* Document shape */}
+        <rect x="5" y="4" width="14" height="16" rx="1"/>
         
-        {/* Data flow lines */}
-        <path d="M8 8L8 10" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M10 8L10 10" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M12 8L12 10" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M14 8L14 10" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M16 8L16 10" strokeWidth={2} strokeLinecap="round"/>
+        {/* Folded corner */}
+        <path d="M16 4v3h3"/>
         
-        <path d="M8 14L8 16" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M10 14L10 16" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M12 14L12 16" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M14 14L14 16" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M16 14L16 16" strokeWidth={2} strokeLinecap="round"/>
+        {/* Text lines */}
+        <line x1="7" y1="7" x2="11" y2="7"/>
+        <line x1="7" y1="9" x2="11" y2="9"/>
         
-        <path d="M8 20L8 22" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M10 20L10 22" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M12 20L12 22" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M14 20L14 22" strokeWidth={2} strokeLinecap="round"/>
-        <path d="M16 20L16 22" strokeWidth={2} strokeLinecap="round"/>
+        {/* Table grid */}
+        <rect x="7" y="12" width="10" height="6" rx="0.5"/>
+        <line x1="11" y1="12" x2="11" y2="18"/>
+        <line x1="15" y1="12" x2="15" y2="18"/>
+        <line x1="7" y1="14" x2="17" y2="14"/>
+        <line x1="7" y1="16" x2="17" y2="16"/>
       </svg>
     )
   },
   {
     href: "/analytics",
-    label: "Analytics",
+    label: "Analysis",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />

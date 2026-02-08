@@ -1293,17 +1293,18 @@ function PortfolioSummaryContent() {
             </div>
           )}
 
-          {/* Annual Summary Download Component */}
-          <div className="mb-6">
-            <AnnualSummaryDownload />
-          </div>
-          
           <IncomeWaterfallCard
             totalRevenue={totalRevenue}
             operatingExpenses={totalAnnualOperatingExpenses}
             debtService={totalAnnualDebtService}
             netCashFlow={annualCashFlow}
           />
+          
+          {/* Annual Summary Download Component */}
+          <div className="mt-6">
+            <AnnualSummaryDownload />
+          </div>
+
           <div className="mt-6 grid gap-6 grid-cols-1 md:grid-cols-3">
             <AnnualRentalIncomeCard
               properties={orderedProperties}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { formatCurrency, formatPercentage } from '@/utils/formatting';
 import { generateForecast, formatForecastForChart } from '@/lib/sensitivity-analysis';
 import { Check, TrendingUp, TrendingDown, Download, FileImage, FileText, FileSpreadsheet, ChevronDown, LineChart as LineChartIcon } from 'lucide-react';
@@ -9,7 +9,7 @@ import ChartSkeleton from '@/components/analytics/ChartSkeleton';
 import { exportChartAsPNG, exportChartAsPDF, exportChartAsCSV, generateFilename } from '@/utils/chartExport';
 import { useToast } from '@/context/ToastContext';
 
-const EquityForecast = ({ property, assumptions }) => {
+const EquityForecast = ({ property, assumptions, years = 10, baselineData = null, showBaseline = false }) => {
   // State for toggleable metrics
   const [visibleMetrics, setVisibleMetrics] = useState({
     totalEquity: true,
@@ -22,7 +22,6 @@ const EquityForecast = ({ property, assumptions }) => {
   const [forecastData, setForecastData] = useState([]);
   const [isExporting, setIsExporting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [years, setYears] = useState(10);
   const chartRef = useRef(null);
   const exportMenuRef = useRef(null);
   const { addToast } = useToast();
@@ -69,17 +68,33 @@ const EquityForecast = ({ property, assumptions }) => {
   const showRightAxis = visibleMetrics.mortgageBalance;
   const useDualAxis = showLeftAxis && showRightAxis;
 
-  // Custom tooltip for chart with tabular-nums
+  // Custom tooltip for chart with tabular-nums - shows both current and baseline
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const baselineEntry = baselineData && showBaseline 
+        ? baselineData.find(d => d.year === parseInt(label))
+        : null;
+      
       return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
           <p className="font-semibold text-gray-900 dark:text-white mb-2 tabular-nums">Year {label}</p>
-          {payload.map((entry, index) => (
-            <p key={index} className="text-sm tabular-nums" style={{ color: entry.color }}>
-              {entry.name}: {formatCurrency(entry.value)}
-            </p>
-          ))}
+          {payload.map((entry, index) => {
+            const baselineValue = baselineEntry?.[entry.dataKey];
+            const hasBaseline = baselineValue !== undefined && baselineValue !== null;
+            
+            return (
+              <div key={index} className="mb-1">
+                <p className="text-sm tabular-nums" style={{ color: entry.color }}>
+                  {entry.name}: {formatCurrency(entry.value)}
+                </p>
+                {hasBaseline && showBaseline && (
+                  <p className="text-xs tabular-nums text-gray-500 dark:text-gray-400 ml-2">
+                    Baseline: {formatCurrency(baselineValue)}
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       );
     }
@@ -232,65 +247,93 @@ const EquityForecast = ({ property, assumptions }) => {
     }
   };
 
-  // Format Y-axis tick
-  const formatYAxisTick = (value, isRightAxis = false) => {
-    if (isRightAxis && Math.abs(value) >= 1000000) {
+  // Close export menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showExportMenu]);
+
+  // Custom Y-axis tick formatter for Equity/Value axis
+  const formatEquityTick = (value) => {
+    if (value === 0) return '$0k';
+    const absValue = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    if (absValue >= 1000000) {
+      return `${sign}$${(absValue / 1000000).toFixed(1)}M`;
+    }
+    return `${sign}$${(absValue / 1000).toFixed(0)}k`;
+  };
+
+  // Custom Y-axis tick formatter for Mortgage Balance axis
+  const formatMortgageBalanceTick = (value) => {
+    if (Math.abs(value) >= 1000000) {
       return `$${(value / 1000000).toFixed(1)}M`;
     }
     return `$${(value / 1000).toFixed(0)}k`;
   };
 
-  // Metric cards configuration
-  const metricCards = [
-    {
-      key: 'totalEquity',
-      label: 'Total Equity',
-      color: 'blue',
-      year1Value: forecastData[0]?.totalEquity || 0,
-      year10Value: forecastData[forecastData.length - 1]?.totalEquity || 0,
-    },
-    {
-      key: 'propertyValue',
-      label: 'Property Value',
-      color: 'green',
-      year1Value: forecastData[0]?.propertyValue || 0,
-      year10Value: forecastData[forecastData.length - 1]?.propertyValue || 0,
-    },
-    {
-      key: 'mortgageBalance',
-      label: 'Mortgage Balance',
-      color: 'red',
-      year1Value: forecastData[0]?.mortgageBalance || 0,
-      year10Value: forecastData[forecastData.length - 1]?.mortgageBalance || 0,
-    },
-  ];
-
-  if (isCalculating) {
-    return <ChartSkeleton />;
-  }
-
   if (!property) {
     return (
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
-        <p className="text-gray-500 dark:text-gray-400 text-center">
-          Select a property to view equity forecast
+      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-neutral-900 p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <LineChartIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Equity Forecast
+          </h2>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
+          Select a property to view the equity forecast.
         </p>
       </div>
     );
   }
 
-  if (forecastData.length === 0) {
+  if (isCalculating || forecastData.length === 0) {
     return (
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
-        <p className="text-gray-500 dark:text-gray-400 text-center">
-          Unable to generate forecast. Please check property data.
+      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-neutral-900 p-6">
+        <div className="flex items-center gap-3 mb-1">
+          <LineChartIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Equity Forecast
+          </h2>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Years:
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="30"
+              value={years}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                if (value >= 1 && value <= 30) {
+                  // Note: years prop is read-only, parent component controls it
+                }
+              }}
+              className="w-16 px-2 py-1 text-sm border border-black/10 dark:border-white/10 rounded-md bg-white dark:bg-neutral-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              readOnly
+            />
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          Projection of equity growth based on property appreciation and mortgage paydown over the next {years} {years === 1 ? 'year' : 'years'}.
         </p>
+        <ChartSkeleton />
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-lg border border-black/10 dark:border-white/10 shadow-sm p-6" ref={chartRef}>
+    <div className="w-full" ref={chartRef}>
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex-1">
@@ -299,24 +342,6 @@ const EquityForecast = ({ property, assumptions }) => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Equity Forecast
             </h2>
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                Years:
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="30"
-                value={years}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (value >= 1 && value <= 30) {
-                    setYears(value);
-                  }
-                }}
-                className="w-16 px-2 py-1 text-sm border border-black/10 dark:border-white/10 rounded-md bg-white dark:bg-neutral-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Projection of equity growth based on property appreciation and mortgage paydown over the next {years} {years === 1 ? 'year' : 'years'}.
@@ -327,30 +352,35 @@ const EquityForecast = ({ property, assumptions }) => {
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}
             disabled={isExporting}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
-            {isExporting ? 'Exporting...' : 'Export'}
+            <span>Export</span>
+            <ChevronDown className="w-3 h-3" />
           </button>
+
           {showExportMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+            <div className="absolute right-0 mt-2 w-48 rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-gray-800 shadow-lg z-50">
               <button
                 onClick={() => handleExport('png')}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                disabled={isExporting}
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 <FileImage className="w-4 h-4" />
                 Export as PNG
               </button>
               <button
                 onClick={() => handleExport('pdf')}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                disabled={isExporting}
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 <FileText className="w-4 h-4" />
                 Export as PDF
               </button>
               <button
                 onClick={() => handleExport('csv')}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                disabled={isExporting}
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 rounded-b-lg"
               >
                 <FileSpreadsheet className="w-4 h-4" />
                 Export as CSV
@@ -360,56 +390,49 @@ const EquityForecast = ({ property, assumptions }) => {
         </div>
       </div>
 
-      {/* Metric Toggle Cards */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        {metricCards.map((card) => {
-          const isActive = visibleMetrics[card.key];
-          const colorClasses = {
-            green: {
-              bg: isActive ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-gray-800/50',
-              border: isActive ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700',
-              text: 'text-green-900 dark:text-green-300',
-              accent: 'text-green-600 dark:text-green-400',
-            },
-            red: {
-              bg: isActive ? 'bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-gray-800/50',
-              border: isActive ? 'border-red-300 dark:border-red-700' : 'border-gray-200 dark:border-gray-700',
-              text: 'text-red-900 dark:text-red-300',
-              accent: 'text-red-600 dark:text-red-400',
-            },
-            blue: {
-              bg: isActive ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-gray-50 dark:bg-gray-800/50',
-              border: isActive ? 'border-blue-300 dark:border-blue-700' : 'border-gray-200 dark:border-gray-700',
-              text: 'text-blue-900 dark:text-blue-300',
-              accent: 'text-blue-600 dark:text-blue-400',
-            },
-          };
-          const colors = colorClasses[card.color];
-
-          return (
-            <button
-              key={card.key}
-              onClick={() => toggleMetric(card.key)}
-              className={`rounded-md border p-2.5 text-left transition-all hover:bg-opacity-80 ${
-                colors.bg
-              } ${colors.border} ${isActive ? 'ring-1 ring-offset-1' : ''}`}
-              style={isActive ? { ringColor: colors.accent } : {}}
-            >
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-medium ${colors.accent}`}>{card.label}</span>
-                {isActive && <Check className={`w-3 h-3 ${colors.accent}`} />}
-              </div>
-            </button>
-          );
-        })}
+      {/* Pill-shaped Toggle Tabs */}
+      <div className="flex items-center gap-2 mb-6">
+        <button
+          onClick={() => toggleMetric('totalEquity')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+            visibleMetrics.totalEquity
+              ? 'bg-[#205A3E] text-white border-[#205A3E]'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          {visibleMetrics.totalEquity && <Check className="w-4 h-4" />}
+          <span>Total Equity</span>
+        </button>
+        <button
+          onClick={() => toggleMetric('propertyValue')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+            visibleMetrics.propertyValue
+              ? 'bg-[#205A3E] text-white border-[#205A3E]'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          {visibleMetrics.propertyValue && <Check className="w-4 h-4" />}
+          <span>Property Value</span>
+        </button>
+        <button
+          onClick={() => toggleMetric('mortgageBalance')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+            visibleMetrics.mortgageBalance
+              ? 'bg-[#205A3E] text-white border-[#205A3E]'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          {visibleMetrics.mortgageBalance && <Check className="w-4 h-4" />}
+          <span>Mortgage Balance</span>
+        </button>
       </div>
 
       {/* Chart */}
-      <div className="w-full h-96 mb-6">
+      <div className="h-96">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={forecastData}
-            margin={{ top: 5, right: showRightAxis ? 30 : 20, left: 20, bottom: 5 }}
+            margin={{ top: 20, right: 30, left: 80, bottom: 20 }}
           >
             {/* Grid - only horizontal lines with subtle color */}
             <CartesianGrid 
@@ -419,33 +442,64 @@ const EquityForecast = ({ property, assumptions }) => {
               vertical={false}
               className="dark:stroke-gray-800"
             />
-            <XAxis
-              dataKey="year"
-              className="text-gray-600 dark:text-gray-400 tabular-nums"
+            <XAxis 
+              dataKey="year" 
               label={{ value: 'Year', position: 'insideBottom', offset: -5 }}
-              tick={{ className: 'tabular-nums' }}
+              className="text-gray-600 dark:text-gray-400 tabular-nums"
+              tick={{ fontSize: 10, fill: '#94a3b8', className: 'tabular-nums' }}
             />
             {showLeftAxis && (
               <YAxis
                 yAxisId="left"
-                tickFormatter={(value) => formatYAxisTick(value, false)}
-                label={{ value: 'Equity/Value ($)', angle: -90, position: 'insideLeft' }}
+                width={80}
+                tickFormatter={formatEquityTick}
+                label={{ 
+                  value: 'Equity/Value ($)', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  offset: 0,
+                  style: { textAnchor: 'middle' }
+                }}
                 className="text-gray-600 dark:text-gray-400 tabular-nums"
-                tick={{ className: 'tabular-nums' }}
+                tick={{ fontSize: 10, fill: '#94a3b8', className: 'tabular-nums' }}
               />
             )}
             {showRightAxis && (
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tickFormatter={(value) => formatYAxisTick(value, true)}
-                label={{ value: 'Mortgage Balance ($)', angle: 90, position: 'insideRight' }}
+                width={80}
+                tickFormatter={formatMortgageBalanceTick}
+                label={{ 
+                  value: 'Mortgage Balance ($)', 
+                  angle: -90, 
+                  position: 'insideRight',
+                  offset: 20,
+                  style: { textAnchor: 'middle' }
+                }}
                 className="text-gray-600 dark:text-gray-400 tabular-nums"
-                tick={{ className: 'tabular-nums' }}
+                tick={{ fontSize: 10, fill: '#94a3b8', className: 'tabular-nums' }}
               />
             )}
             <Tooltip content={<CustomTooltip />} />
             <Legend content={renderCustomLegend} wrapperStyle={{ paddingTop: '20px' }} />
+            {/* Baseline comparison line */}
+            {showBaseline && baselineData && visibleMetrics.totalEquity && (
+              <Line
+                type="monotone"
+                dataKey="totalEquity"
+                data={baselineData}
+                name="Baseline"
+                stroke="#94A3B8"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+                activeDot={false}
+                opacity={0.4}
+                yAxisId="left"
+                isAnimationActive={false}
+              />
+            )}
             {visibleMetrics.totalEquity && (
               <Line
                 type="monotone"
@@ -530,39 +584,9 @@ const EquityForecast = ({ property, assumptions }) => {
         </ResponsiveContainer>
       </div>
 
-      {/* Key Metrics Summary */}
-      <div className="mt-6 pt-6 border-t border-black/10 dark:border-white/10">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-              Year 1 Equity
-            </p>
-            <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">
-              {formatCurrency(forecastData[0]?.totalEquity || 0)}
-            </p>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-              Year {years} Equity
-            </p>
-            <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">
-              {formatCurrency(forecastData[forecastData.length - 1]?.totalEquity || 0)}
-            </p>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-              Equity Growth
-            </p>
-            <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">
-              {formatCurrency((forecastData[forecastData.length - 1]?.totalEquity || 0) - (forecastData[0]?.totalEquity || 0))}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Contextual Insights */}
       {insights.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-black/10 dark:border-white/10">
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
             Key Insights
           </h3>
