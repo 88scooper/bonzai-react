@@ -31,6 +31,7 @@ import { useProperties, usePortfolioMetrics, usePropertyContext } from "@/contex
 import { formatCurrency, formatPercentage } from "@/utils/formatting";
 import { orderProperties } from "@/utils/propertyOrder";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import AnnualSummaryDownload from "@/components/reports/AnnualSummaryDownload";
 
 
 const highlightedMetricIds = ['portfolioValue', 'equity', 'mortgageDebt'];
@@ -1292,6 +1293,11 @@ function PortfolioSummaryContent() {
             </div>
           )}
 
+          {/* Annual Summary Download Component */}
+          <div className="mb-6">
+            <AnnualSummaryDownload />
+          </div>
+          
           <IncomeWaterfallCard
             totalRevenue={totalRevenue}
             operatingExpenses={totalAnnualOperatingExpenses}
@@ -1754,6 +1760,27 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
 
   return (
     <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-[#0f172a]">
+      <div
+        className={`mb-6 flex items-start justify-between rounded-md border px-4 py-3 text-lg ${
+          netPositive
+            ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
+            : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border dark:border-white/5 dark:bg-[#0f172a] dark:border-l-4 dark:border-l-red-500/50'
+        }`}
+      >
+        <div>
+          <p className="text-[1.375rem] font-semibold">Annual Net Cash Flow (Forecasted)</p>
+          <p className="text-base opacity-80">After operating expenses and debt service</p>
+        </div>
+        <div className="text-right">
+          <p className={`text-[1.375rem] font-bold ${!netPositive ? 'dark:text-red-400' : ''}`}>{formatCurrency(netCashFlow)}</p>
+          {expenseShare !== null && Number.isFinite(expenseShare) && (
+            <p className="text-base font-medium opacity-80">
+              {percentFormatter.format(expenseShare)} of revenue consumed
+            </p>
+          )}
+        </div>
+      </div>
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-slate-500">
@@ -1771,27 +1798,6 @@ function IncomeWaterfallCard({ totalRevenue, operatingExpenses, debtService, net
           }`}
         >
           {marginLabel === 'N/A' ? 'No revenue' : `${marginLabel} margin`}
-        </div>
-      </div>
-
-      <div
-        className={`mt-6 flex items-start justify-between rounded-md border px-4 py-3 text-lg ${
-          netPositive
-            ? 'border-[#C7D9CB] bg-[#EFF4F0] text-[#205A3E] dark:border-[#244632] dark:bg-[#15251D] dark:text-[#7AC0A1]'
-            : 'border-[#E1B8B8] bg-[#FDF3F3] text-[#9F3838] dark:border dark:border-white/5 dark:bg-[#0f172a] dark:border-l-4 dark:border-l-red-500/50'
-        }`}
-      >
-        <div>
-          <p className="text-[1.375rem] font-semibold">Annual Net Cash Flow (Forecasted)</p>
-          <p className="text-base opacity-80">After operating expenses and debt service</p>
-        </div>
-        <div className="text-right">
-          <p className={`text-[1.375rem] font-bold ${!netPositive ? 'dark:text-red-400' : ''}`}>{formatCurrency(netCashFlow)}</p>
-          {expenseShare !== null && Number.isFinite(expenseShare) && (
-            <p className="text-base font-medium opacity-80">
-              {percentFormatter.format(expenseShare)} of revenue consumed
-            </p>
-          )}
         </div>
       </div>
 
