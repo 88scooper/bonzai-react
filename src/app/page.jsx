@@ -142,19 +142,19 @@ function HeroSection({ onGetStarted, onDemoPortfolio }) {
   // Array of images to rotate through
   const images = [
     {
-      src: "/Slideshow 1.png",
+      src: "/Slideshow1.png",
       alt: "Bonzai - Real Estate Investment Management"
     },
     {
-      src: "/Slideshow 2.png",
+      src: "/Slideshow2.png",
       alt: "Bonzai - Real Estate Investment Management"
     },
     {
-      src: "/Slideshow 3.png",
+      src: "/Slideshow3.png",
       alt: "Bonzai - Real Estate Investment Management"
     },
     {
-      src: "/Slideshow 4.png",
+      src: "/Slideshow4.png",
       alt: "Bonzai - Real Estate Investment Management"
     }
   ];
@@ -213,32 +213,31 @@ function FeaturesSection() {
       <div className="space-y-16 md:space-y-20">
         {/* Seamless Portfolio Transparency & Management */}
         <div className="relative">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Everything in one place. No more spreadsheet guessing games</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Stop guessing, start growing. Move your portfolio out of spreadsheets and into a dedicated command center.</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard title="Portfolio transparency & tracking" description="Get a complete view of your portfolio with cash flow, occupancy rates, cap rates, and key performance indicators. Compare actual performance against forecasts and track revenue, tax deductible expenses, and cash flow growth trends." />
-            <FeatureCard title="Real-Time Equity Visibility" description="Most landlords only guess their net worth once a year. We project your property’s equity growth by modeling appreciation and principal paydown so you know exactly when it’s time to refinance or sell." />
-            <FeatureCard title="Calendar & tasks" description="Track rent collection dates, maintenance schedules, and important tasks across all your properties." />
+            <FeatureCard title="Automated Cash Flow Tracking" description="See exactly what's hitting your bank account without the manual entry." />
+            <FeatureCard title="Equity at a Glance" description="Stop calculating. Know your real-time net worth across every property." />
+            <FeatureCard title="Tax-Ready Records" description="Every expense captured and categorized. Hand your accountant a clean report, not a shoebox of receipts." />
           </div>
         </div>
 
         {/* Powerful Analysis, Insights, and Forecasting */}
         <div className="relative">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Data-driven decisions without the math headache</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Hard Data. No Math Headaches.</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard title="Portfolio insights" description="Get actionable intelligence on top-performing properties, diversification opportunities, and risk assessment." />
-            <FeatureCard title="Wealth Forecasting" description="See the 10-year impact of a rent hike or a new mortgage today. Adjust your assumptions for appreciation and vacancy to see how your portfolio will actually perform a decade from now." />
-            <FeatureCard title="Stress-Test Your Investments" description="What happens to your cash flow if interest rates rise or the market dips? Model 'what-if' scenarios instantly to see the impact on your IRR and total profit before you make your next move." />
-            <FeatureCard title="Scenario planning" description="No more repetitve data entry - save and compare multiple investment scenarios to model optimistic, realistic, and conservative market conditions side-by-side." />
+            <FeatureCard title="Stress-Test Your Portfolio" description="Run 'what-if' scenarios for interest rate hikes or vacancies." />
+            <FeatureCard title="Wealth Projection" description="Forecast your 10-year growth based on real market data." />
+            <FeatureCard title="Buy/Sell Clarity" description="Know instantly if a new property fits your criteria before you make an offer." />
           </div>
         </div>
 
         {/* Consolidation of Property Details & Data */}
         <div className="relative">
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">Your database for every property detail</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#205A3E] mb-8">The Source of Truth for Your Portfolio</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard title="Property records & secure cloud sync" description="Centralized property management with income tracking, expense records, document storage, and historical data, all securely stored in the cloud and automatically synced across all your devices." />
-            <FeatureCard title="Mortgage management" description="Track all mortgages, view detailed amortization schedules, calculate refinancing opportunities, and analyze break penalties." />
-            <FeatureCard title="Advanced calculators" description="Mortgage payment calculators, refinance analysis, break penalty calculations, and comprehensive payment schedules." />
+            <FeatureCard title="Zero Search Time" description="Every document, mortgage detail, and HELOC balance in one searchable HQ." />
+            <FeatureCard title="Calendar Sync" description="Automatic alerts for lease renewals, insurance dates, and tax deadlines." />
+            <FeatureCard title="Financing Tracker" description="Stay ahead of mortgage renewals and refinancing opportunities." />
           </div>
         </div>
       </div>
